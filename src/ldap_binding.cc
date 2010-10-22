@@ -115,9 +115,6 @@ protected:
       ev_io_start(EV_DEFAULT_ &read_watcher_);
     }
     
-    free(attrs[0]);
-    free(attrs);
-
     return msgid;
   }
 
@@ -237,7 +234,7 @@ protected:
   {
     HandleScope scope;
 
-    Connection *c = ObjectWrap::Unwrap<Connection>(args.This());
+    // Connection *c = ObjectWrap::Unwrap<Connection>(args.This());
 
     return Undefined();
   }
