@@ -18,7 +18,9 @@ Dependencies
 
 Tested with Node v0.2.3.
 
-To build, ensure the OpenLDAP client libraries are installed.
+To build, ensure the OpenLDAP client libraries are installed, and
+
+   node-waf configure build
 
 Search Example
 --------------
@@ -66,8 +68,9 @@ Authenticate with Search
 TODO:
 -----
 
-* Close() currenlty does nothing. 
+* Close() currenlty does nothing.
+* Search() needs to accept a list of attributes to return.
 * Need error callbacks on all methods.
 * Need better server-disconnect handling (currently all inflight
-  queries get lost)
+  queries get lost).
 * proper packaging required, with package.json and all that goodness.
