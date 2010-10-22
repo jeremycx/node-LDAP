@@ -74,3 +74,4 @@ TODO:
 * Need better server-disconnect handling (currently all inflight
   queries get lost).
 * proper packaging required, with package.json and all that goodness.
+* LDAP updates are not planned (at this time).
