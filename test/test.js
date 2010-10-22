@@ -1,4 +1,4 @@
-var LDAPConnection = require("./LDAPConnection").Connection;
+var LDAPConnection = require("../lib/LDAPConnection").Connection;
 var fs = require('fs');
 
 var l = new LDAPConnection();
