@@ -46,8 +46,8 @@ Authenticate Example
 
         lconn.Authenticate("cn=alice,o=company", "seCretStuff", function(res) {
             // authenticated. Try a search.
-           lconn.Search("o=company", "uid=bob", function(res) {
-           console.log("Bob is "+res[0].cn[0]);
+           lconn.Search("o=company", "(uid=bob)", function(res) {
+           console.log("Bob has a cn of "+res[0].cn[0]);
         });                                        
 
 Authenticate with Search
@@ -68,10 +68,11 @@ Authenticate with Search
 TODO:
 -----
 
-* Close() currenlty does nothing.
+* Close() currently does nothing.
 * Search() needs to accept a list of attributes to return.
 * Need error callbacks on all methods.
 * Need better server-disconnect handling (currently all inflight
   queries get lost).
+* timeout handling
 * proper packaging required, with package.json and all that goodness.
 * LDAP updates are not planned (at this time).
