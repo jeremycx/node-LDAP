@@ -1,4 +1,4 @@
-var ldapbinding = require("./build/default/ldap");
+var ldapbinding = require("./build/default/ldap_binding");
 
 exports.Connection = function() {
     var callbacks = {};
