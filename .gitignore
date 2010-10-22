@@ -1,0 +1,4 @@
+.lock-wscript
+*.core
+build
+ldap.node
