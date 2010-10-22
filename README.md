@@ -5,6 +5,14 @@ OpenLDAP client bindings for [Node.js]. A good start, but not, as of
 this writing, production quality. The API will change slightly over
 the next week or two.
 
+Contributing
+------------
+
+This module works, but is not yet ready for production. It is being
+made available at this early stage to funnel contributors who may
+otherwise begin their own module in parallel. Any and all patches are
+certainly welcome.
+
 Dependencies
 ------------
 
@@ -58,7 +66,8 @@ Authenticate with Search
 TODO:
 -----
 
-* Close() currenlty does noting. 
+* Close() currenlty does nothing. 
 * Need error callbacks on all methods.
 * Need better server-disconnect handling (currently all inflight
   queries get lost)
+* proper packaging required, with package.json and all that goodness.
