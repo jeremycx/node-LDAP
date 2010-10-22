@@ -31,7 +31,7 @@ Search Example
         // Open a connection. Returns immediately (connects when required)
         lconn.Open("ldap://ldap1.example.com,ldap://ldap2.example.com");
 
-        lconn.Search("o=company", "(uid=alice)", function(res) {
+        lconn.Search("o=company", "(uid=alice)", "*", function(res) {
             console.log(res[0].uid[0]);
         }); 
 
@@ -46,7 +46,7 @@ Authenticate Example
 
         lconn.Authenticate("cn=alice,o=company", "seCretStuff", function(res) {
             // authenticated. Try a search.
-           lconn.Search("o=company", "(uid=bob)", function(res) {
+           lconn.Search("o=company", "(uid=bob)", "*", function(res) {
            console.log("Bob has a cn of "+res[0].cn[0]);
         });                                        
 
@@ -69,10 +69,10 @@ TODO:
 -----
 
 * Close() currently does nothing.
-* Search() needs to accept a list of attributes to return.
 * Need error callbacks on all methods.
 * Need better server-disconnect handling (currently all inflight
   queries get lost).
 * timeout handling
 * proper packaging required, with package.json and all that goodness.
 * LDAP updates are not planned (at this time).
+* rename module to something that makes more semantic sense

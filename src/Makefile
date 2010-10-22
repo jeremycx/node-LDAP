@@ -1,3 +1,2 @@
 all:
-	cd ..
-	node-waf build
+	cd .. && node-waf build

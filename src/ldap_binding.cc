@@ -72,7 +72,6 @@ protected:
   {
     if (nuri == NULL) {
       // reconnect
-      fprintf(stderr, "Reconn %s", uri);
       if (uri == NULL) {
         return -1;
       }
@@ -91,19 +90,15 @@ protected:
     return res;
   }
 
-  int Search(const char * base, const char * filter) 
+  int Search(const char * base, const char * filter, char ** attrs) 
   {
     int fd;
     int msgid;
-    char * attrs[2];
-
+ 
     if (ldap == NULL) {
       return LDAP_SERVER_DOWN;
     }
-    
-    attrs[0] = "*";
-    attrs[1] = NULL;
-
+        
     if ((msgid = ldap_search(ldap, base, LDAP_SCOPE_SUBTREE, filter, attrs, 0)) < 0) {
       Open(NULL);
       msgid = ldap_search(ldap, base, LDAP_SCOPE_SUBTREE, filter, attrs, 0);
@@ -192,9 +187,9 @@ protected:
     for (entry = ldap_first_entry(ldap, res), j = 0 ; entry ;
          entry = ldap_next_entry(ldap, entry), j++) {
       js_result = Object::New();
+      dn = ldap_get_dn(ldap, entry);
       for (attrname = ldap_first_attribute(ldap, entry, &berptr) ;
            attrname ; attrname = ldap_next_attribute(ldap, entry, berptr)) {
-        dn = ldap_get_dn(ldap, entry);
         vals = ldap_get_values(ldap, entry, attrname);
         for (int i = 0 ; vals[i] ; i++) {
           if (i == 0) {
@@ -234,10 +229,9 @@ protected:
   {
     HandleScope scope;
 
-    // Connection *c = ObjectWrap::Unwrap<Connection>(args.This());
-
     return Undefined();
   }
+
 
   static Handle<Value> Search(const Arguments &args) 
   {
@@ -247,18 +241,32 @@ protected:
     int sres;
 
     // Validate args.
-    if (args.Length() < 2)      return THROW("Required arguments: base, filter");
-    if (!args[0]->IsString())   return THROW("base should be a string");
+    if (args.Length() < 3)       return THROW("Required arguments: base, filter, attrs");
+    if (!args[0]->IsString())    return THROW("base should be a string");
     if (!args[1]->IsString())    return THROW("filter should be a string");
+    if (!args[2]->IsString() &&
+        !args[2]->IsArray())     return THROW("attrs should be string or array");
 
   // Input params.
     String::Utf8Value base(args[0]);
     String::Utf8Value filter(args[1]);
 
-    if ((sres = c->Search(*base, *filter)) < 0) {
-      fprintf(stderr, "DEBUG: search error\n");
+    String::Utf8Value tlist(args[2]->ToString());
+
+    char * buf = strdup(*tlist);
+    char **ap, *attrs[255];
+
+    for (ap = attrs; (*ap = strsep(&buf, " \t,")) != NULL;)
+      if (**ap != '\0')
+        if (++ap >= &attrs[255])
+          break;
+
+    if ((sres = c->Search(*base, *filter, attrs)) < 0) {
+      free(buf);
       return THROW(ldap_err2string(sres));
     }
+
+    free(buf);
 
     return Local<Value>::New(Integer::New(sres));
   }
