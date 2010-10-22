@@ -5,12 +5,22 @@ OpenLDAP client bindings for [Node.js]. A good start, but not, as of
 this writing, production quality. The API will change slightly over
 the next week or two.
 
+Contributing
+------------
+
+This module works, but is not yet ready for production. It is being
+made available at this early stage to funnel contributors who may
+otherwise begin their own module in parallel. Any and all patches are
+certainly welcome.
+
 Dependencies
 ------------
 
 Tested with Node v0.2.3.
 
-To build, ensure the OpenLDAP client libraries are installed.
+To build, ensure the OpenLDAP client libraries are installed, and
+
+   node-waf configure build
 
 Search Example
 --------------
@@ -36,8 +46,8 @@ Authenticate Example
 
         lconn.Authenticate("cn=alice,o=company", "seCretStuff", function(res) {
             // authenticated. Try a search.
-           lconn.Search("o=company", "uid=bob", function(res) {
-           console.log("Bob is "+res[0].cn[0]);
+           lconn.Search("o=company", "(uid=bob)", function(res) {
+           console.log("Bob has a cn of "+res[0].cn[0]);
         });                                        
 
 Authenticate with Search
@@ -58,7 +68,11 @@ Authenticate with Search
 TODO:
 -----
 
-* Close() currenlty does noting. 
+* Close() currently does nothing.
+* Search() needs to accept a list of attributes to return.
 * Need error callbacks on all methods.
 * Need better server-disconnect handling (currently all inflight
-  queries get lost)
+  queries get lost).
+* timeout handling
+* proper packaging required, with package.json and all that goodness.
+* LDAP updates are not planned (at this time).
