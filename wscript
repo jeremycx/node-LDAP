@@ -13,12 +13,17 @@ def configure(conf):
   conf.check_tool('compiler_cxx')
   conf.check_tool('node_addon')
 
+  conf.env.append_unique('CPPFLAGS', ["-I/usr/local/include"])
+  conf.env.append_unique('CXXFLAGS', ["-Wall"])
+
+  conf.env.append_unique('LINKFLAGS', ["-:/usr/local/lib"])
+
 
 def build(bld):
   obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
   obj.cxxflags = ['-DLDAP_DEPRECATED']
-  obj.target = 'ldap'
-  obj.source = 'ldap_binding.cc'
+  obj.target = 'ldap_binding'
+  obj.source = './src/ldap_binding.cc'
   obj.lib = ['ldap']
 
 #def shutdown():

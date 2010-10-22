@@ -95,13 +95,14 @@ protected:
   {
     int fd;
     int msgid;
-    char ** attrs;
+    char * attrs[2];
 
     if (ldap == NULL) {
       return LDAP_SERVER_DOWN;
     }
-
-    attrs = toAttrList("uid,uidNumber,gidNumber");
+    
+    attrs[0] = "*";
+    attrs[1] = NULL;
 
     if ((msgid = ldap_search(ldap, base, LDAP_SCOPE_SUBTREE, filter, attrs, 0)) < 0) {
       Open(NULL);
@@ -215,28 +216,6 @@ protected:
     return js_res_arr;
   }
   
-  static char ** toArgList(char * clist) {
-    char ** args;
-    char * buf;
-    char * cp;
-    int i = 1;
-    
-    buf = strdup(clist);
-
-    args = (char**)calloc(1024, sizeof(char *));
-
-    args[0] = buf;
-
-    for (cp = buf ; *cp ; cp++) {
-      if (*cp == ',') {
-        *cp = '\0';
-        args[i++] = cp+1;
-      }
-    }
-
-    return args;
-  }
-
   static Handle<Value> Open(const Arguments &args) 
   {
     HandleScope scope;
