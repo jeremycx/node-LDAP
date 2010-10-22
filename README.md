@@ -75,4 +75,3 @@ TODO:
 * timeout handling
 * proper packaging required, with package.json and all that goodness.
 * LDAP updates are not planned (at this time).
-* rename module to something that makes more semantic sense
