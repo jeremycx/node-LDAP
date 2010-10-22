@@ -23,8 +23,8 @@ exports.Connection = function() {
         console.log("Unknown response detected");
     });
 
-    this.Search = function(base, filter, callback) {
-        var msgid = binding.search(base, filter);
+    this.Search = function(base, filter, attrs, callback) {
+        var msgid = binding.search(base, filter, attrs);
         callbacks[msgid] = callback;
     }
 
@@ -37,8 +37,12 @@ exports.Connection = function() {
         callbacks[msgid] = callback;
     }
 
+    this.Close = function(a) {
+        binding.close(a);
+    }
+
     this.SearchAuthenticate = function(base, filter, password, CB) {
-        this.Search(base, filter, function(res) {
+        this.Search(base, filter, "", function(res) {
             // TODO: see if there's only one result, and exit if not
             if (res.length != 1) {
                 CB(0);
