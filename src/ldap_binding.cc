@@ -31,9 +31,8 @@ class Connection : EventEmitter {
   }
 
   static void
-  Initialize(Handle<Object> target) 
+  Initialize(v8::Handle<v8::Object> target) 
   {
-
     HandleScope scope;
 
     Local<FunctionTemplate> t = FunctionTemplate::New(New);
@@ -56,7 +55,7 @@ class Connection : EventEmitter {
 
 protected:
   LDAP * ldap;
-  const char * uri;
+  char * uri;
   ev_io read_watcher_;
   ev_io write_watcher_;
 
@@ -69,10 +68,13 @@ protected:
   }
 
   int Close(void) {
+    HandleScope scope;
     int res;
 
     res = ldap_unbind(ldap);
     ldap = NULL;
+    free(uri);
+    uri = NULL;
 
     Unref();
 
@@ -82,6 +84,12 @@ protected:
 
   int Open(const char * nuri) 
   {
+    HandleScope scope;
+    LDAPURLDesc *ludpp;
+    int fd;
+
+    // TODO: clean this mess up - work out the reconnect logic.
+
     if (nuri == NULL) {
       // reconnect
       if (uri == NULL) {
@@ -93,18 +101,31 @@ protected:
       uri = strdup(nuri);
     }
 
-    int res = ldap_initialize(&ldap, uri);
+    ldap_url_parse(uri, &ludpp); // TODO: errcheck
+
+    char * host = ludpp->lud_host;
+    int    port = ludpp->lud_port;
+
+    ldap = ldap_open(host, port); // TODO: errcheck
+
+    // TODO: set default base if present in uri.
+
+    ldap_free_urldesc(ludpp);
 
     ldap_set_option(ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
+    ldap_get_option(ldap, LDAP_OPT_DESC, &fd);
+    ev_io_set(&read_watcher_, fd, EV_READ);
+    ev_io_start(EV_DEFAULT_ &read_watcher_);
+    // TODO: see if re-adding the fd on each search has any ill 
+    //       effects. LDAP libs may switch fds at any time, and
+    //       we need to handle this.
 
-    Ref();
-
-    return res;
+    return 0;
   }
 
   int Search(const char * base, const char * filter, char ** attrs) 
   {
-    int fd;
+    HandleScope scope;
     int msgid;
  
     if (ldap == NULL) {
@@ -116,17 +137,12 @@ protected:
       msgid = ldap_search(ldap, base, LDAP_SCOPE_SUBTREE, filter, attrs, 0);
     }
 
-    if (msgid > -1) {
-      ldap_get_option(ldap, LDAP_OPT_DESC, &fd);
-      ev_io_set(&read_watcher_, fd, EV_READ);
-      ev_io_start(EV_DEFAULT_ &read_watcher_);
-    }
-    
     return msgid;
   }
 
   int Authenticate(const char *username, const char *password) 
   {
+    HandleScope scope;
     int msgid;
     int fd;
 
@@ -145,12 +161,12 @@ protected:
 
   int Event(int whatisthis) 
   {
+    HandleScope scope;
     LDAPMessage *ldap_res;  
-    Local<Array> js_result;
     Handle<Value> args[2];
     int msgid;
     int res;
-    
+
     if (ldap == NULL) {
       // disconnect event, or something arriving after
       // close(). Either way, ignore it.
@@ -167,17 +183,16 @@ protected:
     case  LDAP_RES_BIND:
       args[0] = Integer::New(msgid);
       if (ldap_result2error(ldap, ldap_res, 0) != LDAP_SUCCESS) {
-        args[1] = Integer::New(0);
+        args[1] = Local<Value>::New(Integer::New(0));
       } else {
-        args[1] = Integer::New(1);
+        args[1] = Local<Value>::New(Integer::New(1));
       }
       Emit(bind_symbol, 2, args);
       break;
 
     case  LDAP_RES_SEARCH_RESULT:
-      js_result = parseReply(ldap_res);
-      args[0] = Integer::New(msgid);
-      args[1] = js_result;
+      args[0] = Local<Value>::New(Integer::New(msgid));
+      args[1] = parseReply(ldap_res);
       Emit(search_symbol, 2, args);
       break;
 
@@ -186,44 +201,53 @@ protected:
       break;
     }
 
+    fprintf(stderr, "Freeing msg\n");
+
     ldap_msgfree(ldap_res);
     return 0;
   }
 
-  Local<Array> parseReply(LDAPMessage * res) 
+  Local<Value> parseReply(LDAPMessage * res) 
   {
+    HandleScope scope;
     LDAPMessage * entry = NULL;
     BerElement * berptr = NULL;
     char * attrname     = NULL;
     char ** vals;
-    Local<Array>  js_result_list = Array::New();
+    Local<Array>  js_result_list;
     Local<Object> js_result;
     Local<Array>  js_attr_vals;
     int j;
     char * dn;
 
+    int entry_count = ldap_count_entries(ldap, res);
+    js_result_list = Array::New(entry_count);
+
     for (entry = ldap_first_entry(ldap, res), j = 0 ; entry ;
          entry = ldap_next_entry(ldap, entry), j++) {
       js_result = Object::New();
+      js_result_list->Set(Integer::New(j), js_result);
+      
       dn = ldap_get_dn(ldap, entry);
+
       for (attrname = ldap_first_attribute(ldap, entry, &berptr) ;
            attrname ; attrname = ldap_next_attribute(ldap, entry, berptr)) {
         vals = ldap_get_values(ldap, entry, attrname);
+        int num_vals = ldap_count_values(vals);
+        js_attr_vals = Array::New(num_vals);
+        js_result->Set(V8STR(attrname), js_attr_vals);
         for (int i = 0 ; vals[i] ; i++) {
-          if (i == 0) {
-            js_attr_vals = Array::New();
-          }
           js_attr_vals->Set(Integer::New(i), String::New(vals[i]));
         }
-        js_result->Set(V8STR(attrname), js_attr_vals);
         ldap_value_free(vals);
+        ldap_memfree(attrname);
       } // attr list added. Next attr.
       js_result->Set(V8STR("dn"), V8STR(dn));
+      ber_free(berptr,0);
       ldap_memfree(dn);
-      js_result_list->Set(Integer::New(j), js_result);
     } // end entries
 
-    return js_result_list;
+    return scope.Close(js_result_list);
   }
   
   static Handle<Value> Open(const Arguments &args) 
@@ -239,6 +263,8 @@ protected:
     }
 
     c->Emit(init_symbol, 0, NULL);
+
+    c->Ref();
 
     return Undefined(); 
   }
@@ -289,7 +315,7 @@ protected:
 
     free(buf);
 
-    return Local<Value>::New(Integer::New(sres));
+    return scope.Close(Local<Value>::New(Integer::New(sres)));
   }
 
   static Handle<Value> Authenticate(const Arguments &args) 
@@ -300,7 +326,7 @@ protected:
     int sres;
 
     // Validate args.
-    if (args.Length() < 2)      return THROW("Required arguments: base, filter");
+    if (args.Length() < 2)      return THROW("Required arguments: username, password");
     if (!args[0]->IsString())   return THROW("username should be a string");
     if (!args[1]->IsString())   return THROW("password should be a string");
 
@@ -312,12 +338,14 @@ protected:
       return THROW(ldap_err2string(sres));
     }
 
-    return Local<Value>::New(Integer::New(sres));
+    return scope.Close(Local<Value>::New(Integer::New(sres)));
   }
 
   static void
   io_event (EV_P_ ev_io *w, int revents)
   {
+    HandleScope scope;
+
     Connection *c = static_cast<Connection*>(w->data);
 
     c->Event(revents);
