@@ -74,6 +74,8 @@ protected:
     res = ldap_unbind(ldap);
     ldap = NULL;
 
+    Unref();
+
     return res;
   }
 
@@ -141,7 +143,7 @@ protected:
     return msgid;
   }
 
-  int Event(int whatsthis) 
+  int Event(int whatisthis) 
   {
     LDAPMessage *ldap_res;  
     Local<Array> js_result;
@@ -176,7 +178,7 @@ protected:
       js_result = parseReply(ldap_res);
       args[0] = Integer::New(msgid);
       args[1] = js_result;
-      Emit(search_symbol, 2, args);      
+      Emit(search_symbol, 2, args);
       break;
 
     default:
@@ -190,13 +192,13 @@ protected:
 
   Local<Array> parseReply(LDAPMessage * res) 
   {
-    LDAPMessage * entry;
-    BerElement * berptr;
-    char * attrname;
+    LDAPMessage * entry = NULL;
+    BerElement * berptr = NULL;
+    char * attrname     = NULL;
     char ** vals;
-    Local<Array> js_res_arr = Array::New();
+    Local<Array>  js_result_list = Array::New();
     Local<Object> js_result;
-    Local<Array> js_arr;
+    Local<Array>  js_attr_vals;
     int j;
     char * dn;
 
@@ -209,19 +211,19 @@ protected:
         vals = ldap_get_values(ldap, entry, attrname);
         for (int i = 0 ; vals[i] ; i++) {
           if (i == 0) {
-            js_arr = Array::New();
+            js_attr_vals = Array::New();
           }
-          js_arr->Set(Integer::New(i), String::New(vals[i]));
+          js_attr_vals->Set(Integer::New(i), String::New(vals[i]));
         }
-        js_result->Set(V8STR(attrname), js_arr);
+        js_result->Set(V8STR(attrname), js_attr_vals);
         ldap_value_free(vals);
-      }
+      } // attr list added. Next attr.
       js_result->Set(V8STR("dn"), V8STR(dn));
       ldap_memfree(dn);
-      js_res_arr->Set(Integer::New(j), js_result);
-    }
+      js_result_list->Set(Integer::New(j), js_result);
+    } // end entries
 
-    return js_res_arr;
+    return js_result_list;
   }
   
   static Handle<Value> Open(const Arguments &args) 
