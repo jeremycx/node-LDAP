@@ -1,7 +1,7 @@
 node-ldap
 =========
 
-OpenLDAP client bindings for [Node.js]. A good start, but not, as of
+OpenLDAP client bindings for Node.js. A good start, but not, as of
 this writing, production quality. The API will change slightly over
 the next week or two.
 
@@ -68,10 +68,9 @@ Authenticate with Search
 TODO:
 -----
 
-* Close() currently does nothing.
 * Need error callbacks on all methods.
 * Need better server-disconnect handling (currently all inflight
   queries get lost).
 * timeout handling
 * proper packaging required, with package.json and all that goodness.
-* LDAP updates are not planned (at this time).
+* Support update methods as well as search and authenticate.
