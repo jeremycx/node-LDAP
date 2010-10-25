@@ -28,7 +28,7 @@ Search Example
         var LDAP = require("LDAP");
         var lconn = new LDAP.Connection();
         
-        // Open a connection. Returns immediately (connects when required)
+        // Open a connection.
         lconn.Open("ldap://ldap1.example.com,ldap://ldap2.example.com");
 
         lconn.Search("o=company", "(uid=alice)", "*", function(res) {
@@ -41,7 +41,7 @@ Authenticate Example
         var LDAP = require("LDAP");
         var lconn = new LDAP.Connection();
 
-        // Open a connection. Returns immediately (connects when required)
+        // Open a connection. 
         lconn.Open("ldap://ldap1.example.com,ldap://ldap2.example.com");
 
         lconn.Authenticate("cn=alice,o=company", "seCretStuff", function(res) {
@@ -56,7 +56,6 @@ Authenticate with Search
         var LDAP = require("LDAP");
         var lconn = new LDAP.Connection();
 
-        // Open a connection. Returns immediately (connects when required)
         lconn.Open("ldap://ldap1.example.com,ldap://ldap2.example.com");
 
         lconn.SearchAuthenticate("o=comapny", "(uid=alice)", "seCretStuff",
