@@ -32,6 +32,10 @@ exports.Connection = function() {
         binding.open(uri);
     }
 
+    this.Close = function() {
+        binding.close();
+    }
+
     this.Authenticate = function(username, password, callback) {
         var msgid = binding.authenticate(username, password);
         callbacks[msgid] = callback;

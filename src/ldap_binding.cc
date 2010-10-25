@@ -68,6 +68,16 @@ protected:
     return args.This();
   }
 
+  int Close(void) {
+    int res;
+
+    res = ldap_unbind(ldap);
+    ldap = NULL;
+
+    return res;
+  }
+
+
   int Open(const char * nuri) 
   {
     if (nuri == NULL) {
@@ -138,6 +148,12 @@ protected:
     Handle<Value> args[2];
     int msgid;
     int res;
+    
+    if (ldap == NULL) {
+      // disconnect event, or something arriving after
+      // close(). Either way, ignore it.
+      return 0;
+    }
 
     if ((res = ldap_result(ldap, LDAP_RES_ANY, 1, NULL, &ldap_res)) < -1) {
       return 0;
@@ -228,6 +244,9 @@ protected:
   static Handle<Value> Close(const Arguments &args) 
   {
     HandleScope scope;
+    Connection *c = ObjectWrap::Unwrap<Connection>(args.This());
+
+    c->Close();
 
     return Undefined();
   }
