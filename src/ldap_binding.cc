@@ -201,8 +201,6 @@ protected:
       break;
     }
 
-    fprintf(stderr, "Freeing msg\n");
-
     ldap_msgfree(ldap_res);
     return 0;
   }
@@ -294,13 +292,14 @@ protected:
     if (!args[2]->IsString() &&
         !args[2]->IsArray())     return THROW("attrs should be string or array");
 
-  // Input params.
+    // Input params.
     String::Utf8Value base(args[0]);
     String::Utf8Value filter(args[1]);
 
     String::Utf8Value tlist(args[2]->ToString());
 
-    char * buf = strdup(*tlist);
+    char *bufhead = strdup(*tlist);
+    char *buf = bufhead;
     char **ap, *attrs[255];
 
     for (ap = attrs; (*ap = strsep(&buf, " \t,")) != NULL;)
@@ -309,11 +308,11 @@ protected:
           break;
 
     if ((sres = c->Search(*base, *filter, attrs)) < 0) {
-      free(buf);
+      free(bufhead);
       return THROW(ldap_err2string(sres));
     }
 
-    free(buf);
+    free(bufhead);
 
     return scope.Close(Local<Value>::New(Integer::New(sres)));
   }
