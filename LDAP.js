@@ -4,6 +4,7 @@ exports.Connection = function() {
     var callbacks = {};
     var binding = new ldapbinding.Connection();
     var me = this;
+    this.queries = 0;
 
     binding.addListener("search", function(msgid, result) {
         if (typeof(callbacks[msgid]) != "undefined") {
@@ -24,11 +25,13 @@ exports.Connection = function() {
     });
 
     this.Search = function(base, filter, attrs, callback) {
+        this.queries++;
         var msgid = binding.search(base, filter, attrs);
         callbacks[msgid] = callback;
     }
 
     this.Open = function(uri) {
+        this.startupTime = new Date();
         binding.open(uri);
     }
 
