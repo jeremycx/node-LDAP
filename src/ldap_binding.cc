@@ -5,6 +5,7 @@
 #include <node.h>
 #include <node_events.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <ldap.h>
 
@@ -15,6 +16,7 @@ static Persistent<String> search_symbol;
 static Persistent<String> init_symbol;
 static Persistent<String> bind_symbol;
 static Persistent<String> unknown_symbol;
+static Persistent<String> serverdown;
 
 #define V8STR(str) String::New(str)
 #define THROW(message) ThrowException(Exception::TypeError(String::New(message)))
@@ -27,7 +29,6 @@ class Connection : EventEmitter {
     read_watcher_.data = this;
     
     ldap = NULL;
-    uri=NULL;
   }
 
   static void
@@ -49,13 +50,13 @@ class Connection : EventEmitter {
     init_symbol    = NODE_PSYMBOL("init");
     bind_symbol    = NODE_PSYMBOL("bind");
     unknown_symbol = NODE_PSYMBOL("unknown");
+    serverdown     = NODE_PSYMBOL("serverdown");
 
     target->Set(String::NewSymbol("Connection"), t->GetFunction());
   }
 
 protected:
   LDAP * ldap;
-  char * uri;
   ev_io read_watcher_;
   ev_io write_watcher_;
 
@@ -73,33 +74,16 @@ protected:
 
     res = ldap_unbind(ldap);
     ldap = NULL;
-    free(uri);
-    uri = NULL;
-
-    Unref();
 
     return res;
   }
 
 
-  int Open(const char * nuri) 
+  int Open(const char * uri) 
   {
     HandleScope scope;
     LDAPURLDesc *ludpp;
     int fd;
-
-    // TODO: clean this mess up - work out the reconnect logic.
-
-    if (nuri == NULL) {
-      // reconnect
-      if (uri == NULL) {
-        return -1;
-      }
-    }
-
-    if (uri == NULL) {
-      uri = strdup(nuri);
-    }
 
     ldap_url_parse(uri, &ludpp); // TODO: errcheck
 
@@ -111,6 +95,10 @@ protected:
     // TODO: set default base if present in uri.
 
     ldap_free_urldesc(ludpp);
+
+    if (ldap == NULL) {
+      return errno;
+    }
 
     ldap_set_option(ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
     ldap_get_option(ldap, LDAP_OPT_DESC, &fd);
@@ -131,10 +119,12 @@ protected:
     if (ldap == NULL) {
       return LDAP_SERVER_DOWN;
     }
-        
-    if ((msgid = ldap_search(ldap, base, LDAP_SCOPE_SUBTREE, filter, attrs, 0)) < 0) {
-      Open(NULL);
-      msgid = ldap_search(ldap, base, LDAP_SCOPE_SUBTREE, filter, attrs, 0);
+
+    msgid = ldap_search(ldap, base, LDAP_SCOPE_SUBTREE, filter, attrs, 0);
+
+    if (msgid == LDAP_SERVER_DOWN) {
+      // emit a disconnect
+      Emit(serverdown, 0, NULL);
     }
 
     return msgid;
@@ -163,7 +153,7 @@ protected:
   {
     HandleScope scope;
     LDAPMessage *ldap_res;  
-    Handle<Value> args[2];
+    Handle<Value> args[3];
     int msgid;
     int res;
 
@@ -173,7 +163,9 @@ protected:
       return 0;
     }
 
-    if ((res = ldap_result(ldap, LDAP_RES_ANY, 1, NULL, &ldap_res)) < -1) {
+    if ((res = ldap_result(ldap, LDAP_RES_ANY, 1, NULL, &ldap_res)) < 1) {
+      // let's assume this is because the server has fled.
+      Emit(serverdown, 0, NULL);
       return 0;
     }
 
@@ -197,7 +189,10 @@ protected:
       break;
 
     default:
-      Emit(unknown_symbol, 0, NULL);
+      args[0] = Local<Value>::New(String::New(ldap_err2string(res)));
+      args[1] = Local<Value>::New(Integer::New(msgid));
+      args[2] = Local<Value>::New(Integer::New(res));
+      Emit(unknown_symbol, 3, args);
       break;
     }
 
@@ -236,14 +231,14 @@ protected:
         js_result->Set(V8STR(attrname), js_attr_vals);
         for (int i = 0 ; vals[i] ; i++) {
           js_attr_vals->Set(Integer::New(i), String::New(vals[i]));
-        }
+        } // all values for this attr added.
         ldap_value_free(vals);
         ldap_memfree(attrname);
-      } // attr list added. Next attr.
+      } // attrs for this entry added. Next entry.
       js_result->Set(V8STR("dn"), V8STR(dn));
       ber_free(berptr,0);
       ldap_memfree(dn);
-    } // end entries
+    } // all entries done.
 
     return scope.Close(js_result_list);
   }
@@ -256,8 +251,8 @@ protected:
 
     String::Utf8Value uri(args[0]->ToString());
 
-    if ((res = c->Open(*uri)) < 0) {
-      return THROW(ldap_err2string(res));
+    if ((res = c->Open(*uri)) != 0) {
+      return Local<Value>::New(Integer::New(res));
     }
 
     c->Emit(init_symbol, 0, NULL);
@@ -308,8 +303,7 @@ protected:
           break;
 
     if ((sres = c->Search(*base, *filter, attrs)) < 0) {
-      free(bufhead);
-      return THROW(ldap_err2string(sres));
+      c->Emit(serverdown, 0, NULL);
     }
 
     free(bufhead);
