@@ -1,4 +1,9 @@
-.lock-wscript
 *.core
+.lock-wscript
+/sn.txt
+/test-inflight.js
+/test.js
+/test2.js
+/v8.log
 build
 ldap.node

@@ -20,7 +20,7 @@ var Connection = function() {
 
     binding.addListener("bind", function(msgid, success) {
         if (typeof(requests[msgid].successCB) != "undefined") {
-            requests[msgid].succesCB(success);
+            requests[msgid].successCB(success);
             delete requests[msgid];
         }
     });
