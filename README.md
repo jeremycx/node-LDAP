@@ -67,9 +67,10 @@ Authenticate with Search
 TODO:
 -----
 
-* Need error callbacks on all methods.
-* Need better server-disconnect handling (currently all inflight
-  queries get lost).
-* timeout handling
+* On disconnect, the library starts a reconnect attempt immediately. I
+  should likely wait until the next query comes along
+* However, if there are in-flight queries, it should reconnect immediately.
+* reconnect handling in general is a little flaky
+* individual query timeout handling
 * proper packaging required, with package.json and all that goodness.
 * Support update methods as well as search and authenticate.
