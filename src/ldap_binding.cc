@@ -83,7 +83,7 @@ protected:
   {
     HandleScope scope;
     LDAPURLDesc *ludpp;
-    int fd;
+    int fd; //TODO: LDAP protocol version should be a parameter to open
 
     ldap_url_parse(uri, &ludpp); // TODO: errcheck
 
