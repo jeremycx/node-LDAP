@@ -89,6 +89,7 @@ protected:
 
     char * host = ludpp->lud_host;
     int    port = ludpp->lud_port;
+    int    ver = 3;
 
     ldap = ldap_open(host, port); // TODO: errcheck
 
@@ -101,6 +102,7 @@ protected:
     }
 
     ldap_set_option(ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
+    ldap_set_option(ldap, LDAP_OPT_PROTOCOL_VERSION, &ver);
     ldap_get_option(ldap, LDAP_OPT_DESC, &fd);
     ev_io_set(&read_watcher_, fd, EV_READ);
     ev_io_start(EV_DEFAULT_ &read_watcher_);
