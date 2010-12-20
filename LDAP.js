@@ -76,7 +76,7 @@ var Connection = function() {
             console.log("Open failed. Retry in 1 s");
         } else {
             retries=0;
-            openSuccessCB();
+            if (typeof openSuccessCB == 'function') { openSuccessCB(); }
         }
     }
 
