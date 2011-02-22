@@ -1,4 +1,7 @@
 *.core
+*~
+*.swp
+*.swo
 .lock-wscript
 /sn.txt
 /test-inflight.js

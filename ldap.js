@@ -25,11 +25,18 @@ var Connection = function() {
         }
     });
 
+    binding.addListener("modify", function(msgid, success) {
+      if (typeof(requests[msgid].successCB) != "undefined") {
+        requests[msgid].successCB(success);
+        delete requests[msgid];
+      }
+    });
+
     binding.addListener("unknown", function(errmsg, msgid, type) {
         console.log("Unknown response detected "+errmsg+" "+msgid+" "+type);
     });
 
-    self.reConnect = function() {
+    self.reconnect = function() {
         console.log("Reconnect starting");
         binding.close();
         openSuccessCB = function() {
@@ -39,7 +46,7 @@ var Connection = function() {
             for (msgid in requests) {
                 console.log("Resubmitting "+msgid);
                 if (typeof requests[msgid] != 'undefined') {
-                    newrequests[requests[msgid].reDo()] = requests[msgid];
+                    newrequests[requests[msgid].redo()] = requests[msgid];
                 } 
             }
             requests = newrequests;
@@ -47,9 +54,9 @@ var Connection = function() {
         self.openWithRetry();
     }
 
-    binding.addListener("serverdown", self.reConnect);
+    binding.addListener("serverdown", self.reconnect);
 
-    self.Search = function(base, filter, attrs, successCB, errCB) {
+    self.search = function(base, filter, attrs, successCB, errCB) {
         requestcount++;
         var r = new Request(successCB, errCB);
 
@@ -60,7 +67,7 @@ var Connection = function() {
         requests[msgid] = r;
     }
 
-    self.Open = function(u, sCB, eCB) {
+    self.open = function(u, sCB, eCB) {
         startup = new Date();
         openSuccessCB = sCB;
         openErrCB = eCB;
@@ -80,15 +87,15 @@ var Connection = function() {
         }
     }
 
-    self.reOpen = function() {
+    self.reopen = function() {
         binding.open(uri);
     }
 
-    self.Close = function() {
+    self.close = function() {
         binding.close();
     }
 
-    self.Authenticate = function(username, password, successCB, errCB) {
+    self.authenticate = function(username, password, successCB, errCB) {
         requestcount++;
 
         var r = new Request(successCB, errCB);        
@@ -100,18 +107,27 @@ var Connection = function() {
         requests[msgid] = r;
     }
 
-    self.Close = function(a) {
+    self.modify = function (dn, mods, successCB, errCB) {
+      requestcount++;
+      var r = new Request(successCB, errCB);
+      var msgid = r.doAction(function () {
+        return binding.modify(dn, mods);
+      });
+      requests[msgid] = r;
+    };
+
+    self.close = function(a) {
         binding.close(a);
     }
 
-    self.SearchAuthenticate = function(base, filter, password, CB) {
-        self.Search(base, filter, "", function(res) {
+    self.searchAuthenticate = function(base, filter, password, CB) {
+        self.search(base, filter, "", function(res) {
             // TODO: see if there's only one result, and exit if not
             if (res.length != 1) {
                 CB(0);
             } else {
                 // we have the result. Use the DN to auth.
-                self.Authenticate(res[0].dn, password, function(success, dn) {
+                self.authenticate(res[0].dn, password, function(success, dn) {
                     CB(success, res[0].dn);
                 });
             }
@@ -138,7 +154,7 @@ var Request = function(successCB, errCB) {
         return self.msgid;
     }
 
-    self.reDo  = function() { 
+    self.redo  = function() { 
         self.msgid = self.action();
         return self.msgid;
     }
