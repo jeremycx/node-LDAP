@@ -14,10 +14,14 @@ using namespace node; //NOLINT
 
 static Persistent<String> search_symbol;
 static Persistent<String> init_symbol;
+/*
 static Persistent<String> bind_symbol;
 static Persistent<String> modify_symbol;
 static Persistent<String> rename_symbol;
 static Persistent<String> add_symbol;
+*/
+// All the above, to "event_symbol"
+static Persistent<String> event_symbol;
 static Persistent<String> unknown_symbol;
 static Persistent<String> serverdown;
 
@@ -54,10 +58,13 @@ class Connection : EventEmitter {
 
     search_symbol  = NODE_PSYMBOL("search");
     init_symbol    = NODE_PSYMBOL("init");
+    /*
     bind_symbol    = NODE_PSYMBOL("bind");
     modify_symbol  = NODE_PSYMBOL("modify");
     rename_symbol  = NODE_PSYMBOL("rename");
     add_symbol     = NODE_PSYMBOL("add");
+    */
+    event_symbol   = NODE_PSYMBOL("event");
     unknown_symbol = NODE_PSYMBOL("unknown");
     serverdown     = NODE_PSYMBOL("serverdown");
 
@@ -207,6 +214,7 @@ protected:
     Handle<Value> args[3];
     int msgid;
     int res;
+    int error;
 
     if (ldap == NULL) {
       // disconnect event, or something arriving after
@@ -221,16 +229,20 @@ protected:
     }
 
     msgid = ldap_msgid(ldap_res);
+    error = ldap_result2error(ldap, ldap_res, 0);
 
     switch(res) {
-    case  LDAP_RES_BIND:
+    case LDAP_RES_BIND:
+    case LDAP_RES_MODIFY:
+    case LDAP_RES_MODDN:
+    case LDAP_RES_ADD:
       args[0] = Integer::New(msgid);
-      if (ldap_result2error(ldap, ldap_res, 0) != LDAP_SUCCESS) {
-        args[1] = Local<Value>::New(Integer::New(0));
+      if (error != LDAP_SUCCESS) {
+        args[1] = Local<Value>::New(String::New(ldap_err2string(error)));
       } else {
-        args[1] = Local<Value>::New(Integer::New(1));
+        args[1] = Null();
       }
-      Emit(bind_symbol, 2, args);
+      Emit(event_symbol, 2, args);
       break;
 
     case  LDAP_RES_SEARCH_RESULT:
@@ -239,39 +251,8 @@ protected:
       Emit(search_symbol, 2, args);
       break;
 
-    case  LDAP_RES_MODIFY:
-      args[0] = Local<Value>::New(Integer::New(msgid));
-      if (ldap_result2error(ldap, ldap_res, 0) != LDAP_SUCCESS) {
-        args[1] = Local<Value>::New(Integer::New(0));
-      } else {
-        args[1] = Local<Value>::New(Integer::New(1));
-      }
-      Emit(modify_symbol, 2, args);
-      break;
-
-    case  LDAP_RES_MODDN:
-      args[0] = Local<Value>::New(Integer::New(msgid));
-      if (ldap_result2error(ldap, ldap_res, 0) != LDAP_SUCCESS) {
-        args[1] = Local<Value>::New(Integer::New(0));
-      } else {
-        args[1] = Local<Value>::New(Integer::New(1));
-      }
-      Emit(rename_symbol, 2, args);
-      break;
-
-    case  LDAP_RES_ADD:
-      args[0] = Local<Value>::New(Integer::New(msgid));
-      if (ldap_result2error(ldap, ldap_res, 0) != LDAP_SUCCESS) {
-        args[1] = Local<Value>::New(Integer::New(0));
-        //args[1] = Local<Value>::New(String::New(ldap_err2string(ldap_result2error(ldap, ldap_res,0))));
-      } else {
-        args[1] = Local<Value>::New(Integer::New(1));
-      }
-      Emit(add_symbol, 2, args);
-      break;
-
     default:
-      args[0] = Local<Value>::New(String::New(ldap_err2string(res)));
+      args[0] = Local<Value>::New(String::New(ldap_err2string(error)));
       args[1] = Local<Value>::New(Integer::New(msgid));
       args[2] = Local<Value>::New(Integer::New(res));
       Emit(unknown_symbol, 3, args);

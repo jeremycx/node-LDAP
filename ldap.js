@@ -18,32 +18,11 @@ var Connection = function() {
         }
     });
 
-    binding.addListener("bind", function(msgid, success) {
+    binding.addListener("event", function(msgid, error) {
         if (typeof(requests[msgid].successCB) != "undefined") {
-            requests[msgid].successCB(success);
+            requests[msgid].successCB(error);
             delete requests[msgid];
         }
-    });
-
-    binding.addListener("modify", function(msgid, success) {
-      if (typeof(requests[msgid].successCB) != "undefined") {
-        requests[msgid].successCB(success);
-        delete requests[msgid];
-      }
-    });
-
-    binding.addListener("rename", function(msgid, success) {
-      if (typeof(requests[msgid].successCB) != "undefined") {
-        requests[msgid].successCB(success);
-        delete requests[msgid];
-      }
-    });
-
-    binding.addListener("add", function(msgid, success) {
-      if (typeof(requests[msgid].successCB) != "undefined") {
-        requests[msgid].successCB(success);
-        delete requests[msgid];
-      }
     });
 
     binding.addListener("unknown", function(errmsg, msgid, type) {
@@ -109,10 +88,9 @@ var Connection = function() {
         binding.close();
     }
 
-    self.authenticate = function(username, password, successCB, errCB) {
-        requestcount++;
-
-        var r = new Request(successCB, errCB);        
+    self.authenticate = function (username, password, callback) {
+      requestcount++;
+      var r = new Request(callback, null);
         
         var msgid = r.doAction(function() {
             return binding.authenticate(username, password);
@@ -121,28 +99,30 @@ var Connection = function() {
         requests[msgid] = r;
     }
 
-    self.modify = function (dn, mods, successCB, errCB) {
+    self.modify = function (dn, mods, callback) {
       requestcount++;
-      var r = new Request(successCB, errCB);
+
+      var r = new Request(callback, null);
       var msgid = r.doAction(function () {
         return binding.modify(dn, mods);
       });
       requests[msgid] = r;
     };
 
-    self.rename = function (dn, newrdn, successCB, errCB) {
+    self.rename = function (dn, newrdn, callback) {
       requestcount++;
 
-      var r = new Request(successCB, errCB);
+      var r = new Request(callback, null);
       var msgid = r.doAction(function () {
         return binding.rename(dn, newrdn, "", true);
       });
       requests[msgid] = r;
     };
 
-    self.add = function (dn, attrs, successCB, errCB) {
+    self.add = function (dn, attrs, callback) {
       requestcount++;
-      var r = new Request(successCB, errCB);
+
+      var r = new Request(callback, null);
       var msgid = r.doAction(function () {
         return binding.add(dn, attrs);
       });
