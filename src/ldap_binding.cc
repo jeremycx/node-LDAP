@@ -231,7 +231,7 @@ protected:
         int num_vals = ldap_count_values(vals);
         js_attr_vals = Array::New(num_vals);
         js_result->Set(V8STR(attrname), js_attr_vals);
-        for (int i = 0 ; vals[i] ; i++) {
+        for (int i = 0 ; i < num_vals && vals[i] ; i++) {
           js_attr_vals->Set(Integer::New(i), String::New(vals[i]));
         } // all values for this attr added.
         ldap_value_free(vals);
