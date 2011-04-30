@@ -75,6 +75,8 @@ protected:
     res = ldap_unbind(ldap);
     ldap = NULL;
 
+    ev_io_stop(EV_DEFAULT_ &read_watcher_);
+
     return res;
   }
 
