@@ -10,7 +10,7 @@
   },
   "main": "ldap",
   "engines": {
-    "node": ">= 0.4.7"
+    "node": ">= 0.4.0"
   },
   "dependencies": {},
   "devDependencies": {}
