@@ -6,10 +6,12 @@ var Connection = function() {
     var self = this;
     var requestcount = 0;
     var reconnects = 0;
-    var retries = 0;
+    var connectretries = 0;
     var uri;
-    var openSuccessCB;
-    var openErrCB;
+    var openCB;
+
+    self.maxconnectretries = 3;
+    self.retrywait = 10000;
 
     binding.addListener("search", function(msgid, result) {
         if (typeof(requests[msgid].successCB) != "undefined") {
@@ -60,23 +62,29 @@ var Connection = function() {
         requests[msgid] = r;
     }
 
-    self.Open = function(u, sCB, eCB) {
+    self.Open = function(u, CB) {
         startup = new Date();
-        openSuccessCB = sCB;
-        openErrCB = eCB;
+        openCB = CB;
         uri = u;
 
         self.openWithRetry();
     }
 
     self.openWithRetry = function() {
-        if (binding.open(uri)) {
-            retries++;
-            setTimeout(self.openWithRetry, 1000);
-            console.log("Open failed. Retry in 1 s");
+        var err;
+        if (err = binding.open(uri)) {
+            if (++connectretries > self.maxconnectretries) {
+                connectretries = 0;
+                if (typeof openCB == 'function') { openCB(err); }
+                return;
+            }
+            setTimeout(self.openWithRetry, self.retrywait);
+            console.log("Open "+connectretries+" of "+
+                        self.maxconnectretries+
+                        " failed. Retry in "+self.retrywait+" ms");
         } else {
-            retries=0;
-            if (typeof openSuccessCB == 'function') { openSuccessCB(); }
+            connectretries=0;
+            if (typeof openCB == 'function') { openCB(); }
         }
     }
 
@@ -104,6 +112,15 @@ var Connection = function() {
         binding.close(a);
     }
 
+    self.modify = function (dn, mods, successCB, errCB) {
+        requestcount++;
+        var r = new Request(successCB, errCB);
+        var msgid = r.doAction(function () {
+            return binding.modify(dn, mods);
+        });
+        requests[msgid] = r;
+    };
+    
     self.SearchAuthenticate = function(base, filter, password, CB) {
         self.Search(base, filter, "", function(res) {
             // TODO: see if there's only one result, and exit if not
@@ -123,7 +140,6 @@ var Connection = function() {
                  'startup'    : startup,
                  'reconnects' : reconnects };
     }
-
 }
 
 var Request = function(successCB, errCB) {

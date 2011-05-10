@@ -86,14 +86,17 @@ protected:
     HandleScope scope;
     LDAPURLDesc *ludpp;
     int fd; //TODO: LDAP protocol version should be a parameter to open
+    int err;
 
-    ldap_url_parse(uri, &ludpp); // TODO: errcheck
+    if (err = ldap_url_parse(uri, &ludpp)) {
+      return err;
+    }
 
     char * host = ludpp->lud_host;
     int    port = ludpp->lud_port;
     int    ver = 3;
 
-    ldap = ldap_open(host, port); // TODO: errcheck
+    ldap = ldap_open(host, port);
 
     // TODO: set default base if present in uri.
 
