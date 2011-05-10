@@ -2,36 +2,43 @@ node-ldap
 =========
 
 OpenLDAP client bindings for Node.js. A good start, but not, as of
-this writing, production quality. The API will change slightly over
-the next week or two.
+this writing, production quality. The API is mostly stable at this point.
+
+Current Notes
+-------------
+This is back in active development again. Expect much churn for the
+next couple of weeks (or until this notice goes away).
 
 Contributing
 ------------
 
 This module works, but is not yet ready for production. It is being
 made available at this early stage to funnel contributors who may
-otherwise begin their own module in parallel. Any and all patches are
-certainly welcome.
+otherwise begin their own module in parallel. Any and all patches and
+pull requests are certainly welcome.
 
 Dependencies
 ------------
 
-Tested with Node v0.2.3.
+Tested with Node >= v0.4.0
+
+Installation
+------------
 
 To build, ensure the OpenLDAP client libraries are installed, and
 
-   node-waf configure build
+   npm install https://jeremycx@github.com/jeremycx/node-LDAP.git
 
 Search Example
 --------------
 
         var LDAP = require("LDAP");
-        var lconn = new LDAP.Connection();
+        var cnx = new LDAP.Connection();
         
         // Open a connection.
-        lconn.Open("ldap://ldap1.example.com,ldap://ldap2.example.com",
+        cnx.open("ldap://ldap1.example.com",
             function() {
-                lconn.Search("o=company", "(uid=alice)", "*", function(res) {
+                cnx.search("o=company", "(uid=alice)","*",function(err, res) {
                 console.log(res[0].uid[0]);
              });
         });
@@ -40,27 +47,24 @@ Authenticate Example
 --------------------
 
         var LDAP = require("LDAP");
-        var lconn = new LDAP.Connection();
+        var cnx = new LDAP.Connection();
 
         // Open a connection. 
-        lconn.Open("ldap://ldap1.example.com,ldap://ldap2.example.com", 
+        cnx.open("ldap://ldap1.example.com",
             function() {
-                lconn.Authenticate("cn=alice,o=company", "seCretStuff", function(res) {
+                cnx.authenticate("cn=alice,o=company", "seCretStuff", function(err, res) {
                     // authenticated. Try a search.
-                    lconn.Search("o=company", "(uid=bob)", "*", function(res) {
+                    cnx.search("o=company", "(uid=bob)", "*", function(res) {
                         console.log("Bob has a cn of "+res[0].cn[0]);
                     });                                        
                 });
              });
 
 
+The tests directory can be skimmed for more usage examples.
+
+
 TODO:
 -----
 
-* On disconnect, the library starts a reconnect attempt immediately. I
-  should likely wait until the next query comes along
-* However, if there are in-flight queries, it should reconnect immediately.
-* reconnect handling in general is a little flaky
-* individual query timeout handling
-* proper packaging required, with package.json and all that goodness.
-* Support update methods as well as search and authenticate.
+* all disconnect and error handling is still a little flaky.
