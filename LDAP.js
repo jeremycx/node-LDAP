@@ -21,7 +21,7 @@ var Connection = function() {
     });
 
     binding.addListener("event", function(msgid, error) {
-        if (typeof(requests[msgid].successCB) != "undefined") {
+        if (typeof(requests[msgid].CB) != "undefined") {
             requests[msgid].CB(error);
             delete requests[msgid];
         }
@@ -69,7 +69,7 @@ var Connection = function() {
         requests[msgid] = r;
     }
 
-    self.Open = function(u, CB) {
+    self.open = function(u, CB) {
         startup = new Date();
         openCB = CB;
         uri = u;
