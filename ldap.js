@@ -14,15 +14,22 @@ var Connection = function() {
     self.retrywait = 10000;
 
     binding.addListener("search", function(msgid, result) {
-        if (typeof(requests[msgid].successCB) != "undefined") {
-            requests[msgid].successCB(result);
+        if (typeof(requests[msgid].CB) != "undefined") {
+            requests[msgid].CB(null, result);
             delete requests[msgid];
         }
     });
 
     binding.addListener("event", function(msgid, error) {
         if (typeof(requests[msgid].successCB) != "undefined") {
-            requests[msgid].successCB(error);
+            requests[msgid].CB(error);
+            delete requests[msgid];
+        }
+    });
+
+    binding.addListener("error", function(msgid, error) {
+        if (typeof(requests[msgid].CB) != "undefined") {
+            requests[msgid].CB(error);
             delete requests[msgid];
         }
     });
@@ -34,7 +41,7 @@ var Connection = function() {
     self.reconnect = function() {
         console.log("Reconnect starting");
         binding.close();
-        openSuccessCB = function() {
+        openCB = function() {
             reconnects++;
 
             var newrequests = {};
@@ -51,9 +58,9 @@ var Connection = function() {
 
     binding.addListener("serverdown", self.reconnect);
 
-    self.search = function(base, filter, attrs, successCB, errCB) {
+    self.search = function(base, filter, attrs, CB) {
         requestcount++;
-        var r = new Request(successCB, errCB);
+        var r = new Request(CB);
 
         var msgid = r.doAction(function() {
             return binding.search(base, filter, attrs);
@@ -96,9 +103,9 @@ var Connection = function() {
         binding.close();
     }
 
-    self.authenticate = function (username, password, callback) {
+    self.authenticate = function (username, password, CB) {
       requestcount++;
-      var r = new Request(callback, null);
+      var r = new Request(CB);
         
         var msgid = r.doAction(function() {
             return binding.authenticate(username, password);
@@ -107,30 +114,30 @@ var Connection = function() {
         requests[msgid] = r;
     }
 
-    self.modify = function (dn, mods, callback) {
+    self.modify = function (dn, mods, CB) {
       requestcount++;
 
-      var r = new Request(callback, null);
+        var r = new Request(CB);
       var msgid = r.doAction(function () {
         return binding.modify(dn, mods);
       });
       requests[msgid] = r;
     };
 
-    self.rename = function (dn, newrdn, callback) {
+    self.rename = function (dn, newrdn, CB) {
       requestcount++;
 
-      var r = new Request(callback, null);
+      var r = new Request(CB);
       var msgid = r.doAction(function () {
         return binding.rename(dn, newrdn, "", true);
       });
       requests[msgid] = r;
     };
 
-    self.add = function (dn, attrs, callback) {
+    self.add = function (dn, attrs, CB) {
       requestcount++;
 
-      var r = new Request(callback, null);
+      var r = new Request(CB);
       var msgid = r.doAction(function () {
         return binding.add(dn, attrs);
       });
@@ -162,10 +169,9 @@ var Connection = function() {
     }
 }
 
-var Request = function(successCB, errCB) {
+var Request = function(CB) {
     var self = this;
-    self.successCB = successCB;
-    self.errCB = errCB;
+    self.CB = CB;
     var startup = new Date();
 
     self.doAction = function(func) {
