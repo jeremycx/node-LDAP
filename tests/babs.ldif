@@ -1,0 +1,5 @@
+dn: cn=Barbara Jensen,dc=sample,dc=com
+objectClass: person
+cn: Barbara Jensen
+cn: Babs Jensen
+sn: Jensen
