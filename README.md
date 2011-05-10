@@ -27,7 +27,7 @@ Installation
 
 To build, ensure the OpenLDAP client libraries are installed, and
 
-   npm install https://jeremycx@github.com/jeremycx/node-LDAP.git
+   npm install https://github.com/jeremycx/node-LDAP/tarball/master -g
 
 Search Example
 --------------
