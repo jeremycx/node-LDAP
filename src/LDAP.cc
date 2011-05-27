@@ -65,8 +65,6 @@ private:
   LDAP  *ld;
   ev_io read_watcher_;
   ev_io write_watcher_;
-  Persistent<Function> reconnect_handler;
-  int has_reconnect_handler;
 
 public:
   static Persistent<FunctionTemplate> s_ct;
@@ -89,7 +87,6 @@ public:
     NODE_SET_PROTOTYPE_METHOD(s_ct, "Bind",         Bind);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "Rename",       Rename);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "Add",          Add);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "SetReconnect", SetReconnect);
 
     symbol_connected    = NODE_PSYMBOL("connected");
     symbol_disconnected = NODE_PSYMBOL("disconnected");
@@ -110,7 +107,6 @@ public:
     c->read_watcher_.data = c;
     
     c->ld = NULL;
-    c->has_reconnect_handler = 0;
 
     return args.This();
   }
@@ -138,20 +134,6 @@ public:
     ldap_set_option(c->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
 
     return scope.Close(Integer::New(0));
-  }
-
-
-  NODE_METHOD(SetReconnect) {
-    HandleScope scope;
-    GETOBJ(c);
-
-    ENFORCE_ARG_LENGTH(1, "Invalid number of arguments to SetReconnect()");
-    REQ_FUN_ARG(0, cb);
-
-    c->reconnect_handler = Persistent<Function>::New(cb);
-    c->has_reconnect_handler = 1;
-
-    RETURN_INT(0);
   }
 
   NODE_METHOD(Close) {
@@ -464,17 +446,6 @@ public:
     } // all entries done.
 
     return scope.Close(js_result_list);
-  }
-
-  int Reconnect(const Arguments& args) {
-    if (has_reconnect_handler) {
-      Local<Value> argv[1];
-
-      argv[0] = args.This();
-      reconnect_handler->Call(Context::GetCurrent()->Global(), 1, argv);
-    } else {
-      return 1;
-    }
   }
 
   static void
