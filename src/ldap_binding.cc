@@ -15,16 +15,10 @@ using namespace node; //NOLINT
 static Persistent<String> search_symbol;
 static Persistent<String> init_symbol;
 static Persistent<String> error_symbol;
-/*
-static Persistent<String> bind_symbol;
-static Persistent<String> modify_symbol;
-static Persistent<String> rename_symbol;
-static Persistent<String> add_symbol;
-*/
-// All the above, to "event_symbol"
 static Persistent<String> event_symbol;
 static Persistent<String> unknown_symbol;
-static Persistent<String> serverdown;
+static Persistent<String> disconnect_symbol;
+static Persistent<String> connect_symbol;
 
 #define V8STR(str) String::New(str)
 #define THROW(message) ThrowException(Exception::TypeError(String::New(message)))
@@ -59,16 +53,11 @@ class Connection : EventEmitter {
 
     search_symbol  = NODE_PSYMBOL("search");
     init_symbol    = NODE_PSYMBOL("init");
-    /*
-    bind_symbol    = NODE_PSYMBOL("bind");
-    modify_symbol  = NODE_PSYMBOL("modify");
-    rename_symbol  = NODE_PSYMBOL("rename");
-    add_symbol     = NODE_PSYMBOL("add");
-    */
     event_symbol   = NODE_PSYMBOL("event");
     error_symbol   = NODE_PSYMBOL("error");
     unknown_symbol = NODE_PSYMBOL("unknown");
-    serverdown     = NODE_PSYMBOL("serverdown");
+    disconnect_symbol = NODE_PSYMBOL("disconnect");
+    connect_symbol = NODE_PSYMBOL("connect");
 
     target->Set(String::NewSymbol("Connection"), t->GetFunction());
   }
@@ -104,23 +93,14 @@ protected:
   int Open(const char * uri) 
   {
     HandleScope scope;
-    LDAPURLDesc *ludpp;
-    int fd; //TODO: LDAP protocol version should be a parameter to open
+    //TODO: LDAP protocol version should be a parameter to open
     int err;
 
-    if ((err = ldap_url_parse(uri, &ludpp))) {
+    int ver = 3;
+
+    if ((err = ldap_initialize(&ldap, uri) != LDAP_SUCCESS)) {
       return err;
     }
-
-    char * host = ludpp->lud_host;
-    int    port = ludpp->lud_port;
-    int    ver = 3;
-
-    ldap = ldap_open(host, port);
-
-    // TODO: set default base if present in uri.
-
-    ldap_free_urldesc(ludpp);
 
     if (ldap == NULL) {
       return errno;
@@ -128,12 +108,8 @@ protected:
 
     ldap_set_option(ldap, LDAP_OPT_RESTART, LDAP_OPT_ON);
     ldap_set_option(ldap, LDAP_OPT_PROTOCOL_VERSION, &ver);
-    ldap_get_option(ldap, LDAP_OPT_DESC, &fd);
-    ev_io_set(&read_watcher_, fd, EV_READ);
-    ev_io_start(EV_DEFAULT_ &read_watcher_);
-    // TODO: see if re-adding the fd on each search has any ill 
-    //       effects. LDAP libs may switch fds at any time, and
-    //       we need to handle this.
+
+    Emit(connect_symbol,0,NULL);
 
     return 0;
   }
@@ -142,16 +118,21 @@ protected:
   {
     HandleScope scope;
     int msgid;
- 
+    int fd;
+
     if (ldap == NULL) {
       return LDAP_SERVER_DOWN;
     }
 
     msgid = ldap_search(ldap, base, LDAP_SCOPE_SUBTREE, filter, attrs, 0);
 
+    ldap_get_option(ldap, LDAP_OPT_DESC, &fd);
+    ev_io_set(&read_watcher_, fd, EV_READ);
+    ev_io_start(EV_DEFAULT_ &read_watcher_);
+
     if (msgid == LDAP_SERVER_DOWN) {
       // emit a disconnect
-      Emit(serverdown, 0, NULL);
+      Emit(disconnect_symbol, 0, NULL);
     }
 
     return msgid;
@@ -185,7 +166,7 @@ protected:
 
     msgid = ldap_modify(ldap, dn, mods);
 
-    if (msgid == LDAP_SERVER_DOWN) Emit(serverdown, 0, NULL);
+    if (msgid == LDAP_SERVER_DOWN) Emit(disconnect_symbol, 0, NULL);
 
     return msgid;
   }
@@ -195,24 +176,34 @@ protected:
   {
     HandleScope scope;
     int msgid;
+    int fd;
 
     if (ldap == NULL) return LDAP_SERVER_DOWN;
 
     msgid = ldap_modrdn(ldap, dn, newrdn);
 
-    if (msgid == LDAP_SERVER_DOWN) Emit(serverdown, 0, NULL);
+    ldap_get_option(ldap, LDAP_OPT_DESC, &fd);
+    ev_io_set(&read_watcher_, fd, EV_READ);
+    ev_io_start(EV_DEFAULT_ &read_watcher_);
+
+    if (msgid == LDAP_SERVER_DOWN) Emit(disconnect_symbol, 0, NULL);
     return msgid;
   }
 
   int Add(const char *dn, LDAPMod **attrs) {
     HandleScope scope;
     int msgid;
+    int fd;
 
     if (ldap == NULL) return LDAP_SERVER_DOWN;
 
     msgid = ldap_add(ldap, dn, attrs);
 
-    if (msgid == LDAP_SERVER_DOWN) Emit(serverdown, 0, NULL);
+    ldap_get_option(ldap, LDAP_OPT_DESC, &fd);
+    ev_io_set(&read_watcher_, fd, EV_READ);
+    ev_io_start(EV_DEFAULT_ &read_watcher_);
+
+    if (msgid == LDAP_SERVER_DOWN) Emit(disconnect_symbol, 0, NULL);
     return msgid;
   }
 
@@ -233,30 +224,26 @@ protected:
 
     if ((res = ldap_result(ldap, LDAP_RES_ANY, 1, NULL, &ldap_res)) < 1) {
       // let's assume this is because the server has fled.
-      Emit(serverdown, 0, NULL);
+      Emit(disconnect_symbol, 0, NULL);
       return 0;
     }
 
     msgid = ldap_msgid(ldap_res);
     error = ldap_result2error(ldap, ldap_res, 0);
 
+    args[0] = Integer::New(msgid);
+
     if (error) {
-      args[0] = Integer::New(msgid);
       args[1] = Integer::New(error);
-      Emit(error_symbol, 2, args);
+      args[2] = Local<Value>::New(String::New(ldap_err2string(error)));
+      Emit(error_symbol, 3, args);
     } else {
       switch(res) {
       case LDAP_RES_BIND:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
-        args[0] = Integer::New(msgid);
-        if (error != LDAP_SUCCESS) {
-          args[1] = Local<Value>::New(String::New(ldap_err2string(error)));
-        } else {
-          args[1] = Null();
-        }
-        Emit(event_symbol, 2, args);
+        Emit(event_symbol, 1, args);
         break;
 
       case  LDAP_RES_SEARCH_RESULT:
@@ -266,10 +253,7 @@ protected:
         break;
 
       default:
-        args[0] = Local<Value>::New(String::New(ldap_err2string(error)));
-        args[1] = Local<Value>::New(Integer::New(msgid));
-        args[2] = Local<Value>::New(Integer::New(res));
-        Emit(unknown_symbol, 3, args);
+        Emit(unknown_symbol, 1, args);
         break;
       }
     }
@@ -381,7 +365,7 @@ protected:
           break;
 
     if ((sres = c->Search(*base, *filter, attrs)) < 0) {
-      c->Emit(serverdown, 0, NULL);
+      c->Emit(disconnect_symbol, 0, NULL);
     }
 
     free(bufhead);
@@ -417,6 +401,7 @@ protected:
     HandleScope scope;
 
     Connection *c = ObjectWrap::Unwrap<Connection>(args.This());
+
     int sres;
 
     // Validate args. God.
@@ -470,7 +455,7 @@ protected:
     ldapmods[numOfMods] = NULL;
 
     if ((sres = c->Modify(*dn, ldapmods)) < 0) {
-      c->Emit(serverdown, 0, NULL);
+      c->Emit(disconnect_symbol, 0, NULL);
     }
 
     ldap_mods_free(ldapmods, 1);
@@ -499,7 +484,7 @@ protected:
     int deleteoldrdn = args[3]->BooleanValue();
 
     if ((sres = c->Rename(*dn, *newrdn, *newparent, deleteoldrdn)) < 0) {
-      c->Emit(serverdown, 0, NULL);
+      c->Emit(disconnect_symbol, 0, NULL);
     }
 
     return scope.Close(Local<Value>::New(Integer::New(sres)));
@@ -560,7 +545,7 @@ protected:
     ldapmods[numOfAttrs] = NULL;
 
     if ((sres = c->Add(*dn, ldapmods)) < 0) {
-      c->Emit(serverdown, 0, NULL);
+      c->Emit(disconnect_symbol, 0, NULL);
     }
 
     ldap_mods_free(ldapmods, 1);
