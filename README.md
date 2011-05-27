@@ -17,6 +17,11 @@ made available at this early stage to funnel contributors who may
 otherwise begin their own module in parallel. Any and all patches and
 pull requests are certainly welcome.
 
+Thanks to:
+* Petr Běhan
+* YANG Xudong
+
+
 Dependencies
 ------------
 
@@ -66,5 +71,6 @@ The tests directory can be skimmed for more usage examples.
 
 TODO:
 -----
+* Document Modify, Add and Rename
 
-* all disconnect and error handling is still a little flaky.
+
