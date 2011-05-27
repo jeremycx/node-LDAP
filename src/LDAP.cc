@@ -51,6 +51,8 @@ static Persistent<String> symbol_unknown;
 
 #define ARG_STR(v,a) String::Utf8Value v(args[a]);
 
+#define ARG_INT(v,a) int v = args[a]->Int32Value();
+
 #define ARG_BOOL(v,a) int v = args[a]->BooleanValue();
 
 #define ARG_ARRAY(v, a) Local<Array> v = Local<Array>::Cast(args[a]);
@@ -116,11 +118,12 @@ public:
     HandleScope scope;
     GETOBJ(c);
     int err;
-    int ver = 3;
 
-    ENFORCE_ARG_LENGTH(1, "Invaid number of arguments to Open()");
+    ENFORCE_ARG_LENGTH(2, "Invaid number of arguments to Open()");
     ENFORCE_ARG_STR(0);
+    ENFORCE_ARG_NUMBER(1);
     ARG_STR(uri, 0);
+    ARG_INT(ver, 1);
 
     if ((err = ldap_initialize(&(c->ld), *uri) != LDAP_SUCCESS)) {
       THROW("Error init LDAP");
@@ -163,12 +166,12 @@ public:
     //base scope filter attrs
     ENFORCE_ARG_LENGTH(4, "Invalid number of arguments to Search()");
     ENFORCE_ARG_STR(0);
-    ENFORCE_ARG_STR(1);
+    ENFORCE_ARG_NUMBER(1);
     ENFORCE_ARG_STR(2);
     ENFORCE_ARG_STR(3);
 
     ARG_STR(base,         0);
-    ARG_STR(searchscope,  1);
+    ARG_INT(searchscope,  1);
     ARG_STR(filter,       2);
     ARG_STR(attrs_str,    3);
 
@@ -185,7 +188,7 @@ public:
         if (++ap >= &attrs[255])
           break;
 
-    msgid = ldap_search(c->ld, *base, LDAP_SCOPE_SUBTREE, *filter, attrs, 0);
+    msgid = ldap_search(c->ld, *base, searchscope, *filter, attrs, 0);
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
     ev_io_set(&(c->read_watcher_), fd, EV_READ);
     ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
