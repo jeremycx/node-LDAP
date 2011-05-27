@@ -34,3 +34,8 @@ They may also throw an exception if the parameters are incorrect.
 
 In the case the server connection has gone away, the commands will
 return a -1, and the binding itself will emit the "disconnected" event.
+
+When the response to the command is available, the server emits either
+a "result" event, or a "searchresult" event, with the message id and
+the resulting data as parameters.
+
