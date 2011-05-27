@@ -15,26 +15,30 @@ var Connection = function() {
 
     binding.addListener("search", function(msgid, result) {
         if (typeof(requests[msgid].CB) != "undefined") {
-            requests[msgid].CB(null, result);
+            var req = requests[msgid];
             delete requests[msgid];
+            req.CB(null, result);
         }
     });
 
-    binding.addListener("event", function(msgid, error) {
+    binding.addListener("event", function(msgid) {
         if (typeof(requests[msgid].CB) != "undefined") {
-            requests[msgid].CB(error);
+            var req = requests[msgid];
             delete requests[msgid];
+            req.CB();
         }
     });
 
-    binding.addListener("error", function(msgid, error) {
+    binding.addListener("error", function(msgid, error, msg) {
         if (typeof(requests[msgid].CB) != "undefined") {
-            requests[msgid].CB(error);
+            var req = requests[msgid];
             delete requests[msgid];
+            req.CB(new Error(error, msg));
         }
     });
 
     binding.addListener("unknown", function(errmsg, msgid, type) {
+        delete requests[msgid];
         console.log("Unknown response detected "+errmsg+" "+msgid+" "+type);
     });
 
@@ -43,7 +47,6 @@ var Connection = function() {
         binding.close();
         openCB = function() {
             reconnects++;
-
             var newrequests = {};
             for (msgid in requests) {
                 console.log("Resubmitting "+msgid);
@@ -56,7 +59,7 @@ var Connection = function() {
         self.openWithRetry();
     }
 
-    binding.addListener("serverdown", self.reconnect);
+//    binding.addListener("serverdown", self.reconnect);
 
     self.search = function(base, filter, attrs, CB) {
         requestcount++;
@@ -76,6 +79,8 @@ var Connection = function() {
 
         self.openWithRetry();
     }
+
+    binding.addListener("serverdown", self.open(uri));
 
     self.openWithRetry = function() {
         var err;
