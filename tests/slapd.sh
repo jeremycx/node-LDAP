@@ -10,11 +10,11 @@ $RM -rf openldap-data
 $MKDIR openldap-data
 
 $SLAPADD -f slapd.conf < startup.ldif
-$SLAPD -F . -f slapd.conf -hldap://localhost:1234 
+$SLAPD -d 255 -F . -f slapd.conf -hldap://localhost:1234 
 
 # slapd should be running now
 
-node test2.js
+#node test3.js
 
 # kill slapd
-$KILL -15 `cat slapd.pid`
+#$KILL -15 `cat slapd.pid`

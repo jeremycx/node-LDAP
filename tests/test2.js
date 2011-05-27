@@ -5,17 +5,17 @@ var cnx = new LDAP.Connection();
 // this is for module development only - not to be run automatically
 
 cnx.maxconnectretries = 3;
-cnx.retrywait = 10;
+cnx.retrywait = 100;
 
 function test_connect() {
     cnx.open("ldap://localhost:1234", function(err) {
         if (err) {
             throw(err);
         } else {
-            console.log("Connect [OK]")
+            log("Connect");
             test_search();
         }
-    });
+    }); 
 }
 
 function test_search() {
@@ -26,7 +26,7 @@ function test_search() {
         if (res[0].cn[0] != "Manager") {
             throw new Error("Results look weird");
         }
-        console.log("Search  [OK]");
+        log("Search");
         test_search_fail();
     });
 }
@@ -34,7 +34,7 @@ function test_search() {
 function test_search_fail() {
     cnx.search("dc=sample,dc=com", "(cn=xManager)", "*", function(err, res) {
         if (res.length == 0) {
-            console.log("NullSearch [OK]");
+            log("NullSearch");
             test_auth_fail();
         } else {
             throw(new Error("No error where error expected"));
@@ -45,7 +45,7 @@ function test_search_fail() {
 function test_auth_fail() {
     cnx.authenticate("cn=Manager,dc=sample,dc=com", "aaaaaaa", function(err) {
         if (err) {
-            console.log("Auth Fail [OK]");
+            log("Auth Fail");
             test_auth();
         } else {
             throw(new Error("No error where error expected"));
@@ -58,7 +58,7 @@ function test_auth() {
         if (err) {
             throw err;
         }
-        console.log("Auth [OK]");
+        log("Auth");
         test_add();
     });
 }
@@ -74,7 +74,7 @@ function test_add() {
     ],
             function(err) {
                 if (err) {
-                    console.log("ERR: "+err);
+                    log("Add", true);
                     throw(err);
                 }
                 test_search_add();
@@ -87,16 +87,41 @@ function test_search_add() {
             throw(err);
         }
         if (res.length == 1) {
-            console.log("SearchNew [OK]");
+            log("Search after add");
         } else {
             throw new Error("No results from search where results expected");
         }
-        done();
+        search_after_disconnect();
     });
 }
 
+function search_after_disconnect() {
+    setTimeout(function() {
+        cnx.search("dc=sample,dc=com", "cn=Babs Jensen", "*", function(err, res) {
+            if (err) {
+                throw new Error("Search after disconnect");
+            } 
+            log("Search after disconnect");
+            done();
+        });
+    }, 10000);
+}
+
+
 function done() {
     cnx.close();
+    log("Finish");
+
+
 }
+
+function log(msg, status) {
+    if (!status) {
+        console.log(msg + " [OK]");
+    } else {
+        console.log(msg + " [FAIL]");
+    }
+}
+
 
 test_connect();
