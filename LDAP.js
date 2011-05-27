@@ -1,194 +1,52 @@
-var ldapbinding = require("./build/default/ldap_binding");
+var ldapbinding = require("./build/default/LDAP");
 
 var Connection = function() {
-    var requests = {};
-    var binding = new ldapbinding.Connection();
+    var callbacks = {};
+    var binding = new ldapbinding.LDAPConnection();
     var self = this;
-    var requestcount = 0;
-    var reconnects = 0;
-    var connectretries = 0;
-    var uri;
-    var openCB;
+    var querytimeout = 5000;
 
-    self.maxconnectretries = 3;
-    self.retrywait = 10000;
-
-    binding.addListener("search", function(msgid, result) {
-        if (typeof(requests[msgid].CB) != "undefined") {
-            var req = requests[msgid];
-            delete requests[msgid];
-            req.CB(null, result);
+    self.SetCallback(msgid, CB) {
+        if (msgid > 0) {
+            callbacks[msgid] = CB;
+            callbacks[msgid].tm = setTimeout(function() {
+                CB(msgid, -2);
+                delete callbacks[msgid];
+            }, querytimeout);
         }
+        return msgid;
+    }
+
+    self.Open = function(uri) {
+        return binding.Open(uri);
+    }
+
+    self.Search = function(base, scope, filter, attrs, CB) {
+        var msgid = binding.Search(base, scope, filter, attrs);
+        return self.SetCallback(msgid, CB);
+    }
+
+    self.Add = function(dn, data, CB) {
+        var msgid = binding.Add(dn, data);
+        return self.SetCallback(msgid, CB);
+    }
+
+    self.Modify = function(dn, data, CB) {
+        var msgid = binding.Modify(dn, data);
+        return self.SetCallback(msgid, CB);
+    }
+
+    binding.addListener("searchresult", function(msgid, result, data) {
+        clearTimeout(callbacks[msgid].tm);
+        callbacks[msgid](msgid, result, data);
+        delete(callbacks[msgid]);
     });
 
-    binding.addListener("event", function(msgid) {
-        if (typeof(requests[msgid].CB) != "undefined") {
-            var req = requests[msgid];
-            delete requests[msgid];
-            req.CB();
-        }
+    binding.addListener("result", function(msgid, result) {
+        clearTimeout(callbacks[msgid].tm);
+        callbacks[msgid](msgid, result);
+        delete(callbacks[msgid]);
     });
-
-    binding.addListener("error", function(msgid, error, msg) {
-        if (typeof(requests[msgid].CB) != "undefined") {
-            var req = requests[msgid];
-            delete requests[msgid];
-            req.CB(new Error(error, msg));
-        }
-    });
-
-    binding.addListener("unknown", function(errmsg, msgid, type) {
-        delete requests[msgid];
-        console.log("Unknown response detected "+errmsg+" "+msgid+" "+type);
-    });
-
-    self.reconnect = function() {
-        console.log("Reconnect starting");
-        binding.close();
-        openCB = function() {
-            reconnects++;
-            var newrequests = {};
-            for (msgid in requests) {
-                console.log("Resubmitting "+msgid);
-                if (typeof requests[msgid] != 'undefined') {
-                    newrequests[requests[msgid].redo()] = requests[msgid];
-                } 
-            }
-            requests = newrequests;
-        }
-        self.openWithRetry();
-    }
-
-//    binding.addListener("serverdown", self.reconnect);
-
-    self.search = function(base, filter, attrs, CB) {
-        requestcount++;
-        var r = new Request(CB);
-
-        var msgid = r.doAction(function() {
-            return binding.search(base, filter, attrs);
-        });
-
-        requests[msgid] = r;
-    }
-
-    self.open = function(u, CB) {
-        startup = new Date();
-        openCB = CB;
-        uri = u;
-
-        self.openWithRetry();
-    }
-
-    binding.addListener("serverdown", self.open(uri));
-
-    self.openWithRetry = function() {
-        var err;
-        if (err = binding.open(uri)) {
-            if (++connectretries > self.maxconnectretries) {
-                connectretries = 0;
-                if (typeof openCB == 'function') { openCB(err); }
-                return;
-            }
-            setTimeout(self.openWithRetry, self.retrywait);
-            console.log("Open "+connectretries+" of "+
-                        self.maxconnectretries+
-                        " failed. Retry in "+self.retrywait+" ms");
-        } else {
-            connectretries=0;
-            if (typeof openCB == 'function') { openCB(); }
-        }
-    }
-
-    self.reopen = function() {
-        binding.open(uri);
-    }
-
-    self.close = function() {
-        binding.close();
-    }
-
-    self.authenticate = function (username, password, CB) {
-      requestcount++;
-      var r = new Request(CB);
-        
-        var msgid = r.doAction(function() {
-            return binding.authenticate(username, password);
-        });
-
-        requests[msgid] = r;
-    }
-
-    self.modify = function (dn, mods, CB) {
-      requestcount++;
-
-        var r = new Request(CB);
-      var msgid = r.doAction(function () {
-        return binding.modify(dn, mods);
-      });
-      requests[msgid] = r;
-    };
-
-    self.rename = function (dn, newrdn, CB) {
-      requestcount++;
-
-      var r = new Request(CB);
-      var msgid = r.doAction(function () {
-        return binding.rename(dn, newrdn, "", true);
-      });
-      requests[msgid] = r;
-    };
-
-    self.add = function (dn, attrs, CB) {
-      requestcount++;
-
-      var r = new Request(CB);
-      var msgid = r.doAction(function () {
-        return binding.add(dn, attrs);
-      });
-      requests[msgid] = r;
-    };
-
-    self.close = function(a) {
-        binding.close(a);
-    }
-
-    self.searchAuthenticate = function(base, filter, password, CB) {
-        self.search(base, filter, "", function(res) {
-            // TODO: see if there's only one result, and exit if not
-            if (res.length != 1) {
-                CB(0);
-            } else {
-                // we have the result. Use the DN to auth.
-                self.authenticate(res[0].dn, password, function(success, dn) {
-                    CB(success, res[0].dn);
-                });
-            }
-        });
-    }
-
-    self.getStats = function() {
-        return { 'requests'   : requestcount,
-                 'startup'    : startup,
-                 'reconnects' : reconnects };
-    }
-}
-
-var Request = function(CB) {
-    var self = this;
-    self.CB = CB;
-    var startup = new Date();
-
-    self.doAction = function(func) {
-        self.action = func;
-        self.msgid = self.action();
-        return self.msgid;
-    }
-
-    self.redo  = function() { 
-        self.msgid = self.action();
-        return self.msgid;
-    }
 }
 
 exports.Connection = Connection;
