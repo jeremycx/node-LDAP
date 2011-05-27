@@ -84,7 +84,7 @@ public:
     NODE_SET_PROTOTYPE_METHOD(s_ct, "Close",        Close);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "Search",       Search);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "Modify",       Modify);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "Bind",         Bind);
+    NODE_SET_PROTOTYPE_METHOD(s_ct, "SimpleBind",   SimpleBind);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "Rename",       Rename);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "Add",          Add);
 
@@ -375,24 +375,32 @@ public:
 
   }
 
-  NODE_METHOD(Bind) 
+  NODE_METHOD(SimpleBind)
   {
     HandleScope scope;
     GETOBJ(c);
     int fd;
     int msgid;
+    char * binddn = NULL;
+    char * password = NULL;
 
-    ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to Bind()");
-    ENFORCE_ARG_STR(0);
-    ENFORCE_ARG_STR(1);
-    ARG_STR(binddn, 0);
-    ARG_STR(password, 1);
+    if (args.Length() > 0) {
+      // this is an anonymous bind
+      ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to Bind()");
+      ENFORCE_ARG_STR(0);
+      ENFORCE_ARG_STR(1);
+      ARG_STR(j_binddn, 0);
+      ARG_STR(j_password, 1);
+      
+      binddn = *j_binddn;
+      password = *j_password;
+    }
     
     if (c->ld == NULL) {
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
-    if ((msgid = ldap_simple_bind(c->ld, *binddn, *password) == LDAP_SERVER_DOWN)) {
+    if ((msgid = ldap_simple_bind(c->ld, binddn, password) == LDAP_SERVER_DOWN)) {
       c->Emit(symbol_disconnected, 0, NULL);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
