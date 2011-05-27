@@ -18,6 +18,7 @@ otherwise begin their own module in parallel. Any and all patches and
 pull requests are certainly welcome.
 
 Thanks to:
+----------
 * Petr Běhan
 * YANG Xudong
 
