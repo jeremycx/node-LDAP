@@ -474,6 +474,7 @@ public:
     error = ldap_result2error(c->ld, ldap_res, 0);
 
     args[0] = Integer::New(msgid);
+    args[1] = Local<Value>::New(Integer::New(res));
 
     if (error) {
       args[1] = Integer::New(error);
@@ -485,13 +486,12 @@ public:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
-        c->Emit(symbol_result, 1, args);
+        c->Emit(symbol_result, 2, args);
         break;
 
       case  LDAP_RES_SEARCH_RESULT:
-        args[0] = Local<Value>::New(Integer::New(msgid));
-        args[1] = c->parseReply(c, ldap_res);
-        c->Emit(symbol_search, 2, args);
+        args[2] = c->parseReply(c, ldap_res);
+        c->Emit(symbol_search, 3, args);
         break;
 
       default:
