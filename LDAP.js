@@ -7,6 +7,12 @@ var Connection = function() {
     var querytimeout = 5000;
     var totalqueries = 0;
 
+    self.BASE = 0;
+    self.ONELEVEL = 1;
+    self.SUBTREE = 2;
+    self.SUBORDINATE = 3;
+    self.DEFAULT = -1;
+
     self.SetCallback = function(msgid, CB) {
         if (msgid > 0) {
             totalqueries++;
@@ -21,8 +27,12 @@ var Connection = function() {
         return msgid;
     }
 
-    self.Open = function(uri) {
-        return binding.Open(uri);
+    self.Open = function(uri, version) {
+        if (arguments.length < 2) {
+            return binding.Open(uri, 3);
+        }
+
+        return binding.Open(uri, version);
     }
 
     self.Search = function(base, scope, filter, attrs, CB) {
@@ -48,6 +58,10 @@ var Connection = function() {
     self.Modify = function(dn, data, CB) {
         var msgid = binding.Modify(dn, data);
         return self.SetCallback(msgid, CB);
+    }
+
+    self.addListener = function(event, CB) {
+        binding.addListener(event, CB);
     }
 
     binding.addListener("searchresult", function(msgid, result, data) {
