@@ -22,8 +22,8 @@ def configure(conf):
 def build(bld):
   obj = bld.new_task_gen('cxx', 'shlib', 'node_addon')
   obj.cxxflags = ['-DLDAP_DEPRECATED']
-  obj.target = 'ldap_binding'
-  obj.source = './src/ldap_binding.cc'
+  obj.target = 'LDAP'
+  obj.source = './src/LDAP.cc'
   obj.lib = ['ldap']
 
 #def shutdown():
