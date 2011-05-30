@@ -33,7 +33,7 @@ Connection.Open(uri, version)
 Opens a new connection to the LDAP server or servers. Does not make a
 connection attept (that is saved until the first command is issued).
 
-Basically, this call will always success, but may throw an error in
+Basically, this call will always succeeds, but may throw an error in
 the case of improper parameters. Will not return an error unless no
 memory is available.
 
