@@ -388,8 +388,8 @@ public:
     char * password = NULL;
 
     if (args.Length() > 0) {
-      // this is an anonymous bind
-      ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to Bind()");
+      // this is NOT an anonymous bind
+      ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to SimpleBind()");
       ENFORCE_ARG_STR(0);
       ENFORCE_ARG_STR(1);
       ARG_STR(j_binddn, 0);
