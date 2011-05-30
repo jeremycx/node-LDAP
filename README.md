@@ -1,8 +1,8 @@
 node-ldap
 =========
 
-OpenLDAP client bindings for Node.js. A good start, but not, as of
-this writing, production quality. The API is mostly stable at this point.
+OpenLDAP client bindings for Node.js. Requires libraries from
+http://www.openldap.org installed.
 
 Contributing
 ------------
@@ -37,6 +37,8 @@ Basically, this call will always succeeds, but may throw an error in
 the case of improper parameters. Will not return an error unless no
 memory is available.
 
+Open Example
+------------
 
         var LDAPConnection = require("../LDAP").Connection;
         var LDAP = new LDAPConnection();
@@ -98,5 +100,5 @@ Search Example
 TODO:
 -----
 * Document Modify, Add and Rename
-
-
+* Testing against Microsoft Active Directory is welcomed, as I don't
+have a server to test against.
