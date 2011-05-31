@@ -82,13 +82,13 @@ public:
     s_ct->InstanceTemplate()->SetInternalFieldCount(1);
     s_ct->SetClassName(String::NewSymbol("LDAPConnection"));
 
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "Open",         Open);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "Close",        Close);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "Search",       Search);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "Modify",       Modify);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "SimpleBind",   SimpleBind);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "Rename",       Rename);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "Add",          Add);
+    NODE_SET_PROTOTYPE_METHOD(s_ct, "open",         Open);
+    NODE_SET_PROTOTYPE_METHOD(s_ct, "close",        Close);
+    NODE_SET_PROTOTYPE_METHOD(s_ct, "search",       Search);
+    NODE_SET_PROTOTYPE_METHOD(s_ct, "modify",       Modify);
+    NODE_SET_PROTOTYPE_METHOD(s_ct, "simpleBind",   SimpleBind);
+    NODE_SET_PROTOTYPE_METHOD(s_ct, "rename",       Rename);
+    NODE_SET_PROTOTYPE_METHOD(s_ct, "add",          Add);
 
     symbol_connected    = NODE_PSYMBOL("connected");
     symbol_disconnected = NODE_PSYMBOL("disconnected");

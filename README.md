@@ -27,7 +27,7 @@ To build, ensure the OpenLDAP client libraries are installed, and
 
    npm install https://github.com/jeremycx/node-LDAP/tarball/master -g
 
-Connection.Open(uri, version)
+Connection.open(uri, version)
 -----------------------------
 
 Opens a new connection to the LDAP server or servers. Does not make a
@@ -43,7 +43,7 @@ Open Example
         var LDAPConnection = require("../LDAP").Connection;
         var LDAP = new LDAPConnection();
         
-        if (LDAP.Open("ldap://server1.domain.com ldap://server2.domain.com", 3) < 0) {
+        if (LDAP.open("ldap://server1.domain.com ldap://server2.domain.com", 3) < 0) {
            throw new Error("Unable to connect to server");
         }                                                
 
@@ -82,8 +82,8 @@ Search Example
         var LDAP = new LDAPConnection();
         
         // Open a connection.
-        LDAP.Open("ldap://ldap1.example.com");
-        LDAP.Search("o=company", LDAP.SUBTREE, "(uid=alice)", "*", function(err, res, data) {
+        LDAP.open("ldap://ldap1.example.com");
+        LDAP.search("o=company", LDAP.SUBTREE, "(uid=alice)", "*", function(err, res, data) {
             switch(res) {
             case -2:
                  console.log("Timeout");

@@ -5,22 +5,22 @@ Typically, you will require LDAP.js and use the convenience
 library. This file documents the binding itself, in case you need
 direct access to the OpenLDAP library.
 
-Open(uri)
+open(uri)
 ------
-Open() calls ldap_initialize, which parses the URI, allocates any
+open() calls ldap_initialize, which parses the URI, allocates any
 memory required, but does not try to connect. The first command sent
 will start up the connection.
 
 This first command may block until the connection is made, or the
 timeout occurs. This is potentially pretty disatrous, I admit.
 
-Open() will throw an exception if the URI isn't formatted properly, or
+open() will throw an exception if the URI isn't formatted properly, or
 some other unrecoverable error occurs.
 
 To get failover, you may provide a list of LDAP URIs, separated by
 spaces or commas.
 
-Command()
+command()
 --------
 The following commands are available:
 

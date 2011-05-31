@@ -13,7 +13,7 @@ var Connection = function() {
     self.SUBORDINATE = 3;
     self.DEFAULT = -1;
 
-    self.SetCallback = function(msgid, CB) {
+    self.setCallback = function(msgid, CB) {
         if (msgid > 0) {
             totalqueries++;
             if (typeof(CB) == 'function') {
@@ -27,37 +27,37 @@ var Connection = function() {
         return msgid;
     }
 
-    self.Open = function(uri, version) {
+    self.open = function(uri, version) {
         if (arguments.length < 2) {
-            return binding.Open(uri, 3);
+            return binding.open(uri, 3);
         }
 
-        return binding.Open(uri, version);
+        return binding.open(uri, version);
     }
 
-    self.Search = function(base, scope, filter, attrs, CB) {
-        var msgid = binding.Search(base, scope, filter, attrs);
-        return self.SetCallback(msgid, CB);
+    self.search = function(base, scope, filter, attrs, CB) {
+        var msgid = binding.search(base, scope, filter, attrs);
+        return self.setCallback(msgid, CB);
     }
 
-    self.SimpleBind = function(binddn, password, CB) {
+    self.simpleBind = function(binddn, password, CB) {
         var msgid;
         if (arguments.length == 0) {
-            msgid = binding.SimpleBind();
+            msgid = binding.simpleBind();
         } else {
-            msgid = binding.SimpleBind(binddn, password);
+            msgid = binding.simpleBind(binddn, password);
         }
-        return self.SetCallback(msgid, CB);
+        return self.setCallback(msgid, CB);
     }
 
-    self.Add = function(dn, data, CB) {
-        var msgid = binding.Add(dn, data);
-        return self.SetCallback(msgid, CB);
+    self.add = function(dn, data, CB) {
+        var msgid = binding.add(dn, data);
+        return self.setCallback(msgid, CB);
     }
 
-    self.Modify = function(dn, data, CB) {
-        var msgid = binding.Modify(dn, data);
-        return self.SetCallback(msgid, CB);
+    self.modify = function(dn, data, CB) {
+        var msgid = binding.modify(dn, data);
+        return self.setCallback(msgid, CB);
     }
 
     self.addListener = function(event, CB) {
