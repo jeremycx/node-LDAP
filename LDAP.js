@@ -23,9 +23,10 @@ var Connection = function() {
                     delete callbacks[msgid];
                 }, querytimeout);
             }
+        } else {
+            CB(msgid, new Error('Error setting callback'));
         }
-        return msgid;
-    }
+    };
 
     self.open = function(uri, version) {
         if (arguments.length < 2) {
@@ -33,36 +34,36 @@ var Connection = function() {
         }
 
         return binding.open(uri, version);
-    }
+    };
 
     self.search = function(base, scope, filter, attrs, CB) {
         var msgid = binding.search(base, scope, filter, attrs);
         return self.setCallback(msgid, CB);
-    }
+    };
 
     self.simpleBind = function(binddn, password, CB) {
         var msgid;
-        if (arguments.length == 0) {
+        if (arguments.length === 0) {
             msgid = binding.simpleBind();
         } else {
             msgid = binding.simpleBind(binddn, password);
         }
         return self.setCallback(msgid, CB);
-    }
+    };
 
     self.add = function(dn, data, CB) {
         var msgid = binding.add(dn, data);
         return self.setCallback(msgid, CB);
-    }
+    };
 
     self.modify = function(dn, data, CB) {
         var msgid = binding.modify(dn, data);
         return self.setCallback(msgid, CB);
-    }
+    };
 
     self.addListener = function(event, CB) {
         binding.addListener(event, CB);
-    }
+    };
 
     binding.addListener("searchresult", function(msgid, result, data) {
         if (callbacks[msgid]) {
@@ -79,7 +80,6 @@ var Connection = function() {
             delete(callbacks[msgid]);
         }
     });
-
-}
+};
 
 exports.Connection = Connection;
