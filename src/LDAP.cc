@@ -188,10 +188,11 @@ public:
         if (++ap >= &attrs[255])
           break;
 
-    msgid = ldap_search(c->ld, *base, searchscope, *filter, attrs, 0);
-    ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-    ev_io_set(&(c->read_watcher_), fd, EV_READ);
-    ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+    if ((msgid = ldap_search(c->ld, *base, searchscope, *filter, attrs, 0)) >= 0) {
+      ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
+      ev_io_set(&(c->read_watcher_), fd, EV_READ);
+      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+    }
 
     free(bufhead);
 
