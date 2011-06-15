@@ -476,7 +476,7 @@ public:
     int error;
 
     // not sure if this is neccesary...
-    if (!(revents & 1)) {
+    if (!(revents & EV_READ)) {
       return;
     }
 
