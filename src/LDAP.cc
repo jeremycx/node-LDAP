@@ -125,6 +125,10 @@ public:
     ARG_STR(uri, 0);
     ARG_INT(ver, 1);
 
+    if (c->ld != NULL) {
+      c->Close(args);
+    }
+
     if ((err = ldap_initialize(&(c->ld), *uri) != LDAP_SUCCESS)) {
       THROW("Error init LDAP");
     }
@@ -470,6 +474,11 @@ public:
     int res;
     int msgid;
     int error;
+
+    // not sure if this is neccesary...
+    if (!(revents & 1)) {
+      return;
+    }
 
     if (c->ld == NULL) {
       // disconnect event, or something arriving after
