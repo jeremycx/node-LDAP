@@ -19,14 +19,14 @@ var Connection = function() {
             if (typeof(CB) == 'function') {
                 callbacks[msgid] = CB;
                 callbacks[msgid].tm = setTimeout(function() {
-                    CB(msgid, new Error(-2, "Request timed out"));
+                    CB(msgid, new Error('Request timed out', -2));
                     delete callbacks[msgid];
                 }, querytimeout);
             }
         } else {
             // msgid is -1, which means an error. We won't add the callback to the array,
             // instead, call the callback immediately.
-            CB(msgid, new Error(-1, 'LDAP Error')); //TODO: expose a way to get the specific error
+            CB(msgid, new Error('LDAP Error', -1)); //TODO: expose a way to get the specific error
         }
     };
 
@@ -40,7 +40,7 @@ var Connection = function() {
 
     self.search = function(base, scope, filter, attrs, CB) {
         var msgid = binding.search(base, scope, filter, attrs);
-        return self.setCallback(msgid, CB);
+        self.setCallback(msgid, CB);
     };
 
     self.simpleBind = function(binddn, password, CB) {
@@ -66,6 +66,10 @@ var Connection = function() {
     self.addListener = function(event, CB) {
         binding.addListener(event, CB);
     };
+
+    self.close = function() {
+        binding.close();
+    }
 
     binding.addListener("searchresult", function(msgid, result, data) {
         // result contains the LDAP response type. It's unused.
