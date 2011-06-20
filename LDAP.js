@@ -14,7 +14,7 @@ var Connection = function() {
     self.DEFAULT = -1;
 
     self.setCallback = function(msgid, CB) {
-        if (msgid > 0) {
+        if (msgid >= 0) {
             totalqueries++;
             if (typeof(CB) == 'function') {
                 callbacks[msgid] = CB;
