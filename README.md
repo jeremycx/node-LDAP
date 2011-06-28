@@ -83,8 +83,8 @@ Search Example
         
         // Open a connection.
         LDAP.open("ldap://ldap1.example.com");
-        LDAP.search("o=company", LDAP.SUBTREE, "(uid=alice)", "*", function(err, res, data) {
-            switch(res) {
+        LDAP.search("o=company", LDAP.SUBTREE, "(uid=alice)", "*", function(msgid, error, data) {
+            switch(error) {
             case -2:
                  console.log("Timeout");
                  break;

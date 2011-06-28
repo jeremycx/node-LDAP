@@ -24,7 +24,7 @@ command()
 --------
 The following commands are available:
 
-* Serarch(base, scope, filter, attrs)
+* Search(base, scope, filter, attrs)
 * Bind(binddn, password)
 * Add(dn, attrs)
 * Modify(dn. mods)
