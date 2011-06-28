@@ -400,8 +400,8 @@ public:
       ARG_STR(j_binddn, 0);
       ARG_STR(j_password, 1);
       
-      binddn = *j_binddn;
-      password = *j_password;
+      binddn = strdup(*j_binddn);
+      password = strdup(*j_password);
     }
     
     if (c->ld == NULL) {
@@ -410,12 +410,14 @@ public:
 
     if ((msgid = ldap_simple_bind(c->ld, binddn, password) == LDAP_SERVER_DOWN)) {
       c->Emit(symbol_disconnected, 0, NULL);
-      RETURN_INT(LDAP_SERVER_DOWN);
+    } else {
+      ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);    
+      ev_io_set(&(c->read_watcher_), fd, EV_READ);
+      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
     }
-
-    ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);    
-    ev_io_set(&(c->read_watcher_), fd, EV_READ);
-    ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+  
+    free(binddn);
+    free(password);
 
     RETURN_INT(msgid);
   }
