@@ -392,6 +392,10 @@ public:
     char * binddn = NULL;
     char * password = NULL;
 
+    if (c->ld == NULL) {
+      RETURN_INT(LDAP_SERVER_DOWN);
+    }
+
     if (args.Length() > 0) {
       // this is NOT an anonymous bind
       ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to SimpleBind()");
@@ -404,10 +408,6 @@ public:
       password = strdup(*j_password);
     }
     
-    if (c->ld == NULL) {
-      RETURN_INT(LDAP_SERVER_DOWN);
-    }
-
     if ((msgid = ldap_simple_bind(c->ld, binddn, password) == LDAP_SERVER_DOWN)) {
       c->Emit(symbol_disconnected, 0, NULL);
     } else {
