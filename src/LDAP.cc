@@ -19,6 +19,8 @@ static Persistent<String> symbol_error;
 static Persistent<String> symbol_result;
 static Persistent<String> symbol_unknown;
 
+struct timeval ldap_tv = { 0, 0 }; // static struct used to make ldap_result non-blocking
+
 #define REQ_FUN_ARG(I, VAR)                                             \
   if (args.Length() <= (I) || !args[I]->IsFunction())                   \
     return ThrowException(Exception::TypeError(                         \
@@ -488,7 +490,7 @@ public:
       return;
     }
 
-    if ((res = ldap_result(c->ld, LDAP_RES_ANY, 1, NULL, &ldap_res)) < 1) {
+    if ((res = ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &ldap_res)) < 1) {
       c->Emit(symbol_disconnected, 0, NULL);
       return;
     }
