@@ -410,7 +410,7 @@ public:
       password = strdup(*j_password);
     }
     
-    if ((msgid = ldap_simple_bind(c->ld, binddn, password) == LDAP_SERVER_DOWN)) {
+    if ((msgid = ldap_simple_bind(c->ld, binddn, password)) == LDAP_SERVER_DOWN) {
       c->Emit(symbol_disconnected, 0, NULL);
     } else {
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);    
