@@ -97,6 +97,7 @@ public:
     symbol_search       = NODE_PSYMBOL("searchresult");
     symbol_error        = NODE_PSYMBOL("error");
     symbol_result       = NODE_PSYMBOL("result");
+    symbol_unknown      = NODE_PSYMBOL("unknown");
 
     target->Set(String::NewSymbol("LDAPConnection"), s_ct->GetFunction());
   }
