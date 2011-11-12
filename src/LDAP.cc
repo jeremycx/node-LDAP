@@ -166,9 +166,10 @@ public:
   NODE_METHOD(Search) {
     HandleScope scope;
     GETOBJ(c);
-    int fd, msgid;
+    int fd, msgid, rc;
     char * attrs[255];
     char ** ap;
+    LDAPControl* serverCtrls[2] = { NULL, NULL };
 
     //base scope filter attrs
     ENFORCE_ARG_LENGTH(4, "Invalid number of arguments to Search()");
@@ -195,7 +196,11 @@ public:
         if (++ap >= &attrs[255])
           break;
 
-    if ((msgid = ldap_search(c->ld, *base, searchscope, *filter, attrs, 0)) >= 0) {
+    rc = ldap_search_ext(c->ld, *base, searchscope, *filter, attrs, 0,
+        serverCtrls, NULL, NULL, 0, &msgid);
+    if (LDAP_API_ERROR(rc)) {
+      msgid = -1;
+    } else {
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
       ev_io_set(&(c->read_watcher_), fd, EV_READ);
       ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -475,7 +480,9 @@ public:
     HandleScope scope;
     LDAPConnection *c = static_cast<LDAPConnection*>(w->data);
     LDAPMessage *ldap_res;  
+    LDAPControl** srv_controls;
     Handle<Value> args[3];
+    int op;
     int res;
     int msgid;
     int error;
@@ -495,19 +502,21 @@ public:
       c->Emit(symbol_disconnected, 0, NULL);
       return;
     }
+    op = res;
 
     msgid = ldap_msgid(ldap_res);
-    error = ldap_result2error(c->ld, ldap_res, 0);
+    res = ldap_parse_result(c->ld, ldap_res, &error, NULL, NULL, NULL,
+        &srv_controls, 0);
 
     args[0] = Integer::New(msgid);
     args[1] = Local<Value>::New(Integer::New(res));
 
-    if (error) {
+    if (res != LDAP_SUCCESS || error) {
       args[1] = Integer::New(error);
       args[2] = Local<Value>::New(String::New(ldap_err2string(error)));
       c->Emit(symbol_error, 3, args);
     } else {
-      switch(res) {
+      switch(op) {
       case LDAP_RES_BIND:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
@@ -525,7 +534,10 @@ public:
         break;
       }
     }
-    
+
+    if (srv_controls) {
+      ldap_controls_free(srv_controls);
+    }
     ldap_msgfree(ldap_res);
   }
 
