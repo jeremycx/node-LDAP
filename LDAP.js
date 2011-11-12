@@ -45,7 +45,8 @@ var Connection = function() {
 
     self.simpleBind = function(binddn, password, CB) {
         var msgid;
-        if (arguments.length === 0) {
+        if (arguments.length === 1 && typeof arguments[0] == 'function') {
+            CB = arguments[0];
             msgid = binding.simpleBind();
         } else {
             msgid = binding.simpleBind(binddn, password);
