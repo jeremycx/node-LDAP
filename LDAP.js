@@ -43,9 +43,22 @@ var Connection = function() {
         self.setCallback(msgid, CB);
     };
 
+    self.searchPaged = function(base, scope, filter, attrs, pageSize, CB, cookie) {
+        // leave cookie empty when calling from client code
+        var msgid = binding.search(base, scope, filter, attrs, pageSize, cookie);
+        self.setCallback(msgid, CB);
+        var cb = callbacks[msgid];
+        cb.base = base;
+        cb.scope = scope;
+        cb.filter = filter;
+        cb.attrs = attrs;
+        cb.pageSize = pageSize;
+    }
+
     self.simpleBind = function(binddn, password, CB) {
         var msgid;
-        if (arguments.length === 0) {
+        if (arguments.length === 1 && typeof arguments[0] == 'function') {
+            CB = arguments[0];
             msgid = binding.simpleBind();
         } else {
             msgid = binding.simpleBind(binddn, password);
@@ -76,6 +89,20 @@ var Connection = function() {
         if (callbacks[msgid]) {
             clearTimeout(callbacks[msgid].tm);
             callbacks[msgid](msgid, null, data);
+            delete(callbacks[msgid]);
+        }
+    });
+
+    binding.addListener("searchresultpaged", function(msgid, result, data, cookie) {
+        var cb = callbacks[msgid];
+        if (cb) {
+            clearTimeout(cb.tm);
+            cb(msgid, null, data);
+            if (cookie) {
+                self.searchPaged(cb.base, cb.scope, cb.filter, cb.attrs, cb.pageSize, cb, cookie);
+            } else {
+                cb(msgid, null, null);
+            }
             delete(callbacks[msgid]);
         }
     });

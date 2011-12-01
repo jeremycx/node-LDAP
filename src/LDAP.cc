@@ -15,9 +15,12 @@ using namespace v8;
 static Persistent<String> symbol_connected;
 static Persistent<String> symbol_disconnected;
 static Persistent<String> symbol_search;
+static Persistent<String> symbol_search_paged;
 static Persistent<String> symbol_error;
 static Persistent<String> symbol_result;
 static Persistent<String> symbol_unknown;
+
+static Persistent<ObjectTemplate> cookie_template;
 
 struct timeval ldap_tv = { 0, 0 }; // static struct used to make ldap_result non-blocking
 
@@ -95,8 +98,13 @@ public:
     symbol_connected    = NODE_PSYMBOL("connected");
     symbol_disconnected = NODE_PSYMBOL("disconnected");
     symbol_search       = NODE_PSYMBOL("searchresult");
+    symbol_search_paged = NODE_PSYMBOL("searchresultpaged");
     symbol_error        = NODE_PSYMBOL("error");
     symbol_result       = NODE_PSYMBOL("result");
+    symbol_unknown      = NODE_PSYMBOL("unknown");
+
+    cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
+    cookie_template->SetInternalFieldCount(1);
 
     target->Set(String::NewSymbol("LDAPConnection"), s_ct->GetFunction());
   }
@@ -165,9 +173,13 @@ public:
   NODE_METHOD(Search) {
     HandleScope scope;
     GETOBJ(c);
-    int fd, msgid;
+    int fd, msgid, rc;
     char * attrs[255];
     char ** ap;
+    LDAPControl* serverCtrls[2] = { NULL, NULL };
+    int page_size = 0;
+    v8::Local<v8::Object> cookieObj;
+    struct berval* cookie = NULL;
 
     //base scope filter attrs
     ENFORCE_ARG_LENGTH(4, "Invalid number of arguments to Search()");
@@ -181,8 +193,31 @@ public:
     ARG_STR(filter,       2);
     ARG_STR(attrs_str,    3);
 
+    if (args.Length() >= 5) {
+      ENFORCE_ARG_NUMBER(4);
+      page_size = args[4]->Int32Value();
+      if (args.Length() >= 6) {
+        if (args[5]->IsObject()) {
+          cookieObj = args[5]->ToObject();
+          if (cookieObj->InternalFieldCount() != 1
+              || (cookie = reinterpret_cast<berval*>(cookieObj->GetPointerFromInternalField(0)) ) == NULL)
+          {
+            // TODO throw
+          }
+          // TODO: check that parameters match to those passed to first call
+          cookieObj->SetPointerInInternalField(0, NULL);
+        } else {
+          // TODO throw
+        }
+      }
+    }
+
     if (c->ld == NULL) {
       c->Emit(symbol_disconnected, 0, NULL);
+      if (cookie) {
+        ber_bvfree(cookie);
+        cookie = NULL;
+      }
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
@@ -194,7 +229,30 @@ public:
         if (++ap >= &attrs[255])
           break;
 
-    if ((msgid = ldap_search(c->ld, *base, searchscope, *filter, attrs, 0)) >= 0) {
+    if (page_size > 0) {
+      rc = ldap_create_page_control(c->ld, page_size, cookie, 'F',
+            &serverCtrls[0]);
+
+      if (cookie) {
+        ber_bvfree(cookie);
+        cookie = NULL;
+      }
+      if (rc != LDAP_SUCCESS) {
+        abort();
+        // TODO: free other stuff, throw ?
+      }
+
+    }
+
+    rc = ldap_search_ext(c->ld, *base, searchscope, *filter, attrs, 0,
+        serverCtrls, NULL, NULL, 0, &msgid);
+
+    if (serverCtrls[0]) {
+      ldap_control_free(serverCtrls[0]);
+    }
+    if (LDAP_API_ERROR(rc)) {
+      msgid = -1;
+    } else {
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
       ev_io_set(&(c->read_watcher_), fd, EV_READ);
       ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -474,7 +532,9 @@ public:
     HandleScope scope;
     LDAPConnection *c = static_cast<LDAPConnection*>(w->data);
     LDAPMessage *ldap_res;  
+    LDAPControl** srv_controls;
     Handle<Value> args[3];
+    int op;
     int res;
     int msgid;
     int error;
@@ -494,19 +554,21 @@ public:
       c->Emit(symbol_disconnected, 0, NULL);
       return;
     }
+    op = res;
 
     msgid = ldap_msgid(ldap_res);
-    error = ldap_result2error(c->ld, ldap_res, 0);
+    res = ldap_parse_result(c->ld, ldap_res, &error, NULL, NULL, NULL,
+        &srv_controls, 0);
 
     args[0] = Integer::New(msgid);
     args[1] = Local<Value>::New(Integer::New(res));
 
-    if (error) {
+    if (res != LDAP_SUCCESS || error) {
       args[1] = Integer::New(error);
       args[2] = Local<Value>::New(String::New(ldap_err2string(error)));
       c->Emit(symbol_error, 3, args);
     } else {
-      switch(res) {
+      switch(op) {
       case LDAP_RES_BIND:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
@@ -516,7 +578,26 @@ public:
 
       case  LDAP_RES_SEARCH_RESULT:
         args[2] = c->parseReply(c, ldap_res);
-        c->Emit(symbol_search, 3, args);
+        if (!srv_controls) {
+          c->Emit(symbol_search, 3, args);
+          break;
+        }
+        {
+          struct berval* cookie = NULL;
+          ldap_parse_page_control(c->ld, srv_controls, NULL, &cookie);
+          if (!cookie || cookie->bv_val == NULL || !*cookie->bv_val) {
+            if (cookie) {
+              ber_bvfree(cookie);
+            }
+            args[3] = v8::Undefined();
+          } else {
+            Local<Object> cookieObj(cookie_template->NewInstance());
+            cookieObj->SetPointerInInternalField(0, cookie);
+            cookieObj->Set(v8::String::New("cookie"), v8::String::New("cookie") );
+            args[3] = cookieObj;
+          }
+          c->Emit(symbol_search_paged, 4, args);
+        }
         break;
 
       default:
@@ -524,7 +605,10 @@ public:
         break;
       }
     }
-    
+
+    if (srv_controls) {
+      ldap_controls_free(srv_controls);
+    }
     ldap_msgfree(ldap_res);
   }
 
