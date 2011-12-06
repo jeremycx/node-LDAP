@@ -117,6 +117,7 @@ public:
 
     ev_init(&(c->read_watcher_), LDAPConnection::io_event);
     c->read_watcher_.data = c;
+    c->read_watcher_.fd = -1;
     
     c->ld = NULL;
 
@@ -260,8 +261,13 @@ public:
       msgid = -1;
     } else {
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-      ev_io_set(&(c->read_watcher_), fd, EV_READ);
-      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+      if (c->read_watcher_.fd != fd) {
+        if (ev_is_active(&c->read_watcher_)) {
+          ev_io_stop(&c->read_watcher_);
+        }
+        ev_io_set(&(c->read_watcher_), fd, EV_READ);
+        ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+      }
     }
 
     free(bufhead);
@@ -401,8 +407,13 @@ public:
 
     msgid = ldap_add(c->ld, *dn, ldapmods);
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-    ev_io_set(&(c->read_watcher_), fd, EV_READ);
-    ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+    if (c->read_watcher_.fd != fd) {
+      if (ev_is_active(&c->read_watcher_)) {
+        ev_io_stop(&c->read_watcher_);
+      }
+      ev_io_set(&(c->read_watcher_), fd, EV_READ);
+      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+    }
 
     if (msgid == LDAP_SERVER_DOWN) {
       c->Emit(symbol_disconnected, 0, NULL);
@@ -442,8 +453,13 @@ public:
     }
 
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-    ev_io_set(&(c->read_watcher_), fd, EV_READ);
-    ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+    if (c->read_watcher_.fd != fd) {
+      if (ev_is_active(&c->read_watcher_)) {
+        ev_io_stop(&c->read_watcher_);
+      }
+      ev_io_set(&(c->read_watcher_), fd, EV_READ);
+      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+    }
 
     RETURN_INT(msgid);
 
@@ -478,8 +494,13 @@ public:
       c->Emit(symbol_disconnected, 0, NULL);
     } else {
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);    
-      ev_io_set(&(c->read_watcher_), fd, EV_READ);
-      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+      if (c->read_watcher_.fd != fd) {
+        if (ev_is_active(&c->read_watcher_)) {
+          ev_io_stop(&c->read_watcher_);
+        }
+        ev_io_set(&(c->read_watcher_), fd, EV_READ);
+        ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+      }
     }
   
     free(binddn);
@@ -557,6 +578,19 @@ public:
     }
 
     res = ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &ldap_res);
+    {
+      // if ldap silently handled reconnect, fd may now be different
+      int fd = -1;
+      ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
+      if (c->read_watcher_.fd != fd) {
+        if (ev_is_active(&c->read_watcher_)) {
+          ev_io_stop(&c->read_watcher_);
+        }
+        ev_io_set(&(c->read_watcher_), fd, EV_READ);
+        ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+      }
+    }
+
     if (res == 0) {
       // No complete messages were available. In theory, this will happen when
       // reply consists of more packets, and not all have arrived yet.
