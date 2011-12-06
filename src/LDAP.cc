@@ -115,7 +115,7 @@ public:
     LDAPConnection * c = new LDAPConnection();
     c->Wrap(args.This());
 
-    ev_init(&(c->read_watcher_), c->io_event);
+    ev_init(&(c->read_watcher_), LDAPConnection::io_event);
     c->read_watcher_.data = c;
     
     c->ld = NULL;
@@ -556,7 +556,17 @@ public:
       return;
     }
 
-    if ((res = ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &ldap_res)) < 1) {
+    res = ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &ldap_res);
+    if (res == 0) {
+      // No complete messages were available. In theory, this will happen when
+      // reply consists of more packets, and not all have arrived yet.
+      //
+      // In practice, code ends here over 10 times per result packet, even for
+      // searches where answer consists only of two packets. Not sure why,
+      // might be worth investigating, hiting this case too often could harm
+      // performance a bit.
+      return;
+    } else if (res < 0) {
       c->Emit(symbol_disconnected, 0, NULL);
       return;
     }
