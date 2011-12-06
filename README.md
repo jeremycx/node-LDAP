@@ -47,7 +47,7 @@ Open Example
            throw new Error("Unable to connect to server");
         }                                                
 
-Connection.SimpleBind([dn, password,] callback(msgid, err));
+Connection.simpleBind([dn, password,] callback(msgid, err));
 -----------------------------------
 
 Authenticates to the server. When the response is ready, or the
@@ -55,7 +55,7 @@ timeout occurs, will execute the callback with the error value set.
 
 dn and password must be omited, when doing anonymous bind.
 
-Connection.Search(base, scope, filter, attrs, function(msgid, err, data))
+Connection.search(base, scope, filter, attrs, function(msgid, err, data))
 ---------------------------------------------
 
 Searches LDAP within the given base for entries matching the given
@@ -72,26 +72,28 @@ Scopes are specified as one of the following integers:
 
 If a disconnect or other server error occurs, the backing library will
 attempt to reconnect automatically, and if this reconnection fails,
-Connection.Open() will return -1.
+Connection.open() will return -1.
 
 See also "man 3 ldap" for details.
 
-Connection.SearchPaged(base, scope, filter, attrs, pageSize, function(msgid, err, data) [, cookie])
+Connection.searchPaged(base, scope, filter, attrs, pageSize, function(msgid, err, data) [, cookie])
 ---------------------------------------------------------------------------------------------------
 
-LDAP servers are usually limited in how many items they are willing to return - 1024 or 4096 are
-some typical values. For larger LDAP directories, you need to either partition your results
-with filter, or use paged search.
+LDAP servers are usually limited in how many items they are willing to return -
+1024 or 4096 are some typical values. For larger LDAP directories, you need to
+either partition your results with filter, or use paged search.
 
-Note that it's only extension to the protocol, server doesn't have to support it. In such
-case, callback will be called with nonzero err (actually, it would be nice if someone could
-verify this, the server it was tested on had this feature).
+Note that it's only extension to the protocol, server doesn't have to support
+it. In such case, callback will be called with nonzero err (actually, it would
+be nice if someone could verify this, the server it was tested on had this
+feature).
 
 Cookie parameter is only for internal use, leave it undefined in your calls.
 
-Results are passed to callback function as they arrive in the same format as for simple Search.
-Request for next page is sent only after the callback returns. After all data has arrived,
-callback is called once more, with data equal to null.
+Results are passed to callback function as they arrive in the same format
+as for simple search. Request for next page is sent only after the callback
+returns. After all data has arrived, callback is called once more, with data
+equal to null.
 
 Search Example
 --------------
