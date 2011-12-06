@@ -194,21 +194,24 @@ public:
     ARG_STR(attrs_str,    3);
 
     if (args.Length() >= 5) {
+      // process optional arguments: [, pageSize [, cookie] ]
       ENFORCE_ARG_NUMBER(4);
       page_size = args[4]->Int32Value();
-      if (args.Length() >= 6) {
-        if (args[5]->IsObject()) {
-          cookieObj = args[5]->ToObject();
-          if (cookieObj->InternalFieldCount() != 1
-              || (cookie = reinterpret_cast<berval*>(cookieObj->GetPointerFromInternalField(0)) ) == NULL)
-          {
-            // TODO throw
-          }
-          // TODO: check that parameters match to those passed to first call
-          cookieObj->SetPointerInInternalField(0, NULL);
-        } else {
-          // TODO throw
+      if (args.Length() >= 6 && !args[5]->IsUndefined()) {
+        // we have the cookie, too
+        if (!args[5]->IsObject()) {
+          THROW("invalid cookie object for paged search");
         }
+        cookieObj = args[5]->ToObject();
+        if (cookieObj->InternalFieldCount() != 1) {
+          THROW("invalid cookie object for paged search");
+        }
+        cookie = static_cast<berval*>(
+            cookieObj->GetPointerFromInternalField(0));
+        if (cookie == NULL) {
+          THROW("invalid cookie object for paged search");
+        }
+        cookieObj->SetPointerInInternalField(0, NULL);
       }
     }
 
@@ -238,10 +241,13 @@ public:
         cookie = NULL;
       }
       if (rc != LDAP_SUCCESS) {
-        abort();
-        // TODO: free other stuff, throw ?
+        free(bufhead);
+        RETURN_INT(-1);
       }
 
+    } else if (cookie) {
+      ber_bvfree(cookie);
+      cookie = NULL;
     }
 
     rc = ldap_search_ext(c->ld, *base, searchscope, *filter, attrs, 0,
@@ -586,6 +592,7 @@ public:
           struct berval* cookie = NULL;
           ldap_parse_page_control(c->ld, srv_controls, NULL, &cookie);
           if (!cookie || cookie->bv_val == NULL || !*cookie->bv_val) {
+            // no more paged results, signal end to user code
             if (cookie) {
               ber_bvfree(cookie);
             }
@@ -593,7 +600,6 @@ public:
           } else {
             Local<Object> cookieObj(cookie_template->NewInstance());
             cookieObj->SetPointerInInternalField(0, cookie);
-            cookieObj->Set(v8::String::New("cookie"), v8::String::New("cookie") );
             args[3] = cookieObj;
           }
           c->Emit(symbol_search_paged, 4, args);
