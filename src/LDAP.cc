@@ -3,7 +3,7 @@
 
 #include <v8.h>
 #include <node.h>
-#include <node_events.h>
+#include <node_object_wrap.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -12,13 +12,13 @@
 using namespace node;
 using namespace v8;
 
-static Persistent<String> symbol_connected;
-static Persistent<String> symbol_disconnected;
-static Persistent<String> symbol_search;
-static Persistent<String> symbol_search_paged;
-static Persistent<String> symbol_error;
-static Persistent<String> symbol_result;
-static Persistent<String> symbol_unknown;
+const char* symbol_connected    = "connected";
+const char* symbol_disconnected = "disconnected";
+const char* symbol_search       = "searchresult";
+const char* symbol_search_paged = "searchresultpaged";
+const char* symbol_error        = "error";
+const char* symbol_result       = "result";
+const char* symbol_unknown      = "unknown";
 
 static Persistent<ObjectTemplate> cookie_template;
 
@@ -66,7 +66,7 @@ struct timeval ldap_tv = { 0, 0 }; // static struct used to make ldap_result non
 
 #define NODE_METHOD(n) static Handle<Value> n(const Arguments& args)
 
-class LDAPConnection : public EventEmitter
+class LDAPConnection : public ObjectWrap
 {
 private:
   LDAP  *ld;
@@ -81,7 +81,7 @@ public:
     HandleScope scope;
     Local<FunctionTemplate> ft = FunctionTemplate::New(New);
 
-    ft->Inherit(EventEmitter::constructor_template);
+    //ft->Inherit(EventEmitter::constructor_template);//remove the EventEmitter inheritance
 
     s_ct = Persistent<FunctionTemplate>::New(ft);
     s_ct->InstanceTemplate()->SetInternalFieldCount(1);
@@ -95,13 +95,6 @@ public:
     NODE_SET_PROTOTYPE_METHOD(s_ct, "rename",       Rename);
     NODE_SET_PROTOTYPE_METHOD(s_ct, "add",          Add);
 
-    symbol_connected    = NODE_PSYMBOL("connected");
-    symbol_disconnected = NODE_PSYMBOL("disconnected");
-    symbol_search       = NODE_PSYMBOL("searchresult");
-    symbol_search_paged = NODE_PSYMBOL("searchresultpaged");
-    symbol_error        = NODE_PSYMBOL("error");
-    symbol_result       = NODE_PSYMBOL("result");
-    symbol_unknown      = NODE_PSYMBOL("unknown");
 
     cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
     cookie_template->SetInternalFieldCount(1);
@@ -166,7 +159,8 @@ public:
 
     ev_io_stop(EV_DEFAULT_ &(c->read_watcher_));
 
-    c->Emit(symbol_disconnected, 0, NULL);
+   // c->Emit(symbol_disconnected, 0, NULL);
+    MakeCallback(args.This(), symbol_disconnected, 0, NULL);
 
     RETURN_INT(0);
   }
@@ -217,7 +211,8 @@ public:
     }
 
     if (c->ld == NULL) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      // c->Emit(symbol_disconnected, 0, NULL);
+      MakeCallback(args.This(), symbol_disconnected, 0, NULL);
       if (cookie) {
         ber_bvfree(cookie);
         cookie = NULL;
@@ -263,7 +258,8 @@ public:
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
       if (c->read_watcher_.fd != fd) {
         if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop(&c->read_watcher_);
+          //ev_io_stop(&c->read_watcher_);
+          ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
         }
         ev_io_set(&(c->read_watcher_), fd, EV_READ);
         ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -289,7 +285,8 @@ public:
     ARG_ARRAY(modsHandle, 1);
 
     if (c->ld == NULL) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      // c->Emit(symbol_disconnected, 0, NULL);
+      MakeCallback(args.This(), symbol_disconnected, 0, NULL);
       RETURN_INT(-1);
     }
 
@@ -343,7 +340,8 @@ public:
     msgid = ldap_modify(c->ld, *dn, ldapmods);
 
     if (msgid == LDAP_SERVER_DOWN) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      // c->Emit(symbol_disconnected, 0, NULL);
+      MakeCallback(args.This(), symbol_disconnected, 0, NULL);
       RETURN_INT(-1);
     }
 
@@ -409,14 +407,15 @@ public:
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
     if (c->read_watcher_.fd != fd) {
       if (ev_is_active(&c->read_watcher_)) {
-        ev_io_stop(&c->read_watcher_);
+        ev_io_stop(EV_DEFAULT_UC_ &(c->read_watcher_) );
       }
       ev_io_set(&(c->read_watcher_), fd, EV_READ);
       ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
     }
 
     if (msgid == LDAP_SERVER_DOWN) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      // c->Emit(symbol_disconnected, 0, NULL);
+      MakeCallback(args.This(), symbol_disconnected, 0, NULL);
     }
 
     ldap_mods_free(ldapmods, 1);
@@ -443,19 +442,21 @@ public:
     //    ARG_BOOL(deleteoldrdn, 3);
 
     if (c->ld == NULL) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      // c->Emit(symbol_disconnected, 0, NULL);
+      MakeCallback(args.This(), symbol_disconnected, 0, NULL);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     if ((msgid = ldap_modrdn(c->ld, *dn, *newrdn) == LDAP_SERVER_DOWN)) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      // c->Emit(symbol_disconnected, 0, NULL);
+      MakeCallback(args.This(), symbol_disconnected, 0, NULL);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
     if (c->read_watcher_.fd != fd) {
       if (ev_is_active(&c->read_watcher_)) {
-        ev_io_stop(&c->read_watcher_);
+        ev_io_stop( EV_DEFAULT_UC_ & (c->read_watcher_) );
       }
       ev_io_set(&(c->read_watcher_), fd, EV_READ);
       ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -491,12 +492,13 @@ public:
     }
     
     if ((msgid = ldap_simple_bind(c->ld, binddn, password)) == LDAP_SERVER_DOWN) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      // c->Emit(symbol_disconnected, 0, NULL);
+      MakeCallback(args.This(), symbol_disconnected, 0, NULL);
     } else {
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);    
       if (c->read_watcher_.fd != fd) {
         if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop(&c->read_watcher_);
+          ev_io_stop( EV_DEFAULT_UC_ &(c->read_watcher_) );
         }
         ev_io_set(&(c->read_watcher_), fd, EV_READ);
         ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -584,7 +586,7 @@ public:
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
       if (c->read_watcher_.fd != fd) {
         if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop(&c->read_watcher_);
+          ev_io_stop( EV_DEFAULT_UC_ &(c->read_watcher_) );
         }
         ev_io_set(&(c->read_watcher_), fd, EV_READ);
         ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -601,7 +603,8 @@ public:
       // performance a bit.
       return;
     } else if (res < 0) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      // c->Emit(symbol_disconnected, 0, NULL);
+      MakeCallback(c->handle_, symbol_disconnected, 0, NULL);
       return;
     }
     op = res;
@@ -616,20 +619,23 @@ public:
     if (res != LDAP_SUCCESS || error) {
       args[1] = Integer::New(error);
       args[2] = Local<Value>::New(String::New(ldap_err2string(error)));
-      c->Emit(symbol_error, 3, args);
+      // c->Emit(symbol_error, 3, args);
+      MakeCallback(c->handle_, symbol_error, 3, args);
     } else {
       switch(op) {
       case LDAP_RES_BIND:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
-        c->Emit(symbol_result, 2, args);
+        // c->Emit(symbol_result, 2, args);
+        MakeCallback(c->handle_,symbol_result,2,args);
         break;
 
       case  LDAP_RES_SEARCH_RESULT:
         args[2] = c->parseReply(c, ldap_res);
         if (!srv_controls) {
-          c->Emit(symbol_search, 3, args);
+          // c->Emit(symbol_search, 3, args);
+          MakeCallback(c->handle_,symbol_search,3,args);
           break;
         }
         {
@@ -646,12 +652,14 @@ public:
             cookieObj->SetPointerInInternalField(0, cookie);
             args[3] = cookieObj;
           }
-          c->Emit(symbol_search_paged, 4, args);
+          // c->Emit(symbol_search_paged, 4, args);
+          MakeCallback(c->handle_,symbol_search_paged,4,args);
         }
         break;
 
       default:
-        c->Emit(symbol_unknown, 1, args);
+        // c->Emit(symbol_unknown, 1, args);
+        MakeCallback(c->handle_,symbol_unknown,1,args);
         break;
       }
     }
