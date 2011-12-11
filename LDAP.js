@@ -1,4 +1,4 @@
-var ldapbinding = require("./build/default/LDAP");
+var ldapbinding = require("./build/Release/LDAP");
 
 var Connection = function() {
     var callbacks = {};
