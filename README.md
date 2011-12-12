@@ -13,12 +13,14 @@ Thanks to:
 ----------
 * Petr Běhan
 * YANG Xudong
-
+* Victor Powell
 
 Dependencies
 ------------
 
-Tested with Node >= v0.4.0
+Node >= 0.6
+
+For < 0.6 compaibility, check out v0.4
 
 Installation
 ------------
