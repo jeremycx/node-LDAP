@@ -25,10 +25,3 @@ def build(bld):
   obj.target = 'LDAP'
   obj.source = './src/LDAP.cc'
   obj.lib = ['ldap']
-
-#def shutdown():
-  # HACK to get bindings.node out of build directory.
-  # better way to do this?
-  #t = 'ldapsearch.node'
-  #symlink('build/default/' + t, t)
-

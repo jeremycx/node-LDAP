@@ -3,7 +3,7 @@
 
 #include <v8.h>
 #include <node.h>
-#include <node_events.h>
+#include <node_object_wrap.h>
 #include <unistd.h>
 #include <errno.h>
 
@@ -12,15 +12,18 @@
 using namespace node;
 using namespace v8;
 
-static Persistent<String> symbol_connected;
-static Persistent<String> symbol_disconnected;
-static Persistent<String> symbol_search;
-static Persistent<String> symbol_search_paged;
-static Persistent<String> symbol_error;
-static Persistent<String> symbol_result;
-static Persistent<String> symbol_unknown;
+static Persistent<String> symbol_connected; // the name symbol for a "connected" event
+static Persistent<String> symbol_disconnected; // the name symbol for a "disconnected" event
+static Persistent<String> symbol_search; // the name symbol for a "search" event
+static Persistent<String> symbol_search_paged; // the name symbol for a "searchpage" event
+static Persistent<String> symbol_error; // the name symbol for an "error" event
+static Persistent<String> symbol_result; // the name symbol for a "result" event
+static Persistent<String> symbol_unkown; // the name symbol for an "unkown" event
+static Persistent<String> emit_symbol; // the emit local object
 
 static Persistent<ObjectTemplate> cookie_template;
+
+static Persistent<Function> ldapConstructor;
 
 struct timeval ldap_tv = { 0, 0 }; // static struct used to make ldap_result non-blocking
 
@@ -66,7 +69,7 @@ struct timeval ldap_tv = { 0, 0 }; // static struct used to make ldap_result non
 
 #define NODE_METHOD(n) static Handle<Value> n(const Arguments& args)
 
-class LDAPConnection : public EventEmitter
+class LDAPConnection : public ObjectWrap
 {
 private:
   LDAP  *ld;
@@ -74,39 +77,39 @@ private:
   ev_io write_watcher_;
 
 public:
-  static Persistent<FunctionTemplate> s_ct;
+  
+  LDAPConnection() : ObjectWrap(){ }
 
-  static void Init(Handle<Object> target)
+  static void Initialize(Handle<Object> target)
   {
     HandleScope scope;
-    Local<FunctionTemplate> ft = FunctionTemplate::New(New);
-
-    ft->Inherit(EventEmitter::constructor_template);
-
-    s_ct = Persistent<FunctionTemplate>::New(ft);
-    s_ct->InstanceTemplate()->SetInternalFieldCount(1);
-    s_ct->SetClassName(String::NewSymbol("LDAPConnection"));
-
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "open",         Open);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "close",        Close);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "search",       Search);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "modify",       Modify);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "simpleBind",   SimpleBind);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "rename",       Rename);
-    NODE_SET_PROTOTYPE_METHOD(s_ct, "add",          Add);
-
-    symbol_connected    = NODE_PSYMBOL("connected");
-    symbol_disconnected = NODE_PSYMBOL("disconnected");
-    symbol_search       = NODE_PSYMBOL("searchresult");
-    symbol_search_paged = NODE_PSYMBOL("searchresultpaged");
-    symbol_error        = NODE_PSYMBOL("error");
-    symbol_result       = NODE_PSYMBOL("result");
-    symbol_unknown      = NODE_PSYMBOL("unknown");
-
-    cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
+	
+	cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
     cookie_template->SetInternalFieldCount(1);
+   
+	// default the symbols used for emitting the events
+    symbol_connected = NODE_PSYMBOL("connected");
+    symbol_disconnected = NODE_PSYMBOL("disconnected");
+    symbol_search = NODE_PSYMBOL("searchresult");
+    symbol_search_paged = NODE_PSYMBOL("searchresultpaged");
+    symbol_error = NODE_PSYMBOL("error");
+    symbol_result = NODE_PSYMBOL("result");
+    symbol_unkown = NODE_PSYMBOL("unkown");
+    emit_symbol = NODE_PSYMBOL("emit");//define the event symbol
 
-    target->Set(String::NewSymbol("LDAPConnection"), s_ct->GetFunction());
+    Local<FunctionTemplate> t = FunctionTemplate::New(New);//constructor template
+    t->InstanceTemplate()->SetInternalFieldCount(1);
+    t->SetClassName(String::NewSymbol("LDAPConnection"));
+    //removed the EventEmitter inheritance from the C++ file. added to the LDAP.js file
+    NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
+    NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
+    NODE_SET_PROTOTYPE_METHOD(t, "search", Search);
+    NODE_SET_PROTOTYPE_METHOD(t, "modify", Modify);
+    NODE_SET_PROTOTYPE_METHOD(t, "simpleBind", SimpleBind);
+    NODE_SET_PROTOTYPE_METHOD(t, "rename", Rename);
+    NODE_SET_PROTOTYPE_METHOD(t, "add", Add);
+    ldapConstructor = Persistent<Function>::New(t->GetFunction());
+    target->Set(String::NewSymbol("LDAPConnection"), ldapConstructor);
   }
 
   NODE_METHOD(New)
@@ -129,7 +132,6 @@ public:
     HandleScope scope;
     GETOBJ(c);
     int err;
-
     ENFORCE_ARG_LENGTH(2, "Invaid number of arguments to Open()");
     ENFORCE_ARG_STR(0);
     ENFORCE_ARG_NUMBER(1);
@@ -150,7 +152,6 @@ public:
 
     ldap_set_option(c->ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
     ldap_set_option(c->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
-
     return scope.Close(Integer::New(0));
   }
 
@@ -166,7 +167,15 @@ public:
 
     ev_io_stop(EV_DEFAULT_ &(c->read_watcher_));
 
-    c->Emit(symbol_disconnected, 0, NULL);
+    Local<Value> emit_v = c->handle_->Get(emit_symbol);
+	assert(emit_v->IsFunction());
+    Local<Function> emit = Local<Function>::Cast(emit_v);
+    TryCatch tc;
+	Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+    emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+    if (tc.HasCaught()) {
+      FatalException(tc);
+    }
 
     RETURN_INT(0);
   }
@@ -217,7 +226,16 @@ public:
     }
 
     if (c->ld == NULL) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      Local<Value> emit_v = c->handle_->Get(emit_symbol);
+      assert(emit_v->IsFunction());
+      Local<Function> emit = Local<Function>::Cast(emit_v);
+      TryCatch tc;
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
+      
       if (cookie) {
         ber_bvfree(cookie);
         cookie = NULL;
@@ -263,7 +281,8 @@ public:
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
       if (c->read_watcher_.fd != fd) {
         if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop(&c->read_watcher_);
+          //ev_io_stop(&c->read_watcher_);
+          ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
         }
         ev_io_set(&(c->read_watcher_), fd, EV_READ);
         ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -287,9 +306,19 @@ public:
 
     ARG_STR(dn, 0);
     ARG_ARRAY(modsHandle, 1);
+   
+
+    Local<Value> emit_v = c->handle_->Get(emit_symbol);//a referene to the local emit object
+	TryCatch tc;
 
     if (c->ld == NULL) {
-      c->Emit(symbol_disconnected, 0, NULL);
+	  assert(emit_v->IsFunction());
+      Local<Function> emit = Local<Function>::Cast(emit_v);
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
       RETURN_INT(-1);
     }
 
@@ -343,7 +372,14 @@ public:
     msgid = ldap_modify(c->ld, *dn, ldapmods);
 
     if (msgid == LDAP_SERVER_DOWN) {
-      c->Emit(symbol_disconnected, 0, NULL);
+	  assert(emit_v->IsFunction());
+      Local<Function> emit = Local<Function>::Cast(emit_v);
+      TryCatch tc;
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
       RETURN_INT(-1);
     }
 
@@ -409,14 +445,22 @@ public:
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
     if (c->read_watcher_.fd != fd) {
       if (ev_is_active(&c->read_watcher_)) {
-        ev_io_stop(&c->read_watcher_);
+        ev_io_stop(EV_DEFAULT_UC_ &(c->read_watcher_) );
       }
       ev_io_set(&(c->read_watcher_), fd, EV_READ);
       ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
     }
 
     if (msgid == LDAP_SERVER_DOWN) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      Local<Value> emit_v = c->handle_->Get(emit_symbol);
+ 	  assert(emit_v->IsFunction());
+      Local<Function> emit = Local<Function>::Cast(emit_v);
+      TryCatch tc;
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
     }
 
     ldap_mods_free(ldapmods, 1);
@@ -443,19 +487,35 @@ public:
     //    ARG_BOOL(deleteoldrdn, 3);
 
     if (c->ld == NULL) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      Local<Value> emit_v = c->handle_->Get(emit_symbol);
+      assert(emit_v->IsFunction());
+      Local<Function> emit = Local<Function>::Cast(emit_v);
+      TryCatch tc;
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     if ((msgid = ldap_modrdn(c->ld, *dn, *newrdn) == LDAP_SERVER_DOWN)) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      Local<Value> emit_v = c->handle_->Get(emit_symbol);
+      assert(emit_v->IsFunction());
+      Local<Function> emit = Local<Function>::Cast(emit_v);
+      TryCatch tc;
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
     if (c->read_watcher_.fd != fd) {
       if (ev_is_active(&c->read_watcher_)) {
-        ev_io_stop(&c->read_watcher_);
+        ev_io_stop( EV_DEFAULT_UC_ & (c->read_watcher_) );
       }
       ev_io_set(&(c->read_watcher_), fd, EV_READ);
       ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -491,12 +551,20 @@ public:
     }
     
     if ((msgid = ldap_simple_bind(c->ld, binddn, password)) == LDAP_SERVER_DOWN) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      Local<Value> emit_v = c->handle_->Get(emit_symbol);
+	  assert(emit_v->IsFunction());
+      Local<Function> emit = Local<Function>::Cast(emit_v);
+      TryCatch tc;
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
     } else {
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);    
       if (c->read_watcher_.fd != fd) {
         if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop(&c->read_watcher_);
+          ev_io_stop( EV_DEFAULT_UC_ &(c->read_watcher_) );
         }
         ev_io_set(&(c->read_watcher_), fd, EV_READ);
         ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -560,11 +628,16 @@ public:
     LDAPConnection *c = static_cast<LDAPConnection*>(w->data);
     LDAPMessage *ldap_res;  
     LDAPControl** srv_controls;
-    Handle<Value> args[3];
+    Handle<Value> args[4];
     int op;
     int res;
     int msgid;
     int error;
+
+    Local<Value> emit_v = c->handle_->Get(emit_symbol);
+	assert(emit_v->IsFunction());
+    Local<Function> emit = Local<Function>::Cast(emit_v);
+    TryCatch tc;
 
     // not sure if this is neccesary...
     if (!(revents & EV_READ)) {
@@ -584,7 +657,7 @@ public:
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
       if (c->read_watcher_.fd != fd) {
         if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop(&c->read_watcher_);
+          ev_io_stop( EV_DEFAULT_UC_ &(c->read_watcher_) );
         }
         ev_io_set(&(c->read_watcher_), fd, EV_READ);
         ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
@@ -601,7 +674,12 @@ public:
       // performance a bit.
       return;
     } else if (res < 0) {
-      c->Emit(symbol_disconnected, 0, NULL);
+      TryCatch tc;
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
       return;
     }
     op = res;
@@ -610,26 +688,42 @@ public:
     res = ldap_parse_result(c->ld, ldap_res, &error, NULL, NULL, NULL,
         &srv_controls, 0);
 
-    args[0] = Integer::New(msgid);
-    args[1] = Local<Value>::New(Integer::New(res));
+    args[1] = Integer::New(msgid);
+    args[2] = Local<Value>::New(Integer::New(res));
 
     if (res != LDAP_SUCCESS || error) {
-      args[1] = Integer::New(error);
-      args[2] = Local<Value>::New(String::New(ldap_err2string(error)));
-      c->Emit(symbol_error, 3, args);
+      args[2] = Integer::New(error);
+      args[3] = Local<Value>::New(String::New(ldap_err2string(error)));
+      //MakeCallback(c->handle_, symbol_error, 3, args);
+	  args[0] = symbol_error;
+      emit->Call(c->handle_, 4, args); // this is equivilent to: this.emit("error",msgid,int_res,ldap_err2string);
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }
     } else {
       switch(op) {
       case LDAP_RES_BIND:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
-        c->Emit(symbol_result, 2, args);
+        //MakeCallback(c->handle_,symbol_result,2,args);
+	  	args[0] = symbol_result;
+      	emit->Call(c->handle_, 3, args); // this is equivilent to: this.emit("result",msgid,int_res);
+      	if (tc.HasCaught()) {
+          FatalException(tc);
+      	}
         break;
 
       case  LDAP_RES_SEARCH_RESULT:
-        args[2] = c->parseReply(c, ldap_res);
+        args[3] = c->parseReply(c, ldap_res);
         if (!srv_controls) {
-          c->Emit(symbol_search, 3, args);
+          //MakeCallback(c->handle_,symbol_search,3,args);
+		  args[0] = symbol_search;
+		  fprintf(stderr,"emit search event\n");
+	      emit->Call(c->handle_, 4, args); // this is equivilent to: this.emit("search",msgid,int_res,ldap_res);
+	      if (tc.HasCaught()) {
+	        FatalException(tc);
+	      }
           break;
         }
         {
@@ -640,18 +734,28 @@ public:
             if (cookie) {
               ber_bvfree(cookie);
             }
-            args[3] = v8::Undefined();
+            args[4] = v8::Undefined();
           } else {
             Local<Object> cookieObj(cookie_template->NewInstance());
             cookieObj->SetPointerInInternalField(0, cookie);
-            args[3] = cookieObj;
+            args[4] = cookieObj;
           }
-          c->Emit(symbol_search_paged, 4, args);
+          //MakeCallback(c->handle_,symbol_search_paged,4,args);
+		  args[0] = symbol_search_paged;
+	      emit->Call(c->handle_, 5, args); // this is equivilent to: this.emit("search_paged",msgid,int_res,ldap_res,cookie_obj);
+	      if (tc.HasCaught()) {
+	        FatalException(tc);
+	      }
         }
         break;
 
       default:
-        c->Emit(symbol_unknown, 1, args);
+        //MakeCallback(c->handle_,symbol_unknown,1,args);
+	  	args[0] = symbol_unkown;
+      	emit->Call(c->handle_, 2, args); // this is equivilent to: this.emit("unkown",msgid);
+      	if (tc.HasCaught()) {
+      	  FatalException(tc);
+        }
         break;
       }
     }
@@ -664,9 +768,6 @@ public:
 
 };
 
-Persistent<FunctionTemplate> LDAPConnection::s_ct;
-
-extern "C" void
-init(Handle<Object> target) {
-  LDAPConnection::Init(target);
+extern "C" void init(Handle<Object> target) {
+  LDAPConnection::Initialize(target);
 }
