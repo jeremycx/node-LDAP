@@ -1,8 +1,12 @@
-var ldapbinding = require("./build/Release/LDAP");
+var events = require('events')
+	, util = require('util')
+	, LDAPConnection = require("./build/Release/LDAP").LDAPConnection
+
+LDAPConnection.prototype.__proto__ = events.EventEmitter.prototype;//have the LDAPConnection class inherit properties like 'emit' from the EventEmitter class
 
 var Connection = function() {
     var callbacks = {};
-    var binding = new ldapbinding.LDAPConnection();
+    var binding = new LDAPConnection();
     var self = this;
     var querytimeout = 5000;
     var totalqueries = 0;
@@ -34,7 +38,6 @@ var Connection = function() {
         if (arguments.length < 2) {
             return binding.open(uri, 3);
         }
-
         return binding.open(uri, version);
     };
 
@@ -76,15 +79,15 @@ var Connection = function() {
         return self.setCallback(msgid, CB);
     };
 
-    self.addListener = function(event, CB) {
-        binding.addListener(event, CB);
+    self.on = self.addListener = function(event, CB) {
+        binding.on(event, CB);
     };
 
     self.close = function() {
         binding.close();
     }
 
-    binding.addListener("searchresult", function(msgid, result, data) {
+    binding.on("searchresult", function(msgid, result, data) {
         // result contains the LDAP response type. It's unused.
         if (callbacks[msgid]) {
             clearTimeout(callbacks[msgid].tm);
@@ -93,7 +96,8 @@ var Connection = function() {
         }
     });
 
-    binding.addListener("searchresultpaged", function(msgid, result, data, cookie) {
+    binding.on("searchresultpaged", function(msgid, result, data, cookie) {
+	    console.log('got search result');
         var cb = callbacks[msgid];
         if (cb) {
             clearTimeout(cb.tm);
@@ -107,7 +111,7 @@ var Connection = function() {
         }
     });
 
-    binding.addListener("result", function(msgid, result) {
+    binding.on("result", function(msgid, result) {
         // result contains the LDAP response type. It's unused.
         if (callbacks[msgid]) {
             clearTimeout(callbacks[msgid].tm);
@@ -116,7 +120,7 @@ var Connection = function() {
         }
     });
 
-    binding.addListener("error", function(msgid, err, msg) {
+    binding.on("error", function(msgid, err, msg) {
         if (callbacks[msgid]) {
             clearTimeout(callbacks[msgid].tm);
             callbacks[msgid](msgid, new Error(err, msg));
