@@ -719,7 +719,6 @@ public:
         if (!srv_controls) {
           //MakeCallback(c->handle_,symbol_search,3,args);
 		  args[0] = symbol_search;
-		  fprintf(stderr,"emit search event\n");
 	      emit->Call(c->handle_, 4, args); // this is equivilent to: this.emit("search",msgid,int_res,ldap_res);
 	      if (tc.HasCaught()) {
 	        FatalException(tc);
