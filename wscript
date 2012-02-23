@@ -14,9 +14,9 @@ def configure(conf):
   conf.check_tool('node_addon')
 
   conf.env.append_unique('CPPFLAGS', ["-I/usr/local/include"])
-  conf.env.append_unique('CXXFLAGS', ["-Wall"])
+  conf.env.append_unique('CXXFLAGS', ["-Wall", "-g"])
 
-  conf.env.append_unique('LINKFLAGS', ["-L/usr/local/lib"])
+  conf.env.append_unique('LINKFLAGS', ["-L/usr/local/lib", "-g"])
 
 
 def build(bld):

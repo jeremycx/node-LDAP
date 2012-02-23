@@ -1,15 +1,32 @@
 var events = require('events')
-	, util = require('util')
-	, LDAPConnection = require("./build/Release/LDAP").LDAPConnection
+    , util = require('util')
+    , LDAPConnection = require("./build/default/LDAP").LDAPConnection;
 
-LDAPConnection.prototype.__proto__ = events.EventEmitter.prototype;//have the LDAPConnection class inherit properties like 'emit' from the EventEmitter class
+//have the LDAPConnection class inherit properties like 'emit' from the EventEmitter class
+LDAPConnection.prototype.__proto__ = events.EventEmitter.prototype;
 
-var Connection = function() {
-    var callbacks = {};
-    var binding = new LDAPConnection();
+function LDAPError(message, msgid) {  
+    this.name = "LDAPError";  
+    this.message = message || "Default Message";  
+    this.msgid = msgid;
+}  
+LDAPError.prototype = new Error();
+LDAPError.prototype.constructor = LDAPError;  
+
+var LDAP = function(opts) {
     var self = this;
-    var querytimeout = 5000;
-    var totalqueries = 0;
+    var binding = new LDAPConnection();
+    var callbacks = {};
+    var stasiscallbacks;
+    var reconnecting = false;
+
+    if (!opts.uri) {
+        throw new LDAPError('You must provide a URI');
+    }
+
+    opts.timeout = opts.timeout || 2000;
+    opts.backoff = -1;
+    opts.backoffmax = opts.backoffmax || 30000;
 
     self.BASE = 0;
     self.ONELEVEL = 1;
@@ -17,116 +34,108 @@ var Connection = function() {
     self.SUBORDINATE = 3;
     self.DEFAULT = -1;
 
-    self.setCallback = function(msgid, CB) {
+    function setCallback(msgid, fn) {
         if (msgid >= 0) {
-            totalqueries++;
-            if (typeof(CB) == 'function') {
-                callbacks[msgid] = CB;
+            if (typeof(fn) == 'function') {
+                callbacks[msgid] = fn;
                 callbacks[msgid].tm = setTimeout(function() {
-                    CB(msgid, new Error('Request timed out', -2));
+                    fn(new LDAPError('Timeout', msgid));
                     delete callbacks[msgid];
-                }, querytimeout);
+                }, opts.timeout);
             }
         } else {
-            // msgid is -1, which means an error. We won't add the callback to the array,
-            // instead, call the callback immediately.
-            CB(msgid, new Error('LDAP Error', -1)); //TODO: expose a way to get the specific error
+            fn(new Error('LDAP Error', msgid));
         }
-    };
-
-    self.open = function(uri, version) {
-        if (arguments.length < 2) {
-            return binding.open(uri, 3);
-        }
-        return binding.open(uri, version);
-    };
-
-    self.search = function(base, scope, filter, attrs, CB) {
-        var msgid = binding.search(base, scope, filter, attrs);
-        self.setCallback(msgid, CB);
-    };
-
-    self.searchPaged = function(base, scope, filter, attrs, pageSize, CB, cookie) {
-        // leave cookie empty when calling from client code
-        var msgid = binding.search(base, scope, filter, attrs, pageSize, cookie);
-        self.setCallback(msgid, CB);
-        var cb = callbacks[msgid];
-        cb.base = base;
-        cb.scope = scope;
-        cb.filter = filter;
-        cb.attrs = attrs;
-        cb.pageSize = pageSize;
     }
 
-    self.simpleBind = function(binddn, password, CB) {
+    function handleCallback(msgid, data) {
+        if (typeof callbacks[msgid] == 'function') {
+            clearTimeout(callbacks[msgid].tm);
+            callbacks[msgid](undefined, data);
+            delete(callbacks[msgid]);
+        }
+    }
+
+    function clearCallbacks() {
+        stasiscallbacks = callbacks;
+        callbacks = {};
+    }
+
+    function open(fn) {
+        binding.open(opts.uri, (opts.version || 3));
+        return simpleBind(fn); // do an anon bind to get it all ready.
+    }
+
+    function backoff() {
+        opts.backoff++;
+        if (opts.backoff > opts.backoffmax) 
+            opts.backoff = opts.backoffmax;
+        return opts.backoff * 1000;
+    }
+
+    function reconnect() {
+        reconnecting = true;
+        binding.close();
+        setTimeout(function() {
+            console.log("Reopening");
+            var res = open(function(err) {
+                if (err) {
+                    console.log('Error in reconnect ' + err.message);
+                    reconnect();
+                } else {
+                    console.log('Successful reconnect');
+                    opts.backoff = -1;
+                    reconnecting = false;
+                }
+            });
+        }, (backoff()));
+    }
+
+    function simpleBind(fn) {
         var msgid;
-        if (arguments.length === 1 && typeof arguments[0] == 'function') {
-            CB = arguments[0];
+        if (!opts.binddn) {
             msgid = binding.simpleBind();
         } else {
-            msgid = binding.simpleBind(binddn, password);
+            msgid = binding.simpleBind(opts.binddn, opts.password);
         }
-        return self.setCallback(msgid, CB);
-    };
-
-    self.add = function(dn, data, CB) {
-        var msgid = binding.add(dn, data);
-        return self.setCallback(msgid, CB);
-    };
-
-    self.modify = function(dn, data, CB) {
-        var msgid = binding.modify(dn, data);
-        return self.setCallback(msgid, CB);
-    };
-
-    self.on = self.addListener = function(event, CB) {
-        binding.on(event, CB);
-    };
-
-    self.close = function() {
-        binding.close();
+        return setCallback(msgid, fn);
     }
 
-    binding.on("searchresult", function(msgid, result, data) {
-        // result contains the LDAP response type. It's unused.
-        if (callbacks[msgid]) {
-            clearTimeout(callbacks[msgid].tm);
-            callbacks[msgid](msgid, null, data);
-            delete(callbacks[msgid]);
+    function search(s_opts, fn) {
+        setCallback(binding.search(s_opts.base, s_opts.scope, s_opts.filter,
+                                   s_opts.attrs), fn);
+    }
+
+    binding.on('searchresult', function(msgid, result, data) {
+        handleCallback(msgid, data);
+    });
+
+    binding.on('result', function(msgid) {
+        handleCallback(msgid);
+    });
+
+    binding.on('error', function(err) {
+        console.log(err);
+        process.exit();
+    });
+
+    binding.on('disconnected', function(err) {
+        console.log("Disconnect");
+        if (!reconnecting) {
+            console.log('Reconnecting');
+            clearCallbacks();
+            reconnect();
+        } else {
+            console.log('Reconnect in progress. Ignoring disconnect event');
         }
     });
 
-    binding.on("searchresultpaged", function(msgid, result, data, cookie) {
-	    console.log('got search result');
-        var cb = callbacks[msgid];
-        if (cb) {
-            clearTimeout(cb.tm);
-            cb(msgid, null, data);
-            if (cookie) {
-                self.searchPaged(cb.base, cb.scope, cb.filter, cb.attrs, cb.pageSize, cb, cookie);
-            } else {
-                cb(msgid, null, null);
-            }
-            delete(callbacks[msgid]);
-        }
-    });
+    this.open = open;
+    this.simpleBind = simpleBind;
+    this.search = search;
 
-    binding.on("result", function(msgid, result) {
-        // result contains the LDAP response type. It's unused.
-        if (callbacks[msgid]) {
-            clearTimeout(callbacks[msgid].tm);
-            callbacks[msgid](msgid, null);
-            delete(callbacks[msgid]);
-        }
-    });
-
-    binding.on("error", function(msgid, err, msg) {
-        if (callbacks[msgid]) {
-            clearTimeout(callbacks[msgid].tm);
-            callbacks[msgid](msgid, new Error(err, msg));
-            delete(callbacks[msgid]);
-        }
-    });
 };
 
-exports.Connection = Connection;
+util.inherits(LDAP, events.EventEmitter);
+
+module.exports = LDAP;

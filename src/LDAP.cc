@@ -132,7 +132,7 @@ public:
     HandleScope scope;
     GETOBJ(c);
     int err;
-    ENFORCE_ARG_LENGTH(2, "Invaid number of arguments to Open()");
+    ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to Open()");
     ENFORCE_ARG_STR(0);
     ENFORCE_ARG_NUMBER(1);
     ARG_STR(uri, 0);
@@ -152,6 +152,7 @@ public:
 
     ldap_set_option(c->ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
     ldap_set_option(c->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
+
     return scope.Close(Integer::New(0));
   }
 
@@ -167,15 +168,7 @@ public:
 
     ev_io_stop(EV_DEFAULT_ &(c->read_watcher_));
 
-    Local<Value> emit_v = c->handle_->Get(emit_symbol);
-	assert(emit_v->IsFunction());
-    Local<Function> emit = Local<Function>::Cast(emit_v);
-    TryCatch tc;
-	Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-    emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-    if (tc.HasCaught()) {
-      FatalException(tc);
-    }
+    //    Emit(c, symbol_disconnected);
 
     RETURN_INT(0);
   }
@@ -226,16 +219,8 @@ public:
     }
 
     if (c->ld == NULL) {
-      Local<Value> emit_v = c->handle_->Get(emit_symbol);
-      assert(emit_v->IsFunction());
-      Local<Function> emit = Local<Function>::Cast(emit_v);
-      TryCatch tc;
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
-      
+      Emit(c, symbol_disconnected);
+
       if (cookie) {
         ber_bvfree(cookie);
         cookie = NULL;
@@ -281,7 +266,6 @@ public:
       ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
       if (c->read_watcher_.fd != fd) {
         if (ev_is_active(&c->read_watcher_)) {
-          //ev_io_stop(&c->read_watcher_);
           ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
         }
         ev_io_set(&(c->read_watcher_), fd, EV_READ);
@@ -307,18 +291,8 @@ public:
     ARG_STR(dn, 0);
     ARG_ARRAY(modsHandle, 1);
    
-
-    Local<Value> emit_v = c->handle_->Get(emit_symbol);//a referene to the local emit object
-	TryCatch tc;
-
     if (c->ld == NULL) {
-	  assert(emit_v->IsFunction());
-      Local<Function> emit = Local<Function>::Cast(emit_v);
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
+      Emit(c, symbol_disconnected);
       RETURN_INT(-1);
     }
 
@@ -372,14 +346,7 @@ public:
     msgid = ldap_modify(c->ld, *dn, ldapmods);
 
     if (msgid == LDAP_SERVER_DOWN) {
-	  assert(emit_v->IsFunction());
-      Local<Function> emit = Local<Function>::Cast(emit_v);
-      TryCatch tc;
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
+      Emit(c, symbol_disconnected);
       RETURN_INT(-1);
     }
 
@@ -452,15 +419,7 @@ public:
     }
 
     if (msgid == LDAP_SERVER_DOWN) {
-      Local<Value> emit_v = c->handle_->Get(emit_symbol);
- 	  assert(emit_v->IsFunction());
-      Local<Function> emit = Local<Function>::Cast(emit_v);
-      TryCatch tc;
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
+      Emit(c, symbol_disconnected);
     }
 
     ldap_mods_free(ldapmods, 1);
@@ -487,28 +446,12 @@ public:
     //    ARG_BOOL(deleteoldrdn, 3);
 
     if (c->ld == NULL) {
-      Local<Value> emit_v = c->handle_->Get(emit_symbol);
-      assert(emit_v->IsFunction());
-      Local<Function> emit = Local<Function>::Cast(emit_v);
-      TryCatch tc;
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
+      Emit(c, symbol_disconnected);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     if ((msgid = ldap_modrdn(c->ld, *dn, *newrdn) == LDAP_SERVER_DOWN)) {
-      Local<Value> emit_v = c->handle_->Get(emit_symbol);
-      assert(emit_v->IsFunction());
-      Local<Function> emit = Local<Function>::Cast(emit_v);
-      TryCatch tc;
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
+      Emit(c, symbol_disconnected);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
@@ -529,7 +472,6 @@ public:
   {
     HandleScope scope;
     GETOBJ(c);
-    int fd;
     int msgid;
     char * binddn = NULL;
     char * password = NULL;
@@ -551,24 +493,9 @@ public:
     }
     
     if ((msgid = ldap_simple_bind(c->ld, binddn, password)) == LDAP_SERVER_DOWN) {
-      Local<Value> emit_v = c->handle_->Get(emit_symbol);
-	  assert(emit_v->IsFunction());
-      Local<Function> emit = Local<Function>::Cast(emit_v);
-      TryCatch tc;
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
+      Emit(c, symbol_disconnected);
     } else {
-      ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);    
-      if (c->read_watcher_.fd != fd) {
-        if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop( EV_DEFAULT_UC_ &(c->read_watcher_) );
-        }
-        ev_io_set(&(c->read_watcher_), fd, EV_READ);
-        ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
-      }
+      LDAPConnection::SetIO(c);
     }
   
     free(binddn);
@@ -577,11 +504,37 @@ public:
     RETURN_INT(msgid);
   }
 
+  static void Emit(LDAPConnection * c, Persistent<String> symbol) {
+      Local<Value> emit_v = c->handle_->Get(emit_symbol);
+	  assert(emit_v->IsFunction());
+      Local<Function> emit = Local<Function>::Cast(emit_v);
+      TryCatch tc;
+	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
+      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
+      if (tc.HasCaught()) {
+        FatalException(tc);
+      }    
+  }
 
+  static void SetIO(LDAPConnection *c) {
+    int fd;
+
+    ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
+
+    if (fd > 0) {
+      if (ev_is_active(&c->read_watcher_)) {
+        ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
+      }
+      ev_io_set(&(c->read_watcher_), fd, EV_READ);
+      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+    }
+  }
+
+  
   Local<Value> parseReply(LDAPConnection * c, LDAPMessage * res) 
   {
     HandleScope scope;
-    LDAPMessage * entry = NULL;
+    LDAPMessage * entry = NULL; 
     BerElement * berptr = NULL;
     char * attrname     = NULL;
     char ** vals;
@@ -651,6 +604,13 @@ public:
     }
 
     res = ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &ldap_res);
+
+    if (res < 0 ) {
+      Emit(c, symbol_disconnected);
+      return;
+    }
+
+
     {
       // if ldap silently handled reconnect, fd may now be different
       int fd = -1;
@@ -695,7 +655,8 @@ public:
       args[2] = Integer::New(error);
       args[3] = Local<Value>::New(String::New(ldap_err2string(error)));
       //MakeCallback(c->handle_, symbol_error, 3, args);
-	  args[0] = symbol_error;
+      args[0] = symbol_disconnected; // FINDME: this was symbol_error. Chg to disconnect for testing.
+      // TODO: make this figure out if this is a disconnect.
       emit->Call(c->handle_, 4, args); // this is equivilent to: this.emit("error",msgid,int_res,ldap_err2string);
       if (tc.HasCaught()) {
         FatalException(tc);
