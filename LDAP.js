@@ -1,6 +1,11 @@
 var events = require('events')
-    , util = require('util')
-    , LDAPConnection = require("./build/default/LDAP").LDAPConnection;
+    , util = require('util');
+
+try {
+    LDAPConnection = require("./build/default/LDAP").LDAPConnection;
+} catch(e) {
+    LDAPConnection = require("./build/Release/LDAP").LDAPConnection;
+}
 
 //have the LDAPConnection class inherit properties like 'emit' from the EventEmitter class
 LDAPConnection.prototype.__proto__ = events.EventEmitter.prototype;
@@ -18,6 +23,7 @@ var LDAP = function(opts) {
     var binding = new LDAPConnection();
     var callbacks = {};
     var reconnecting = false;
+    var syncopts = undefined;
     var stats = {
         lateresponses: 0,
         reconnects: 0,
@@ -117,6 +123,10 @@ var LDAP = function(opts) {
                     opts.backoff = -1;
                     replayCallbacks();
                     reconnecting = false;
+                    
+                    if (syncopts) {
+                        sync(syncopts);
+                    }
                 }
             });
         }, (backoff()));
@@ -138,13 +148,23 @@ var LDAP = function(opts) {
         return setCallback(msgid, simpleBind, arguments, fn);
     }
 
+    function sync(s) {
+        if (!(typeof s.fn == 'function')) {
+            throw new Error('Need a sync callback');
+        }
+        binding.sync(s.base, parseInt(s.scope), 
+                     s.filter, 'attrs', 'cookie');
+        syncopts = s;
+    }
+
     function search(s_opts, fn) {
         stats.searches++;
         return setCallback(binding.search(s_opts.base, s_opts.scope, s_opts.filter,
                                           s_opts.attrs), search, arguments, fn);
     }
 
-    binding.on('searchresult', function(msgid, result, data) {
+    binding.on('searchresult', function(msgid, data) {
+        console.log('In listener: ' + msgid + '/' + data);
         stats.searchresults++;
         handleCallback(msgid, data);
     });
@@ -152,6 +172,13 @@ var LDAP = function(opts) {
     binding.on('result', function(msgid) {
         stats.results++;
         handleCallback(msgid);
+    });
+
+    // we're likely to have a few different symbols
+    // emitting -- one for each phase, etc. 
+    // keep it simple for now.
+    binding.on('syncresult', function(msgid, data) {
+        syncopts.fn(data);
     });
 
     binding.on('error', function(err) {
@@ -173,6 +200,7 @@ var LDAP = function(opts) {
     this.simpleBind = simpleBind;
     this.search = search;
     this.getStats = getStats;
+    this.sync = sync;
 
 };
 

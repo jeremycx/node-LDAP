@@ -18,7 +18,8 @@ static Persistent<String> symbol_search; // the name symbol for a "search" event
 static Persistent<String> symbol_search_paged; // the name symbol for a "searchpage" event
 static Persistent<String> symbol_error; // the name symbol for an "error" event
 static Persistent<String> symbol_result; // the name symbol for a "result" event
-static Persistent<String> symbol_unkown; // the name symbol for an "unkown" event
+static Persistent<String> symbol_syncresult; // the name symbol for a "result" event
+static Persistent<String> symbol_unknown; // the name symbol for an "unkown" event
 static Persistent<String> emit_symbol; // the emit local object
 
 static Persistent<ObjectTemplate> cookie_template;
@@ -69,10 +70,28 @@ struct timeval ldap_tv = { 0, 0 }; // static struct used to make ldap_result non
 
 #define NODE_METHOD(n) static Handle<Value> n(const Arguments& args)
 
+#define EMIT(c, num, args) {                              \
+      Local<Value> emit_v = c->handle_->Get(emit_symbol); \
+      assert(emit_v->IsFunction()); \
+      Local<Function> emit = Local<Function>::Cast(emit_v); \
+      TryCatch tc; \
+      emit->Call(c->handle_, num, args); \
+      if (tc.HasCaught()) { \
+        FatalException(tc); \
+      }  \
+  }
+
+#define EMITDISCONNECT(c) { \
+    Handle<Value> args[1]; \
+    args[0] = symbol_disconnected; \
+    EMIT(c, 1, args); \
+  }
+
 class LDAPConnection : public ObjectWrap
 {
 private:
   LDAP  *ld;
+  int sync_id;
   ev_io read_watcher_;
   ev_io write_watcher_;
 
@@ -94,7 +113,8 @@ public:
     symbol_search_paged = NODE_PSYMBOL("searchresultpaged");
     symbol_error = NODE_PSYMBOL("error");
     symbol_result = NODE_PSYMBOL("result");
-    symbol_unkown = NODE_PSYMBOL("unkown");
+    symbol_syncresult = NODE_PSYMBOL("syncresult");
+    symbol_unknown = NODE_PSYMBOL("unknown");
     emit_symbol = NODE_PSYMBOL("emit");//define the event symbol
 
     Local<FunctionTemplate> t = FunctionTemplate::New(New);//constructor template
@@ -104,6 +124,7 @@ public:
     NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
     NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
     NODE_SET_PROTOTYPE_METHOD(t, "search", Search);
+    NODE_SET_PROTOTYPE_METHOD(t, "sync", Sync);
     NODE_SET_PROTOTYPE_METHOD(t, "modify", Modify);
     NODE_SET_PROTOTYPE_METHOD(t, "simpleBind", SimpleBind);
     NODE_SET_PROTOTYPE_METHOD(t, "rename", Rename);
@@ -123,6 +144,7 @@ public:
     c->read_watcher_.fd = -1;
     
     c->ld = NULL;
+    c->sync_id = 0;
 
     return args.This();
   }
@@ -168,10 +190,51 @@ public:
 
     ev_io_stop(EV_DEFAULT_ &(c->read_watcher_));
 
-    //    Emit(c, symbol_disconnected);
-
     RETURN_INT(0);
   }
+
+  NODE_METHOD(Sync) {
+    HandleScope scope;
+    GETOBJ(c);
+    LDAPControl	ctrl = { 0 },
+               *ctrls[ 2 ];
+    BerElement	*ber = NULL;
+    int rc;
+                       
+    int msgid;
+
+    ARG_STR(base,         0);
+    ARG_INT(searchscope,  1);
+    ARG_STR(filter,       2);
+    ARG_STR(attrs_str,    3);
+    ARG_STR(cookie,       4);
+
+    ctrls[ 0 ] = &ctrl;
+    ctrls[ 1 ] = NULL;
+        
+    ber = ber_alloc_t( LBER_USE_DER );
+    ber_printf( ber, "{eb}", LDAP_SYNC_REFRESH_AND_PERSIST, 0 );    
+    rc = ber_flatten2( ber, &ctrl.ldctl_value, 0 );
+
+    ctrl.ldctl_oid = (char *)LDAP_CONTROL_SYNC;
+    ctrl.ldctl_iscritical = 1;
+
+    rc = ldap_search_ext( c->ld, *base, searchscope, *filter, 
+                          NULL, 0, ctrls, NULL, NULL, 0, &msgid);
+
+    if ( rc != LDAP_SUCCESS ) {
+      msgid = -1;
+    }
+
+    if ( ber != NULL ) {
+      ber_free( ber, 1 );
+    }
+
+    c->sync_id = msgid;
+
+    RETURN_INT(msgid);
+  }
+
 
   NODE_METHOD(Search) {
     HandleScope scope;
@@ -219,7 +282,7 @@ public:
     }
 
     if (c->ld == NULL) {
-      Emit(c, symbol_disconnected);
+      EMITDISCONNECT(c);
 
       if (cookie) {
         ber_bvfree(cookie);
@@ -292,7 +355,7 @@ public:
     ARG_ARRAY(modsHandle, 1);
    
     if (c->ld == NULL) {
-      Emit(c, symbol_disconnected);
+      EMITDISCONNECT(c);
       RETURN_INT(-1);
     }
 
@@ -346,7 +409,7 @@ public:
     msgid = ldap_modify(c->ld, *dn, ldapmods);
 
     if (msgid == LDAP_SERVER_DOWN) {
-      Emit(c, symbol_disconnected);
+      EMITDISCONNECT(c);
       RETURN_INT(-1);
     }
 
@@ -419,7 +482,7 @@ public:
     }
 
     if (msgid == LDAP_SERVER_DOWN) {
-      Emit(c, symbol_disconnected);
+      EMITDISCONNECT(c);
     }
 
     ldap_mods_free(ldapmods, 1);
@@ -446,12 +509,12 @@ public:
     //    ARG_BOOL(deleteoldrdn, 3);
 
     if (c->ld == NULL) {
-      Emit(c, symbol_disconnected);
+      EMITDISCONNECT(c);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     if ((msgid = ldap_modrdn(c->ld, *dn, *newrdn) == LDAP_SERVER_DOWN)) {
-      Emit(c, symbol_disconnected);
+      EMITDISCONNECT(c);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
@@ -493,7 +556,7 @@ public:
     }
     
     if ((msgid = ldap_simple_bind(c->ld, binddn, password)) == LDAP_SERVER_DOWN) {
-      Emit(c, symbol_disconnected);
+      EMITDISCONNECT(c);
     } else {
       LDAPConnection::SetIO(c);
     }
@@ -502,18 +565,6 @@ public:
     free(password);
 
     RETURN_INT(msgid);
-  }
-
-  static void Emit(LDAPConnection * c, Persistent<String> symbol) {
-      Local<Value> emit_v = c->handle_->Get(emit_symbol);
-	  assert(emit_v->IsFunction());
-      Local<Function> emit = Local<Function>::Cast(emit_v);
-      TryCatch tc;
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }    
   }
 
   static void SetIO(LDAPConnection *c) {
@@ -531,7 +582,7 @@ public:
   }
 
   
-  Local<Value> parseReply(LDAPConnection * c, LDAPMessage * res) 
+  Local<Value> parseReply(LDAPConnection * c, LDAPMessage * msg) 
   {
     HandleScope scope;
     LDAPMessage * entry = NULL; 
@@ -544,10 +595,11 @@ public:
     int j;
     char * dn;
 
-    int entry_count = ldap_count_entries(c->ld, res);
+    int entry_count = ldap_count_entries(c->ld, msg);
+
     js_result_list = Array::New(entry_count);
 
-    for (entry = ldap_first_entry(c->ld, res), j = 0 ; entry ;
+    for (entry = ldap_first_entry(c->ld, msg), j = 0 ; entry ;
          entry = ldap_next_entry(c->ld, entry), j++) {
       js_result = Object::New();
       js_result_list->Set(Integer::New(j), js_result);
@@ -574,23 +626,24 @@ public:
     return scope.Close(js_result_list);
   }
 
+
+      // we'll need this to extract the controls, etc.
+      //          ldap_parse_result(c->ld, msg, &error, NULL, &errmsg, NULL,
+      //                          &srv_controls, 0); //todo - check result
+
+
+
   static void
   io_event (EV_P_ ev_io *w, int revents)
   {
     HandleScope scope;
     LDAPConnection *c = static_cast<LDAPConnection*>(w->data);
-    LDAPMessage *ldap_res;  
-    LDAPControl** srv_controls;
+    LDAPMessage	* msg = NULL;
+    LDAPMessage * res = NULL;
     Handle<Value> args[4];
-    int op;
-    int res;
-    int msgid;
-    int error;
+    int msgid = 0;
 
-    Local<Value> emit_v = c->handle_->Get(emit_symbol);
-	assert(emit_v->IsFunction());
-    Local<Function> emit = Local<Function>::Cast(emit_v);
-    TryCatch tc;
+    fprintf(stderr, "io_event\n");
 
     // not sure if this is neccesary...
     if (!(revents & EV_READ)) {
@@ -603,127 +656,92 @@ public:
       return;
     }
 
-    res = ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &ldap_res);
+    // is sync is active, check the sync msgid first.
+    // this ldap_result call should deplete all the sync messages waiting.
+    // we can then fall through to checking for regular results.
+    if (c->sync_id) { 
+      switch(ldap_result(c->ld, c->sync_id, LDAP_MSG_RECEIVED, &ldap_tv, &res) > 0) {
+      case 0:
+        break;
+      case -1:
+        break;
+      default:
+        for ( msg = ldap_first_message( c->ld, res );
+              msg != NULL;
+              msg = ldap_next_message( c->ld, msg ) ) {
 
-    if (res < 0 ) {
-      Emit(c, symbol_disconnected);
-      return;
-    }
-
-
-    {
-      // if ldap silently handled reconnect, fd may now be different
-      int fd = -1;
-      ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-      if (c->read_watcher_.fd != fd) {
-        if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop( EV_DEFAULT_UC_ &(c->read_watcher_) );
+            msgid = ldap_msgid(msg);
+            switch(ldap_msgtype(msg)) {
+            case LDAP_RES_INTERMEDIATE:
+              fprintf(stderr, "INTERMEDIATE\n");
+            case LDAP_RES_SEARCH_ENTRY:
+              fprintf(stderr, "Got a searchlike result\n");
+            case LDAP_RES_SEARCH_RESULT:
+              args[0] = symbol_syncresult;
+              args[1] = Integer::New(msgid);
+              args[2] = c->parseReply(c, msg);
+              EMIT(c, 3, args);
+              break;
+            default:
+              fprintf(stderr, "Unknown Sync response: %u\n", ldap_msgtype(res));
+            }
         }
-        ev_io_set(&(c->read_watcher_), fd, EV_READ);
-        ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
+        ldap_msgfree(res);
       }
     }
 
-    if (res == 0) {
-      // No complete messages were available. In theory, this will happen when
-      // reply consists of more packets, and not all have arrived yet.
-      //
-      // In practice, code ends here over 10 times per result packet, even for
-      // searches where answer consists only of two packets. Not sure why,
-      // might be worth investigating, hiting this case too often could harm
-      // performance a bit.
+    // now check for any other panding messages....
+    switch(ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &res)) {
+    case 0:
       return;
-    } else if (res < 0) {
-      TryCatch tc;
-	  Local<Value> event_argv[1] = { Local<String>::New(symbol_disconnected) };
-      emit->Call(c->handle_, 1, event_argv); // this is equivilent to: this.emit("disconnected");
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
+    case -1:
+      EMITDISCONNECT(c);
       return;
-    }
-    op = res;
+    default:
+      msg = res;
 
-    msgid = ldap_msgid(ldap_res);
-    res = ldap_parse_result(c->ld, ldap_res, &error, NULL, NULL, NULL,
-        &srv_controls, 0);
+      msgid = ldap_msgid(msg);
+          
+      switch ( ldap_msgtype( msg ) ) {
+      case LDAP_RES_SEARCH_REFERENCE:
+        fprintf(stderr, "LDAP_RES_SEARCH_REFERENCE\n");
+        break;
+      case LDAP_RES_SEARCH_ENTRY:
+      case LDAP_RES_SEARCH_RESULT:
+        fprintf(stderr, "LDAP_RES_SEARCH_RESULT %u\n", msgid);
+        // if (srv_controls) {
+        //  fprintf(stderr, "HAS CONTROLS\n");
+        // }
+        args[0] = symbol_search;
+        args[1] = Integer::New(msgid);
+        args[2] = c->parseReply(c, res);
+        EMIT(c, 3, args);
+        break;
 
-    args[1] = Integer::New(msgid);
-    args[2] = Local<Value>::New(Integer::New(res));
-
-    if (res != LDAP_SUCCESS || error) {
-      args[2] = Integer::New(error);
-      args[3] = Local<Value>::New(String::New(ldap_err2string(error)));
-      //MakeCallback(c->handle_, symbol_error, 3, args);
-      args[0] = symbol_disconnected; // FINDME: this was symbol_error. Chg to disconnect for testing.
-      // TODO: make this figure out if this is a disconnect.
-      emit->Call(c->handle_, 4, args); // this is equivilent to: this.emit("error",msgid,int_res,ldap_err2string);
-      if (tc.HasCaught()) {
-        FatalException(tc);
-      }
-    } else {
-      switch(op) {
       case LDAP_RES_BIND:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
-        //MakeCallback(c->handle_,symbol_result,2,args);
-	  	args[0] = symbol_result;
-      	emit->Call(c->handle_, 3, args); // this is equivilent to: this.emit("result",msgid,int_res);
-      	if (tc.HasCaught()) {
-          FatalException(tc);
-      	}
+        fprintf(stderr, "Generic result %u\n", msgid);
+        args[0] = symbol_result; 
+        args[1] = Integer::New(msgid);
+        EMIT(c, 2, args);
         break;
-
-      case  LDAP_RES_SEARCH_RESULT:
-        args[3] = c->parseReply(c, ldap_res);
-        if (!srv_controls) {
-          //MakeCallback(c->handle_,symbol_search,3,args);
-		  args[0] = symbol_search;
-	      emit->Call(c->handle_, 4, args); // this is equivilent to: this.emit("search",msgid,int_res,ldap_res);
-	      if (tc.HasCaught()) {
-	        FatalException(tc);
-	      }
-          break;
-        }
-        {
-          struct berval* cookie = NULL;
-          ldap_parse_page_control(c->ld, srv_controls, NULL, &cookie);
-          if (!cookie || cookie->bv_val == NULL || !*cookie->bv_val) {
-            // no more paged results, signal end to user code
-            if (cookie) {
-              ber_bvfree(cookie);
-            }
-            args[4] = v8::Undefined();
-          } else {
-            Local<Object> cookieObj(cookie_template->NewInstance());
-            cookieObj->SetPointerInInternalField(0, cookie);
-            args[4] = cookieObj;
-          }
-          //MakeCallback(c->handle_,symbol_search_paged,4,args);
-		  args[0] = symbol_search_paged;
-	      emit->Call(c->handle_, 5, args); // this is equivilent to: this.emit("search_paged",msgid,int_res,ldap_res,cookie_obj);
-	      if (tc.HasCaught()) {
-	        FatalException(tc);
-	      }
-        }
-        break;
-
       default:
-        //MakeCallback(c->handle_,symbol_unknown,1,args);
-	  	args[0] = symbol_unkown;
-      	emit->Call(c->handle_, 2, args); // this is equivilent to: this.emit("unkown",msgid);
-      	if (tc.HasCaught()) {
-      	  FatalException(tc);
-        }
+        fprintf(stderr, "DEFAULT! %u\n", ldap_msgtype(msg));
+        args[0] = symbol_unknown;
+        args[1] = Integer::New(msgid);
+        EMIT(c, 2, args);
         break;
       }
+      ldap_msgfree(res);
     }
+    
 
-    if (srv_controls) {
-      ldap_controls_free(srv_controls);
-    }
-    ldap_msgfree(ldap_res);
+    //    if (srv_controls) {
+    //      ldap_controls_free(srv_controls);
+    //    }
+    //ldap_msgfree(ldap_res); // todo: free the msg
   }
 
 };
