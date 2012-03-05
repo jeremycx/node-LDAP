@@ -61,6 +61,8 @@ var LDAP = function(opts) {
     self.LDAP_SYNC_DELETE = 3;
     self.LDAP_SYNC_NEW_COOKIE = 4;
 
+    self.LDAP_SYNC_CAPI_DONE = 80;
+
     function setCallback(msgid, replay, args, fn) {
         if (msgid >= 0) {
             if (typeof(fn) == 'function') {
@@ -121,7 +123,6 @@ var LDAP = function(opts) {
         reconnecting = true;
         binding.close();
         setTimeout(function() {
-            console.log("Reopening");
             var res = open(function(err) {
                 if (err) {
                     reconnect();
@@ -147,17 +148,26 @@ var LDAP = function(opts) {
     function state2str(state) {
         switch(state) {
         case self.LDAP_SYNC_PRESENT:
-            return "LDAP_SYNC_PRESENT";
+            return 'LDAP_SYNC_PRESENT';
         case self.LDAP_SYNC_ADD:
-            return "LDAP_SYNC_ADD";
+            return 'LDAP_SYNC_ADD';
         case self.LDAP_SYNC_MODIFY:
-            return "LDAP_SYNC_MODIFY";
+            return 'LDAP_SYNC_MODIFY';
         case self.LDAP_SYNC_DELETE:
-            return "LDAP_SYNC_DELETE";
+            return 'LDAP_SYNC_DELETE';
         case self.LDAP_SYNC_NEW_COOKIE:
-            return "LDAP_SYNC_NEW_COOKIE";
+            return 'LDAP_SYNC_NEW_COOKIE';
         default:
-            return "UNKNOWN_STATE";
+            return 'UNKNOWN_STATE (' + state + ')';
+        }
+    }
+
+    function phase2str(phase) {
+        switch(phase) {
+        case self.LDAP_SYNC_CAPI_DONE:
+            return 'LDAP_SYNC_CAPI_DONE';
+        default:
+            return 'UNKNOWN_PHASE (' + phase + ')';
         }
     }
 
@@ -235,6 +245,7 @@ var LDAP = function(opts) {
     this.getStats = getStats;
     this.sync = sync;
     this.state2str = state2str;
+    this.phase2str = phase2str;
 
 };
 
