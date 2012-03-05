@@ -8,19 +8,23 @@
 #include <errno.h>
 
 #include <ldap.h>
+#include <uuid.h>
 
 using namespace node;
 using namespace v8;
 
-static Persistent<String> symbol_connected; // the name symbol for a "connected" event
-static Persistent<String> symbol_disconnected; // the name symbol for a "disconnected" event
-static Persistent<String> symbol_search; // the name symbol for a "search" event
-static Persistent<String> symbol_search_paged; // the name symbol for a "searchpage" event
-static Persistent<String> symbol_error; // the name symbol for an "error" event
-static Persistent<String> symbol_result; // the name symbol for a "result" event
-static Persistent<String> symbol_syncresult; // the name symbol for a "result" event
-static Persistent<String> symbol_unknown; // the name symbol for an "unkown" event
-static Persistent<String> emit_symbol; // the emit local object
+static Persistent<String> symbol_connected; 
+static Persistent<String> symbol_disconnected; 
+static Persistent<String> symbol_search;
+static Persistent<String> symbol_search_paged;
+static Persistent<String> symbol_error;
+static Persistent<String> symbol_result;
+static Persistent<String> symbol_syncresult;
+static Persistent<String> symbol_syncentry;
+static Persistent<String> symbol_syncintermediate;
+static Persistent<String> symbol_syncidset;
+static Persistent<String> symbol_unknown;
+static Persistent<String> emit_symbol;
 
 static Persistent<ObjectTemplate> cookie_template;
 
@@ -91,7 +95,8 @@ class LDAPConnection : public ObjectWrap
 {
 private:
   LDAP  *ld;
-  int sync_id;
+  unsigned int sync_id;
+  ldap_sync_refresh_t refreshPhase;
   ev_io read_watcher_;
   ev_io write_watcher_;
 
@@ -114,6 +119,9 @@ public:
     symbol_error = NODE_PSYMBOL("error");
     symbol_result = NODE_PSYMBOL("result");
     symbol_syncresult = NODE_PSYMBOL("syncresult");
+    symbol_syncentry = NODE_PSYMBOL("syncentry");
+    symbol_syncintermediate = NODE_PSYMBOL("syncintermediate");
+    symbol_syncidset = NODE_PSYMBOL("syncidset");
     symbol_unknown = NODE_PSYMBOL("unknown");
     emit_symbol = NODE_PSYMBOL("emit");//define the event symbol
 
@@ -191,48 +199,6 @@ public:
     ev_io_stop(EV_DEFAULT_ &(c->read_watcher_));
 
     RETURN_INT(0);
-  }
-
-  NODE_METHOD(Sync) {
-    HandleScope scope;
-    GETOBJ(c);
-    LDAPControl	ctrl = { 0 },
-               *ctrls[ 2 ];
-    BerElement	*ber = NULL;
-    int rc;
-                       
-    int msgid;
-
-    ARG_STR(base,         0);
-    ARG_INT(searchscope,  1);
-    ARG_STR(filter,       2);
-    ARG_STR(attrs_str,    3);
-    ARG_STR(cookie,       4);
-
-    ctrls[ 0 ] = &ctrl;
-    ctrls[ 1 ] = NULL;
-        
-    ber = ber_alloc_t( LBER_USE_DER );
-    ber_printf( ber, "{eb}", LDAP_SYNC_REFRESH_AND_PERSIST, 0 );    
-    rc = ber_flatten2( ber, &ctrl.ldctl_value, 0 );
-
-    ctrl.ldctl_oid = (char *)LDAP_CONTROL_SYNC;
-    ctrl.ldctl_iscritical = 1;
-
-    rc = ldap_search_ext( c->ld, *base, searchscope, *filter, 
-                          NULL, 0, ctrls, NULL, NULL, 0, &msgid);
-
-    if ( rc != LDAP_SUCCESS ) {
-      msgid = -1;
-    }
-
-    if ( ber != NULL ) {
-      ber_free( ber, 1 );
-    }
-
-    c->sync_id = msgid;
-
-    RETURN_INT(msgid);
   }
 
 
@@ -632,7 +598,6 @@ public:
       //                          &srv_controls, 0); //todo - check result
 
 
-
   static void
   io_event (EV_P_ ev_io *w, int revents)
   {
@@ -642,8 +607,6 @@ public:
     LDAPMessage * res = NULL;
     Handle<Value> args[4];
     int msgid = 0;
-
-    fprintf(stderr, "io_event\n");
 
     // not sure if this is neccesary...
     if (!(revents & EV_READ)) {
@@ -660,37 +623,10 @@ public:
     // this ldap_result call should deplete all the sync messages waiting.
     // we can then fall through to checking for regular results.
     if (c->sync_id) { 
-      switch(ldap_result(c->ld, c->sync_id, LDAP_MSG_RECEIVED, &ldap_tv, &res) > 0) {
-      case 0:
-        break;
-      case -1:
-        break;
-      default:
-        for ( msg = ldap_first_message( c->ld, res );
-              msg != NULL;
-              msg = ldap_next_message( c->ld, msg ) ) {
-
-            msgid = ldap_msgid(msg);
-            switch(ldap_msgtype(msg)) {
-            case LDAP_RES_INTERMEDIATE:
-              fprintf(stderr, "INTERMEDIATE\n");
-            case LDAP_RES_SEARCH_ENTRY:
-              fprintf(stderr, "Got a searchlike result\n");
-            case LDAP_RES_SEARCH_RESULT:
-              args[0] = symbol_syncresult;
-              args[1] = Integer::New(msgid);
-              args[2] = c->parseReply(c, msg);
-              EMIT(c, 3, args);
-              break;
-            default:
-              fprintf(stderr, "Unknown Sync response: %u\n", ldap_msgtype(res));
-            }
-        }
-        ldap_msgfree(res);
-      }
+      c->check_sync_results(c);
     }
 
-    // now check for any other panding messages....
+    // now check for any other pending messages....
     switch(ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &res)) {
     case 0:
       return;
@@ -704,14 +640,10 @@ public:
           
       switch ( ldap_msgtype( msg ) ) {
       case LDAP_RES_SEARCH_REFERENCE:
-        fprintf(stderr, "LDAP_RES_SEARCH_REFERENCE\n");
+        //fprintf(stderr, "LDAP_RES_SEARCH_REFERENCE\n");
         break;
       case LDAP_RES_SEARCH_ENTRY:
       case LDAP_RES_SEARCH_RESULT:
-        fprintf(stderr, "LDAP_RES_SEARCH_RESULT %u\n", msgid);
-        // if (srv_controls) {
-        //  fprintf(stderr, "HAS CONTROLS\n");
-        // }
         args[0] = symbol_search;
         args[1] = Integer::New(msgid);
         args[2] = c->parseReply(c, res);
@@ -722,13 +654,11 @@ public:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
-        fprintf(stderr, "Generic result %u\n", msgid);
         args[0] = symbol_result; 
         args[1] = Integer::New(msgid);
         EMIT(c, 2, args);
         break;
       default:
-        fprintf(stderr, "DEFAULT! %u\n", ldap_msgtype(msg));
         args[0] = symbol_unknown;
         args[1] = Integer::New(msgid);
         EMIT(c, 2, args);
@@ -743,6 +673,503 @@ public:
     //    }
     //ldap_msgfree(ldap_res); // todo: free the msg
   }
+
+  /* *************************************************************************************
+   * Sync Routines
+   * These routines handle sync status
+   *
+   * ACKNOWLEDGEMENTS:
+   * Adapted from software originally developed by Pierangelo Masarati
+   * for inclusion in OpenLDAP.
+   *
+   * ************************************************************************************/
+
+  NODE_METHOD(Sync) {
+    HandleScope scope;
+    GETOBJ(c);
+    LDAPControl	ctrl = { 0 },
+               *ctrls[ 2 ];
+    BerElement	*ber = NULL;
+    int rc;
+                       
+    int msgid;
+
+    ARG_STR(base,         0);
+    ARG_INT(searchscope,  1);
+    ARG_STR(filter,       2);
+    ARG_STR(attrs_str,    3);
+    ARG_STR(cookie,       4);
+
+    ctrls[ 0 ] = &ctrl;
+    ctrls[ 1 ] = NULL;
+        
+    ber = ber_alloc_t( LBER_USE_DER );
+
+    // TODO: look into reloadHint -- what is it for?
+    if ( args[4]->IsUndefined()) {
+      ber_printf( ber, "{eb}", LDAP_SYNC_REFRESH_AND_PERSIST, 0 );
+    } else {
+      fprintf(stderr, "Added cookie %s\n", *cookie);
+      ber_printf( ber, "{esb}", LDAP_SYNC_REFRESH_AND_PERSIST, *cookie, 1 );
+    }
+
+    rc = ber_flatten2( ber, &ctrl.ldctl_value, 0 );
+
+    ctrl.ldctl_oid = (char *)LDAP_CONTROL_SYNC;
+    ctrl.ldctl_iscritical = 1;
+
+    rc = ldap_search_ext( c->ld, *base, searchscope, *filter, NULL, 0, ctrls, NULL, NULL, 0, &msgid);
+
+    if ( rc != LDAP_SUCCESS ) {
+      msgid = -1;
+    }
+
+    if ( ber != NULL ) {
+      ber_free( ber, 1 );
+    }
+
+    c->sync_id = msgid;
+
+    RETURN_INT(msgid);
+  }
+
+  static void check_sync_results(LDAPConnection * c) {
+    LDAPMessage * res = NULL;
+    LDAPMessage * msg = NULL;
+    unsigned int msgid;
+    int refreshDone;
+
+      switch(ldap_result(c->ld, c->sync_id, LDAP_MSG_RECEIVED, &ldap_tv, &res) > 0) {
+      case 0:
+        break;
+
+      case -1:
+        break;
+
+      default:
+        for ( msg = ldap_first_message( c->ld, res );
+              msg != NULL;
+              msg = ldap_next_message( c->ld, msg ) ) {
+
+          msgid = ldap_msgid(msg);
+
+          switch(ldap_msgtype(msg)) {
+          case LDAP_RES_INTERMEDIATE:
+            sync_search_intermediate(c, msg, &refreshDone);
+            break;
+
+          case LDAP_RES_SEARCH_ENTRY:
+            sync_search_entry(c, msg);
+            break;
+
+          case LDAP_RES_SEARCH_RESULT:
+            sync_search_result(c, msg);
+            break;
+          default:
+            fprintf(stderr, "Unknown Sync response: %u\n", ldap_msgtype(res));
+          }
+        }
+        ldap_msgfree(res);
+      }
+  }
+
+  static int sync_search_entry( LDAPConnection * c, LDAPMessage * res ) {
+    LDAPControl **ctrls = NULL;
+    int	rc = LDAP_OTHER;
+    int i;
+    BerElement *ber = NULL;
+    struct berval entryUUID = { 0 }, cookie = { 0 };
+    int	state = -1;
+    ber_len_t len;
+    ldap_sync_refresh_t	phase;
+    
+    assert( res != NULL );
+
+    phase = c->refreshPhase;
+
+    /* extract controls */
+    ldap_get_entry_controls( c->ld, res, &ctrls );
+    if ( ctrls == NULL ) {
+      goto done;
+    }
+
+    /* lookup the sync state control */
+    for ( i = 0; ctrls[ i ] != NULL; i++ ) {
+      if ( strcmp( ctrls[ i ]->ldctl_oid, LDAP_CONTROL_SYNC_STATE ) == 0 ) {
+        break;
+      }
+    }
+
+    /* control must be present; there might be other... */
+    if ( ctrls[ i ] == NULL ) {
+      goto done;
+    }
+
+    /* extract data */
+    ber = ber_init( &ctrls[ i ]->ldctl_value );
+    if ( ber == NULL ) {
+      goto done;
+    }
+    /* scan entryUUID in-place ("m") */
+    if ( ber_scanf( ber, "{em" /*"}"*/, &state, &entryUUID ) == LBER_ERROR || entryUUID.bv_len == 0 ) {
+      goto done;
+    }
+
+    if ( ber_peek_tag( ber, &len ) == LDAP_TAG_SYNC_COOKIE ) {
+      /* scan cookie in-place ("m") */
+      if ( ber_scanf( ber, /*"{"*/ "m}", &cookie ) == LBER_ERROR ) {
+        goto done;
+      }
+    }
+
+    switch ( state ) {
+    case LDAP_SYNC_PRESENT:
+    case LDAP_SYNC_DELETE:
+    case LDAP_SYNC_ADD:
+    case LDAP_SYNC_MODIFY:
+      /* NOTE: ldap_sync_refresh_t is defined
+       * as the corresponding LDAP_SYNC_*
+       * for the 4 above cases */
+      phase = (ldap_sync_refresh_t) state;
+      break;
+      
+    default:
+      goto done;
+    }
+
+    {
+      Handle<Value> args[5];
+      char * uuid = NULL;
+
+      if (entryUUID.bv_len) {
+        uint32_t status;
+        uuid_to_string((const uuid_t *)entryUUID.bv_val, &uuid, &status);
+      }
+
+      args[0] = symbol_syncentry;
+      args[1] = c->parseReply(c, res);
+      args[2] = String::New(cookie.bv_len?cookie.bv_val:"");
+      args[3] = String::New(entryUUID.bv_len?uuid:"");
+      args[4] = Integer::New(phase);
+      EMIT(c, 5, args);
+      
+      if (uuid) free(uuid);
+    }
+
+  done:;
+    if ( ber != NULL ) {
+      ber_free( ber, 1 );
+    }
+
+    if ( ctrls != NULL ) {
+      ldap_controls_free( ctrls );
+    }
+    
+    return rc;
+  }
+
+
+  static int sync_search_result( LDAPConnection * c, LDAPMessage *res ) {
+    int	err;
+    char *matched = NULL, *msg = NULL;
+    LDAPControl	**ctrls = NULL;
+    int	rc;
+    int	refreshDeletes = -1;
+    struct berval	cookie = { 0 };
+
+    fprintf(stderr, "SEARCHRES\n");
+
+    /* should not happen in refreshAndPersist... */
+    rc = ldap_parse_result( c->ld, res, &err, &matched, &msg, NULL, &ctrls, 0 );
+    if ( rc == LDAP_SUCCESS ) {
+      rc = err;
+    }
+
+    c->refreshPhase = LDAP_SYNC_CAPI_DONE;
+
+    switch ( rc ) {
+    case LDAP_SUCCESS: {
+      int		i;
+      BerElement	*ber = NULL;
+      ber_len_t	len;
+
+      rc = LDAP_OTHER;
+
+      /* deal with control; then fallthru to handler */
+      if ( ctrls == NULL ) {
+        goto done;
+      }
+
+      /* lookup the sync state control */
+      for ( i = 0; ctrls[ i ] != NULL; i++ ) {
+        if ( strcmp( ctrls[ i ]->ldctl_oid, LDAP_CONTROL_SYNC_DONE ) == 0 )          {
+            break;
+        }
+      }
+
+      /* control must be present; there might be other... */
+      if ( ctrls[ i ] == NULL ) {
+        goto done;
+      }
+
+      /* extract data */
+      ber = ber_init( &ctrls[ i ]->ldctl_value );
+      if ( ber == NULL ) {
+        goto done;
+      }
+
+      if ( ber_scanf( ber, "{" /*"}"*/) == LBER_ERROR ) {
+        goto ber_done;
+      }
+      if ( ber_peek_tag( ber, &len ) == LDAP_TAG_SYNC_COOKIE ) {
+        if ( ber_scanf( ber, "m", &cookie ) == LBER_ERROR ) {
+          goto ber_done;
+        }
+      }
+
+      refreshDeletes = 0;
+      if ( ber_peek_tag( ber, &len ) == LDAP_TAG_REFRESHDELETES ) {
+        if ( ber_scanf( ber, "b", &refreshDeletes ) == LBER_ERROR ) {
+          goto ber_done;
+        }
+        if ( refreshDeletes ) {
+          refreshDeletes = 1;
+        }
+      }
+
+      if ( ber_scanf( ber, /*"{"*/ "}" ) != LBER_ERROR ) {
+        rc = LDAP_SUCCESS;
+      }
+
+      ber_done:;
+      ber_free( ber, 1 );
+      if ( rc != LDAP_SUCCESS ) {
+        break;
+      }
+
+      /* FIXME: what should we do with the refreshDelete? */
+      switch ( refreshDeletes ) {
+      case 0:
+        c->refreshPhase = LDAP_SYNC_CAPI_PRESENTS;
+        break;
+
+      default:
+        c->refreshPhase = LDAP_SYNC_CAPI_DELETES;
+        break;
+      }
+
+    } /* fallthru */
+
+    case LDAP_SYNC_REFRESH_REQUIRED:
+      /* TODO: check for Sync Done Control */
+      /* FIXME: perhaps the handler should be called
+       * also in case of failure; we'll deal with this 
+       * later when implementing refreshOnly */
+      {
+        Handle<Value> args[4];
+        args[0] = symbol_syncresult;
+        args[1] = c->parseReply(c, res);
+        args[2] = String::New(cookie.bv_len?cookie.bv_val:"");
+        args[3] = Integer::New(refreshDeletes);
+        EMIT(c, 4, args);
+      }
+      break;
+    }
+
+  done:;
+    if ( matched != NULL ) {
+      ldap_memfree( matched );
+    }
+
+    if ( msg != NULL ) {
+      ldap_memfree( msg );
+    }
+
+    if ( ctrls != NULL ) {
+      ldap_controls_free( ctrls );
+    }
+
+    c->refreshPhase = LDAP_SYNC_CAPI_DONE;
+
+    return rc;
+  }
+
+  static int sync_search_intermediate( LDAPConnection * c, LDAPMessage * res, int * refreshDone ) {
+    int			rc;
+    char			*retoid = NULL;
+    struct berval		*retdata = NULL;
+    BerElement		*ber = NULL;
+    ber_len_t		len;
+    ber_tag_t		syncinfo_tag;
+    struct berval		cookie;
+    int			refreshDeletes = 0;
+    BerVarray		syncUUIDs = NULL;
+    ldap_sync_refresh_t	phase;
+
+    *refreshDone = 0;
+
+    rc = ldap_parse_intermediate( c->ld, res, &retoid, &retdata, NULL, 0 );
+    /* parsing must be successful, and yield the OID
+     * of the sync info intermediate response */
+    if ( rc != LDAP_SUCCESS ) {
+      goto done;
+    }
+
+    rc = LDAP_OTHER;
+
+    if ( retoid == NULL || strcmp( retoid, LDAP_SYNC_INFO ) != 0 ) {
+      goto done;
+    }
+
+    /* init ber using the value in the response */
+    ber = ber_init( retdata );
+    if ( ber == NULL ) {
+      goto done;
+    }
+
+    syncinfo_tag = ber_peek_tag( ber, &len );
+    switch ( syncinfo_tag ) {
+    case LDAP_TAG_SYNC_NEW_COOKIE:
+      if ( ber_scanf( ber, "m", &cookie ) == LBER_ERROR ) {
+        goto done;
+      }
+      //      if ( cookie.bv_val != NULL ) {
+        //        ber_bvreplace( &ls->ls_cookie, &cookie );
+      //}
+      // TODO: extract cookie
+      break;
+
+    case LDAP_TAG_SYNC_REFRESH_DELETE:
+    case LDAP_TAG_SYNC_REFRESH_PRESENT:
+      if ( syncinfo_tag == LDAP_TAG_SYNC_REFRESH_DELETE ) {
+        switch ( c->refreshPhase ) {
+        case LDAP_SYNC_CAPI_NONE:
+        case LDAP_SYNC_CAPI_PRESENTS:
+          c->refreshPhase = LDAP_SYNC_CAPI_DELETES;
+          break;
+
+        default:
+          /* TODO: impossible; handle */
+          goto done;
+        }
+
+      } else {
+        switch ( c->refreshPhase ) {
+        case LDAP_SYNC_CAPI_NONE:
+          c->refreshPhase = LDAP_SYNC_CAPI_PRESENTS;
+          break;
+
+        default:
+          /* TODO: impossible; handle */
+          goto done;
+        }
+      }
+
+      if ( ber_scanf( ber, "{" /*"}"*/ ) == LBER_ERROR ) {
+        goto done;
+      }
+      if ( ber_peek_tag( ber, &len ) == LDAP_TAG_SYNC_COOKIE ) {
+        if ( ber_scanf( ber, "m", &cookie ) == LBER_ERROR ) {
+          goto done;
+        }
+        if ( cookie.bv_val != NULL ) {
+          // TODO: extract cookie
+          //          ber_bvreplace( &ls->ls_cookie, &cookie );
+        }
+      }
+
+      *refreshDone = 1;
+      if ( ber_peek_tag( ber, &len ) == LDAP_TAG_REFRESHDONE ) {
+        if ( ber_scanf( ber, "b", refreshDone ) == LBER_ERROR ) {
+          goto done;
+        }
+      }
+
+      if ( ber_scanf( ber, /*"{"*/ "}" ) == LBER_ERROR ) {
+        goto done;
+      }
+
+      if ( *refreshDone ) {
+        c->refreshPhase = LDAP_SYNC_CAPI_DONE;
+      }
+
+      //if ( ls->ls_intermediate ) {
+      //ls->ls_intermediate( ls, res, NULL, ls->ls_refreshPhase );
+      //}
+      {
+        Handle<Value> args[4];
+        args[0] = symbol_syncintermediate;
+        args[1] = c->parseReply(c, res);
+        args[2] = String::New(cookie.bv_val?cookie.bv_val:"");
+        args[3] = Integer::New(c->refreshPhase);
+        EMIT(c, 4, args);
+      }
+      break;
+
+    case LDAP_TAG_SYNC_ID_SET:
+      if ( ber_scanf( ber, "{" /*"}"*/ ) == LBER_ERROR ) {
+        goto done;
+      }
+      if ( ber_peek_tag( ber, &len ) == LDAP_TAG_SYNC_COOKIE ) {
+        if ( ber_scanf( ber, "m", &cookie ) == LBER_ERROR ) {
+          goto done;
+        }
+      }
+
+      if ( ber_peek_tag( ber, &len ) == LDAP_TAG_REFRESHDELETES ) {
+        if ( ber_scanf( ber, "b", &refreshDeletes ) == LBER_ERROR ) {
+          goto done;
+        }
+      }
+
+      if ( ber_scanf( ber, /*"{"*/ "[W]}", &syncUUIDs ) == LBER_ERROR || syncUUIDs == NULL ) {
+          goto done;
+      }
+
+      if ( refreshDeletes ) {
+        phase = LDAP_SYNC_CAPI_DELETES_IDSET;
+      } else {
+        phase = LDAP_SYNC_CAPI_PRESENTS_IDSET;
+      }
+
+      {
+        Handle<Value> args[5];
+        args[0] = symbol_syncidset;
+        args[1] = c->parseReply(c, res);
+        args[2] = String::New(cookie.bv_val?cookie.bv_val:"");
+        args[3] = Undefined(); // TODO put UUID list here
+        args[4] = Integer::New(phase);
+        EMIT(c, 5, args);
+      }
+
+      ber_bvarray_free( syncUUIDs );
+      break;
+
+    default:
+      goto done;
+    }
+
+    rc = LDAP_SUCCESS;
+
+  done:;
+    if ( ber != NULL ) {
+      ber_free( ber, 1 );
+    }
+
+    if ( retoid != NULL ) {
+      ldap_memfree( retoid );
+    }
+
+    if ( retdata != NULL ) {
+      ber_bvfree( retdata );
+    }
+
+    return rc;
+  }
+
+
+
+
 
 };
 
