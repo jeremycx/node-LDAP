@@ -24,6 +24,7 @@ var LDAP = function(opts) {
     var callbacks = {};
     var reconnecting = false;
     var syncopts = undefined;
+    var cookie = undefined;
     var stats = {
         lateresponses: 0,
         reconnects: 0,
@@ -53,6 +54,12 @@ var LDAP = function(opts) {
     self.SUBTREE = 2;
     self.SUBORDINATE = 3;
     self.DEFAULT = -1;
+
+    self.LDAP_SYNC_PRESENT = 0;
+    self.LDAP_SYNC_ADD = 1;
+    self.LDAP_SYNC_MODIFY = 2;
+    self.LDAP_SYNC_DELETE = 3;
+    self.LDAP_SYNC_NEW_COOKIE = 4;
 
     function setCallback(msgid, replay, args, fn) {
         if (msgid >= 0) {
@@ -137,6 +144,23 @@ var LDAP = function(opts) {
         return stats;
     }
 
+    function state2str(state) {
+        switch(state) {
+        case self.LDAP_SYNC_PRESENT:
+            return "LDAP_SYNC_PRESENT";
+        case self.LDAP_SYNC_ADD:
+            return "LDAP_SYNC_ADD";
+        case self.LDAP_SYNC_MODIFY:
+            return "LDAP_SYNC_MODIFY";
+        case self.LDAP_SYNC_DELETE:
+            return "LDAP_SYNC_DELETE";
+        case self.LDAP_SYNC_NEW_COOKIE:
+            return "LDAP_SYNC_NEW_COOKIE";
+        default:
+            return "UNKNOWN_STATE";
+        }
+    }
+
     function simpleBind(fn) {
         var msgid;
         if (!opts.binddn) {
@@ -149,11 +173,21 @@ var LDAP = function(opts) {
     }
 
     function sync(s) {
-        if (!(typeof s.fn == 'function')) {
-            throw new Error('Need a sync callback');
+        if (typeof s.syncresult == 'function') {
+            binding.on('syncresult', s.syncresult);
         }
+        if (typeof s.syncentry == 'function') {
+            binding.on('syncentry', s.syncentry);
+        }
+        if (typeof s.syncidset == 'function') {
+            binding.on('syncidset', s.syncidset);
+        }
+        if (typeof s.syncintermediate == 'function') {
+            binding.on('syncintermediate', s.syncintermediate);
+        }
+
         binding.sync(s.base, parseInt(s.scope), 
-                     s.filter, 'attrs', 'cookie');
+                     s.filter, 'attrs', s.cookie?s.cookie:undefined);
         syncopts = s;
     }
 
@@ -164,7 +198,6 @@ var LDAP = function(opts) {
     }
 
     binding.on('searchresult', function(msgid, data) {
-        console.log('In listener: ' + msgid + '/' + data);
         stats.searchresults++;
         handleCallback(msgid, data);
     });
@@ -201,6 +234,7 @@ var LDAP = function(opts) {
     this.search = search;
     this.getStats = getStats;
     this.sync = sync;
+    this.state2str = state2str;
 
 };
 
