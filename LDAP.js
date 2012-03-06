@@ -282,6 +282,10 @@ var LDAP = function(opts) {
         }
     });
 
+    // public properties
+    this.cookie = cookie;
+
+    // public functions
     this.open = open;
     this.simpleBind = simpleBind;
     this.search = search;
