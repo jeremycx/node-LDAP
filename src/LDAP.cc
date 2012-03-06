@@ -1139,8 +1139,6 @@ public:
       }
 
       {
-        fprintf(stderr, "Intermediate 2\n");
-
         Handle<Value> args[3];
 
         args[0] = symbol_syncnewcookie;
@@ -1191,9 +1189,6 @@ public:
         args[0] = symbol_syncidset;
         args[1] = c->parseReply(c, res);
         args[2] = c->uuid2array(syncUUIDs);
-
-        fprintf(stderr, "Phase: %u %s\n", phase, (phase == LDAP_SYNC_CAPI_PRESENTS_IDSET?"LDAP_SYNC_CAPI_PRESENTS_IDSET":"LDAP_SYNC_CAPI_DELETES_IDSET"));
-
         args[3] = Integer::New(phase);
         EMIT(c, 4, args);
       }
