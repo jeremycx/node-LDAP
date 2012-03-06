@@ -207,6 +207,9 @@ var LDAP = function(opts) {
         if (typeof s.syncintermediate == 'function') {
             binding.on('syncintermediate', s.syncintermediate);
         }
+        if (typeof s.newcookie == 'function') {
+            self.on('newcookie', s.newcookie);
+        }
 
         if (!s) {
             throw new Error('Options Required');
@@ -255,11 +258,12 @@ var LDAP = function(opts) {
         handleCallback(msgid);
     });
 
-    binding.on('newcookie', function(cookie) {
+    binding.on('newcookie', function(newcookie) {
         // this way a reconnect always starts from the last known cookie.
-        if (cookie) {
-            syncopts.cookie = cookie;
-            console.log('Storing new cookie ' + syncopts.cookie);
+        if (newcookie && (newcookie != cookie)) {
+            cookie = newcookie;
+            if (syncopts) syncopts.cookie = newcookie;
+            self.emit('newcookie', cookie);
         }
     });
 
