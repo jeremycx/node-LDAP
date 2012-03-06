@@ -23,6 +23,7 @@ static Persistent<String> symbol_syncresult;
 static Persistent<String> symbol_syncentry;
 static Persistent<String> symbol_syncintermediate;
 static Persistent<String> symbol_syncidset;
+static Persistent<String> symbol_syncnewcookie;
 static Persistent<String> symbol_unknown;
 static Persistent<String> emit_symbol;
 
@@ -122,6 +123,7 @@ public:
     symbol_syncentry = NODE_PSYMBOL("syncentry");
     symbol_syncintermediate = NODE_PSYMBOL("syncintermediate");
     symbol_syncidset = NODE_PSYMBOL("syncidset");
+    symbol_syncnewcookie = NODE_PSYMBOL("newcookie");
     symbol_unknown = NODE_PSYMBOL("unknown");
     emit_symbol = NODE_PSYMBOL("emit");//define the event symbol
 
@@ -684,7 +686,8 @@ public:
                *ctrls[ 2 ];
     BerElement	*ber = NULL;
     int rc;
-    char ** attrs = NULL;
+    char ** attrs;
+    char ** ap;
     int msgid;
 
     ARG_STR(base,         0);
@@ -694,6 +697,13 @@ public:
     ARG_STR(cookie,       4);
 
     // TODO: parse and convert attrs
+    char *bufhead = strdup(*attrs_str);
+    char *buf = bufhead;
+
+    for (ap = attrs; (*ap = strsep(&buf, " \t,")) != NULL;)
+      if (**ap != '\0')
+        if (++ap >= &attrs[255])
+          break;
 
     ctrls[ 0 ] = &ctrl;
     ctrls[ 1 ] = NULL;
@@ -714,6 +724,8 @@ public:
     ctrl.ldctl_iscritical = 1;
 
     rc = ldap_search_ext( c->ld, *base, searchscope, *filter, attrs, 0, ctrls, NULL, NULL, 0, &msgid);
+
+    free(bufhead);
 
     if ( rc != LDAP_SUCCESS ) {
       msgid = -1;
@@ -777,6 +789,28 @@ public:
     
     return;
   }
+
+  Local<Value> uuid2array (BerVarray syncUUIDs) {
+    HandleScope scope;
+    int i;
+    Local<Array>  js_result_list;
+
+    // is there a better way to count this?
+    for ( i = 0; syncUUIDs[ i ].bv_val != NULL; i++ ); 
+
+    js_result_list = Array::New(i);
+
+    for ( i = 0; syncUUIDs[ i ].bv_val != NULL; i++ ) {
+      uint32_t status;
+      char * uuid;
+      uuid_to_string((const uuid_t *)syncUUIDs[ i ].bv_val, &uuid, &status);
+      js_result_list->Set(Integer::New(i), String::New(uuid));
+      free(uuid);
+    }
+
+    return scope.Close(js_result_list);
+  }
+
 
   static int sync_search_entry( LDAPConnection * c, LDAPMessage * res ) {
     LDAPControl **ctrls = NULL;
@@ -855,6 +889,10 @@ public:
       args[4] = Integer::New(c->refreshPhase);
       EMIT(c, 5, args);
       
+      args[0] = symbol_syncnewcookie;
+      args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
+      EMIT(c, 2, args);
+
       if (uuid) free(uuid);
     }
 
@@ -969,9 +1007,13 @@ public:
         Handle<Value> args[4];
         args[0] = symbol_syncresult;
         args[1] = c->parseReply(c, res);
-        args[2] = String::New(cookie.bv_len?cookie.bv_val:"");
+        args[2] = cookie.bv_len?String::New(cookie.bv_val):Undefined();
         args[3] = Integer::New(c->refreshPhase);
         EMIT(c, 4, args);
+
+        args[0] = symbol_syncnewcookie;
+        args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
+        EMIT(c, 2, args);
       }
       break;
     }
@@ -1034,14 +1076,16 @@ public:
         goto done;
       }
       {
-        fprintf(stderr, "NEW COOKIE\n");
-        
         Handle<Value> args[4];
         args[0] = symbol_syncintermediate;
         args[1] = Undefined();
         args[2] = cookie.bv_len?String::New(cookie.bv_val):Undefined();
         args[3] = Integer::New(c->refreshPhase);
         EMIT(c, 4, args);
+
+        args[0] = symbol_syncnewcookie;
+        args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
+        EMIT(c, 2, args);
       }
       break;
 
@@ -1104,6 +1148,10 @@ public:
         args[2] = cookie.bv_len?String::New(cookie.bv_val):Undefined();
         args[3] = Integer::New(c->refreshPhase);
         EMIT(c, 4, args);
+
+        args[0] = symbol_syncnewcookie;
+        args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
+        EMIT(c, 2, args);
       }
       break;
 
@@ -1138,12 +1186,16 @@ public:
         args[0] = symbol_syncidset;
         args[1] = c->parseReply(c, res);
         args[2] = cookie.bv_val?String::New(cookie.bv_val):Undefined();
-        args[3] = Undefined(); // TODO put UUID list here
+        args[3] = c->uuid2array(syncUUIDs);
 
         fprintf(stderr, "Phase: %u %s\n", phase, (phase == LDAP_SYNC_CAPI_PRESENTS_IDSET?"LDAP_SYNC_CAPI_PRESENTS_IDSET":"LDAP_SYNC_CAPI_DELETES_IDSET"));
 
         args[4] = Integer::New(phase);
         EMIT(c, 5, args);
+
+        args[0] = symbol_syncnewcookie;
+        args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
+        EMIT(c, 2, args);
       }
 
       ber_bvarray_free( syncUUIDs );
