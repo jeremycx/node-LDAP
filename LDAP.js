@@ -149,40 +149,6 @@ var LDAP = function(opts) {
         return stats;
     }
 
-    function state2str(state) {
-        switch(state) {
-        case self.LDAP_SYNC_PRESENT:
-            return 'LDAP_SYNC_PRESENT';
-        case self.LDAP_SYNC_ADD:
-            return 'LDAP_SYNC_ADD';
-        case self.LDAP_SYNC_MODIFY:
-            return 'LDAP_SYNC_MODIFY';
-        case self.LDAP_SYNC_DELETE:
-            return 'LDAP_SYNC_DELETE';
-        case self.LDAP_SYNC_NEW_COOKIE:
-            return 'LDAP_SYNC_NEW_COOKIE';
-        default:
-            return 'UNKNOWN_STATE (' + state + ')';
-        }
-    }
-
-    function phase2str(phase) {
-        switch(phase) {
-        case self.LDAP_SYNC_CAPI_DONE:
-            return 'LDAP_SYNC_CAPI_DONE';
-        case self.LDAP_SYNC_CAPI_PRESENTS:
-            return 'LDAP_SYNC_CAPI_PRESENTS';
-        case self.LDAP_SYNC_CAPI_DELETES:
-            return 'LDAP_SYNC_CAPI_DELETES';
-        case self.LDAP_SYNC_CAPI_PRESENTS_IDSET:
-            return 'LDAP_SYNC_CAPI_PRESENTS_IDSET';
-        case self.LDAP_SYNC_CAPI_DELETES_IDSET:
-            return 'LDAP_SYNC_CAPI_DELETES_IDSET';
-        default:
-            return 'UNKNOWN_PHASE (' + phase + ')';
-        }
-    }
-
     function simpleBind(fn) {
         var msgid;
         if (!opts.binddn) {
@@ -195,17 +161,14 @@ var LDAP = function(opts) {
     }
 
     function sync(s) {
-        if (typeof s.syncresult == 'function') {
-            binding.on('syncresult', s.syncresult);
-        }
         if (typeof s.syncentry == 'function') {
             binding.on('syncentry', s.syncentry);
         }
-        if (typeof s.syncidset == 'function') {
-            binding.on('syncidset', s.syncidset);
+        if (typeof s.syncrefresh == 'function') {
+            binding.on('syncrefresh', s.syncrefresh);
         }
-        if (typeof s.syncintermediate == 'function') {
-            binding.on('syncintermediate', s.syncintermediate);
+        if (typeof s.syncrefreshdone == 'function') {
+            binding.on('syncrefreshdone', s.syncrefreshdone);
         }
         if (typeof s.newcookie == 'function') {
             self.on('newcookie', s.newcookie);
@@ -291,9 +254,6 @@ var LDAP = function(opts) {
     this.search = search;
     this.getStats = getStats;
     this.sync = sync;
-    this.state2str = state2str;
-    this.phase2str = phase2str;
-
 };
 
 util.inherits(LDAP, events.EventEmitter);
