@@ -874,24 +874,23 @@ public:
     }
 
     {
-      Handle<Value> args[5];
+      Handle<Value> args[4];
       char * uuid = NULL;
 
       if (entryUUID.bv_len) {
         uint32_t status;
         uuid_to_string((const uuid_t *)entryUUID.bv_val, &uuid, &status);
       }
-
-      args[0] = symbol_syncentry;
-      args[1] = c->parseReply(c, res);
-      args[2] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
-      args[3] = entryUUID.bv_len?String::New(uuid):Undefined();
-      args[4] = Integer::New(c->refreshPhase);
-      EMIT(c, 5, args);
       
       args[0] = symbol_syncnewcookie;
       args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
       EMIT(c, 2, args);
+
+      args[0] = symbol_syncentry;
+      args[1] = c->parseReply(c, res);
+      args[2] = entryUUID.bv_len?String::New(uuid):Undefined();
+      args[3] = Integer::New(c->refreshPhase);
+      EMIT(c, 4, args);
 
       if (uuid) free(uuid);
     }
@@ -1004,16 +1003,16 @@ public:
        * also in case of failure; we'll deal with this 
        * later when implementing refreshOnly */
       {
-        Handle<Value> args[4];
-        args[0] = symbol_syncresult;
-        args[1] = c->parseReply(c, res);
-        args[2] = cookie.bv_len?String::New(cookie.bv_val):Undefined();
-        args[3] = Integer::New(c->refreshPhase);
-        EMIT(c, 4, args);
+        Handle<Value> args[3];
 
         args[0] = symbol_syncnewcookie;
         args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
         EMIT(c, 2, args);
+
+        args[0] = symbol_syncresult;
+        args[1] = c->parseReply(c, res);
+        args[2] = Integer::New(c->refreshPhase);
+        EMIT(c, 3, args);
       }
       break;
     }
@@ -1076,16 +1075,16 @@ public:
         goto done;
       }
       {
-        Handle<Value> args[4];
-        args[0] = symbol_syncintermediate;
-        args[1] = Undefined();
-        args[2] = cookie.bv_len?String::New(cookie.bv_val):Undefined();
-        args[3] = Integer::New(c->refreshPhase);
-        EMIT(c, 4, args);
+        Handle<Value> args[3];
 
         args[0] = symbol_syncnewcookie;
         args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
         EMIT(c, 2, args);
+
+        args[0] = symbol_syncintermediate;
+        args[1] = Undefined();
+        args[2] = Integer::New(c->refreshPhase);
+        EMIT(c, 3, args);
       }
       break;
 
@@ -1142,16 +1141,17 @@ public:
       {
         fprintf(stderr, "Intermediate 2\n");
 
-        Handle<Value> args[4];
-        args[0] = symbol_syncintermediate;
-        args[1] = c->parseReply(c, res);
-        args[2] = cookie.bv_len?String::New(cookie.bv_val):Undefined();
-        args[3] = Integer::New(c->refreshPhase);
-        EMIT(c, 4, args);
+        Handle<Value> args[3];
 
         args[0] = symbol_syncnewcookie;
         args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
         EMIT(c, 2, args);
+
+        args[0] = symbol_syncintermediate;
+        args[1] = c->parseReply(c, res);
+        args[2] = Integer::New(c->refreshPhase);
+        EMIT(c, 3, args);
+
       }
       break;
 
@@ -1182,20 +1182,20 @@ public:
       }
 
       {
-        Handle<Value> args[5];
-        args[0] = symbol_syncidset;
-        args[1] = c->parseReply(c, res);
-        args[2] = cookie.bv_val?String::New(cookie.bv_val):Undefined();
-        args[3] = c->uuid2array(syncUUIDs);
-
-        fprintf(stderr, "Phase: %u %s\n", phase, (phase == LDAP_SYNC_CAPI_PRESENTS_IDSET?"LDAP_SYNC_CAPI_PRESENTS_IDSET":"LDAP_SYNC_CAPI_DELETES_IDSET"));
-
-        args[4] = Integer::New(phase);
-        EMIT(c, 5, args);
+        Handle<Value> args[4];
 
         args[0] = symbol_syncnewcookie;
         args[1] = cookie.bv_len?String::New(cookie.bv_val):Undefined();;
         EMIT(c, 2, args);
+
+        args[0] = symbol_syncidset;
+        args[1] = c->parseReply(c, res);
+        args[2] = c->uuid2array(syncUUIDs);
+
+        fprintf(stderr, "Phase: %u %s\n", phase, (phase == LDAP_SYNC_CAPI_PRESENTS_IDSET?"LDAP_SYNC_CAPI_PRESENTS_IDSET":"LDAP_SYNC_CAPI_DELETES_IDSET"));
+
+        args[3] = Integer::New(phase);
+        EMIT(c, 4, args);
       }
 
       ber_bvarray_free( syncUUIDs );
