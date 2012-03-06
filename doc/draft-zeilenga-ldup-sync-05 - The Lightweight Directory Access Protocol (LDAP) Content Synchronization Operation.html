@@ -1,0 +1,1946 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<head profile="http://dublincore.org/documents/2008/08/04/dc-html/">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="robots" content="index,follow" />
+    <meta name="creator" content="rfcmarkup version 1.98" />
+    <link rel="schema.DC" href="http://purl.org/dc/elements/1.1/" />
+<meta name="DC.Identifier" content="urn:ietf:rfc:4533" />
+<meta name="DC.Description.Abstract" content="This specification describes the Lightweight Directory Access Protocol\n(LDAP) Content Synchronization Operation. The operation allows a\nclient to maintain a copy of a fragment of the Directory Information\nTree (DIT). It supports both polling for changes and listening for\nchanges. The operation is defined as an extension of the LDAP Search\nOperation. This memo defines an Experimental Protocol for the Internet\ncommunity." />
+<meta name="DC.Creator" content="Choi, Jong Hyuk" />
+<meta name="DC.Creator" content="Zeilenga, Kurt D." />
+<meta name="DC.Date.Issued" content="June, 2006" />
+<meta name="DC.Title" content="The Lightweight Directory Access Protocol (LDAP) Content Synchronization Operation" />
+
+    <link rel="icon" href="/images/id.png" type="image/png" />
+    <link rel="shortcut icon" href="/images/id.png" type="image/png" />
+    <title>draft-zeilenga-ldup-sync-05 - The Lightweight Directory Access Protocol (LDAP) Content Synchronization Operation</title>
+    
+    
+    <style type="text/css">
+	body {
+	    margin: 0px 8px;
+            font-size: 1em;
+	}
+        h1, h2, h3, h4, h5, h6, .h1, .h2, .h3, .h4, .h5, .h6 {
+	    font-weight: bold;
+            line-height: 0pt;
+            display: inline;
+            white-space: pre;
+            font-family: monospace;
+            font-size: 1em;
+	    font-weight: bold;
+        }
+        pre {
+            font-size: 1em;
+            margin-top: 0px;
+            margin-bottom: 0px;
+        }
+	.pre {
+	    white-space: pre;
+	    font-family: monospace;
+	}
+	.header{
+	    font-weight: bold;
+	}
+        .newpage {
+            page-break-before: always;
+        }
+        .invisible {
+            text-decoration: none;
+            color: white;
+        }
+        @media print {
+            body {
+                font-size: 10.5pt;
+            }
+            h1, h2, h3, h4, h5, h6 {
+                font-size: 10.5pt;
+            }
+        
+            a:link, a:visited {
+                color: inherit;
+                text-decoration: none;
+            }
+            .noprint {
+                display: none;
+            }
+        }
+	@media screen {
+	    .grey, .grey a:link, .grey a:visited {
+		color: #777;
+	    }
+            .docinfo {
+                background-color: #EEE;
+            }
+            .top {
+                border-top: 7px solid #EEE;
+            }
+            .bgwhite  { background-color: white; }
+            .bgred    { background-color: #F44; }
+            .bggrey   { background-color: #666; }
+            .bgbrown  { background-color: #840; }            
+            .bgorange { background-color: #FA0; }
+            .bgyellow { background-color: #EE0; }
+            .bgmagenta{ background-color: #F4F; }
+            .bgblue   { background-color: #66F; }
+            .bgcyan   { background-color: #4DD; }
+            .bggreen  { background-color: #4F4; }
+
+            .legend   { font-size: 90%; }
+            .cplate   { font-size: 70%; border: solid grey 1px; }
+	}
+    </style>
+    <!--[if IE]>
+    <style>
+    body {
+       font-size: 13px;
+       margin: 10px 10px;
+    }
+    </style>
+    <![endif]-->
+
+    <script type="text/javascript"><!--
+    function addHeaderTags() {
+	var spans = document.getElementsByTagName("span");
+	for (var i=0; i < spans.length; i++) {
+	    var elem = spans[i];
+	    if (elem) {
+		var level = elem.getAttribute("class");
+                if (level == "h1" || level == "h2" || level == "h3" || level == "h4" || level == "h5" || level == "h6") {
+                    elem.innerHTML = "<"+level+">"+elem.innerHTML+"</"+level+">";		
+                }
+	    }
+	}
+    }
+    var legend_html = "Colour legend:<br />      <table>         <tr><td>Unknown:</td>          <td><span class='cplate bgwhite'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Draft:</td>            <td><span class='cplate bgred'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Informational:</td>    <td><span class='cplate bgorange'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Experimental:</td>     <td><span class='cplate bgyellow'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Best Common Practice:</td><td><span class='cplate bgmagenta'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Proposed Standard:</td><td><span class='cplate bgblue'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Draft Standard:</td>   <td><span class='cplate bgcyan'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Standard:</td>         <td><span class='cplate bggreen'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Historic:</td>         <td><span class='cplate bggrey'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>         <tr><td>Obsolete:</td>         <td><span class='cplate bgbrown'>&nbsp;&nbsp;&nbsp;&nbsp;</span></td></tr>     </table>";
+    function showElem(id) {
+        var elem = document.getElementById(id);
+        elem.innerHTML = eval(id+"_html");
+        elem.style.visibility='visible';
+    }
+    function hideElem(id) {
+        var elem = document.getElementById(id);
+        elem.style.visibility='hidden';        
+        elem.innerHTML = "";
+    }
+    // -->
+    </script>
+</head>
+<body onload="addHeaderTags()">
+   <div style="height: 13px;">
+      <div onmouseover="this.style.cursor='pointer';"
+         onclick="showElem('legend');"
+         onmouseout="hideElem('legend')"
+	 style="height: 6px; position: absolute;"
+         class="pre noprint docinfo bgred"
+         title="Click for colour legend." >                                                                        </div>
+      <div id="legend"
+           class="docinfo noprint pre legend"
+           style="position:absolute; top: 4px; left: 4ex; visibility:hidden; background-color: white; padding: 4px 9px 5px 7px; border: solid #345 1px; "
+           onmouseover="showElem('legend');"
+           onmouseout="hideElem('legend');">
+      </div>
+   </div>
+<span class="pre noprint docinfo top">[<a href="../html/" title="Document search and retrieval page">Docs</a>] [<a href="http://tools.ietf.org/id/draft-zeilenga-ldup-sync-05.txt" title="Plaintext version of this document">txt</a>|<a href="/pdf/draft-zeilenga-ldup-sync-05.txt" title="PDF version of this document">pdf</a>] [<a href='https://datatracker.ietf.org/doc/draft-zeilenga-ldup-sync' title='IESG Datatracker information for this document'>Tracker</a>] [<a href="mailto:draft-zeilenga-ldup-sync@tools.ietf.org?subject=draft-zeilenga-ldup-sync%20" title="Send email to the document authors">Email</a>] [<a href="/rfcdiff?difftype=--hwdiff&amp;url2=draft-zeilenga-ldup-sync-05.txt" title="Inline diff (wdiff)">Diff1</a>] [<a href="/rfcdiff?url2=draft-zeilenga-ldup-sync-05.txt" title="Side-by-side diff">Diff2</a>] [<a href="/idnits?url=http://tools.ietf.org/id/draft-zeilenga-ldup-sync-05.txt" title="Run an idnits check of this document">Nits</a>]               </span><br />
+<span class="pre noprint docinfo">                                                                        </span><br />
+<span class="pre noprint docinfo">Versions: <a href="./draft-zeilenga-ldup-sync-00">00</a> <a href="./draft-zeilenga-ldup-sync-01">01</a> <a href="./draft-zeilenga-ldup-sync-02">02</a> <a href="./draft-zeilenga-ldup-sync-03">03</a> <a href="./draft-zeilenga-ldup-sync-04">04</a> <a href="./draft-zeilenga-ldup-sync-05">05</a> <a href="./draft-zeilenga-ldup-sync-06">06</a> <a href="./rfc4533">RFC 4533</a>                                 </span><br />
+<span class="pre noprint docinfo">                                                                        </span><br />
+<pre>
+INTERNET-DRAFT                                      Kurt D. Zeilenga
+Intended Category: Experimental                  OpenLDAP Foundation
+Expires in six months                                 Jong Hyuk Choi
+                                                     IBM Corporation
+
+                                                     3 February 2004
+
+
+
+
+                <span class="h1">The LDAP Content Synchronization Operation</span>
+                    <span class="h1">&lt;<a href="./draft-zeilenga-ldup-sync-05.txt">draft-zeilenga-ldup-sync-05.txt</a>&gt;</span>
+
+
+
+
+Status of this Memo
+
+  This document is an Internet-Draft and is in full conformance with all
+  provisions of <a href="./rfc2026#section-10">Section&nbsp;10 of RFC2026</a>.
+
+  Distribution of this memo is unlimited.  Technical discussion of this
+  document will take place on the IETF LDUP Working Group mailing list
+  at &lt;ietf-ldup@imc.org&gt;.  Please send editorial comments directly to
+  the document editor at &lt;Kurt@OpenLDAP.org&gt;.
+
+  Internet-Drafts are working documents of the Internet Engineering Task
+  Force (IETF), its areas, and its working groups.  Note that other
+  groups may also distribute working documents as Internet-Drafts.
+  Internet-Drafts are draft documents valid for a maximum of six months
+  and may be updated, replaced, or obsoleted by other documents at any
+  time.  It is inappropriate to use Internet-Drafts as reference
+  material or to cite them other than as ``work in progress.''
+
+  The list of current Internet-Drafts can be accessed at
+  &lt;<a href="http://www.ietf.org/ietf/1id-abstracts.txt">http://www.ietf.org/ietf/1id-abstracts.txt</a>&gt;. The list of
+  Internet-Draft Shadow Directories can be accessed at
+  &lt;<a href="http://www.ietf.org/shadow.html">http://www.ietf.org/shadow.html</a>&gt;.
+
+  Copyright (C) The Internet Society (2004).  All Rights Reserved.
+
+  Please see the Full Copyright section near the end of this document
+  for more information.
+
+
+
+
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 1]</span>
+</pre><pre class='newpage'><a name="page-2" id="page-2" href="#page-2" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+Abstract
+
+  This specification describes the LDAP (Lightweight Directory Access
+  Protocol) Content Synchronization Operation.  The operation allows a
+  client to maintain a copy of a fragment of directory information tree.
+  It supports both polling for changes and listening for changes.  The
+  operation is defined as an extension of the LDAP Search Operation.
+
+
+Table of Contents
+
+  Status of this Memo                                          1
+  Abstract                                                     2
+  Table of Contents
+  1.   Introduction                                            3
+  1.1.     Background
+  1.2.     Intended Usage                                      4
+  1.3.     Overview                                            5
+  1.4.     Conventions
+  2.   Elements of the Sync Operation                          8
+  2.1.     Common ASN.1 Elements                               9
+  2.2.     Sync Request Control
+  2.3.     Sync State Control
+  2.4.     Sync Done Control                                  10
+  2.5.     Sync Info Message
+  2.6.     Sync Result Codes                                  11
+  3.   Content Synchronization
+  3.1.     Synchronization Session
+  3.2.     Content Determination                              12
+  3.3.     refreshOnly Mode                                   13
+  3.4.     refreshAndPersist Mode                             16
+  3.5.     Search Request Parameters                          17
+  3.6.     objectName Issues                                  18
+  3.7.     Canceling the Sync Operation                       19
+  3.8.     Refresh Required
+  3.9.     Chattiness Considerations                          20
+  3.10.    Operation Multiplexing                             21
+  4.   Meta Information Considerations                        22
+  4.1.     Entry DN
+  4.2.     Operational Attributes
+  4.3.     Collective Attributes                              23
+  4.4.     Access and Other Administrative Controls
+  5.   Interaction with Other Controls
+  5.1.     ManageDsaIT Control                                24
+  5.2.     Subentries Control
+  6.   Shadowing Considerations
+  7.   Security Considerations                                25
+  8.   IANA Considerations
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 2]</span>
+</pre><pre class='newpage'><a name="page-3" id="page-3" href="#page-3" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  8.1.     Object Identifier                                  26
+  8.2.     LDAP Protocol Mechanism
+  8.3.     LDAP Result Codes
+  9.   Acknowledgments
+  10.  Normative References                                   27
+  11.  Informative References                                 28
+  12.  Authors' Addresses                                     29
+  <a href="#appendix-A">Appendix A</a>.  CSN-based Implementation Considerations
+  Intellectual Property Rights                                31
+  Full Copyright
+
+
+<span class="h2"><a name="section-1">1</a>. Introduction</span>
+
+  The Lightweight Directory Access Protocol (LDAP) [<a href="./rfc3377" title='"Lightweight Directory Access Protocol (v3): Technical Specification"'>RFC3377</a>] provides a
+  mechanism, the search operation [<a href="./rfc2251" title='"Lightweight Directory Access Protocol (v3)"'>RFC2251</a>], which allows a client to
+  request directory content matching a complex set of assertions and for
+  the server to return this content, subject to access control and other
+  restrictions, to the client.  However, LDAP does not provide (despite
+  the introduction of numerous extensions in this area) an effective and
+  efficient mechanism for maintaining synchronized copies of directory
+  content.  This document introduces a new mechanism specifically
+  designed to met the content synchronization requirements of
+  sophisticated directory applications.
+
+  This document defines the LDAP Content Synchronization Operation, or
+  Sync Operation for short, which allows a client to maintain a
+  synchronized copy of a fragment of a Directory Information Tree (DIT).
+  The Sync Operation is defined as a set of controls and other protocol
+  elements which extend the Search Operation.
+
+
+<span class="h3"><a name="section-1.1">1.1</a>. Background</span>
+
+  Over the years, a number of content synchronization approaches have
+  been suggested for use in LDAP directory services.  These approaches
+  are inadequate for one or more of the following reasons:
+
+    - fail to ensure a reasonable level of convergence;
+    - fail to detect that convergence cannot be achieved (without
+      reload);
+    - require pre-arranged synchronization agreements;
+    - require the server to maintain histories of past changes to DIT
+      content and/or meta information;
+    - require the server to maintain synchronization state on a per
+      client basis; and/or
+    - are overly chatty.
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 3]</span>
+</pre><pre class='newpage'><a name="page-4" id="page-4" href="#page-4" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  The Sync Operation provides eventual convergence of synchronized
+  content when possible and, when not, notification that a full reload
+  is required.
+
+  The Sync Operation does not require pre-arranged synchronization
+  agreements.
+
+  The Sync Operation does not require servers to maintain nor to use any
+  history of past changes to the DIT or to meta information.  However,
+  servers may maintain and use histories (e.g., change logs, tombstones,
+  DIT snapshots) to reduce the number of messages generated and to
+  reduce their size.  As it is not always feasible to maintain and use
+  histories, the operation may be implemented using purely (current)
+  state-based approaches.  The Sync Operation allows use of either the
+  state-based approach or the history-based approach in an operation by
+  operation basis to balance the size of history and the amount of
+  traffic.  The Sync Operation also allows the combined use of the
+  state-based and the history-based approaches.
+
+  The Sync Operation does not require servers to maintain
+  synchronization state on a per client basis.  However, servers may
+  maintain and use per client state information to reduce the number of
+  messages generated and the size of such messages.
+
+  A synchronization mechanism can be considered overly chatty when
+  synchronization traffic is not reasonably bounded.  The Sync Operation
+  traffic is bounded by the size of updated (or new) entries and the
+  number of unchanged entries in the content.  The operation is designed
+  to avoid full content exchanges even in the case that the history
+  information available to the server is insufficient to determine the
+  client's state.  The operation is also designed to avoid transmission
+  of out-of-content history information, as its size is not bounded by
+  the content and it is not always feasible to transmit such history
+  information due to security reasons.
+
+  This document includes a number of non-normative appendices providing
+  additional information to server implementors.
+
+
+<span class="h3"><a name="section-1.2">1.2</a>. Intended Usage</span>
+
+  The Sync Operation is intended to be used in applications requiring
+  eventually-convergent content synchronization.  Upon completion of
+  each synchronization stage of the operation, all information to
+  construct a synchronized client copy of the content has been provided
+  to the client or the client has been notified that a complete content
+  reload is necessary.  Except for transient inconsistencies due to
+  concurrent operation (or other) processing at the server, the client
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 4]</span>
+</pre><pre class='newpage'><a name="page-5" id="page-5" href="#page-5" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  copy is an accurate reflection of the content held by the server.
+  Transient inconsistencies will be resolved by subsequent
+  synchronization operations.
+
+  Possible uses include:
+    - White page service applications may use the Sync Operation to
+      maintain current copy of a DIT fragment.  For example, a mail user
+      agent which uses the sync operation to maintain a local copy of an
+      enterprise address book.
+
+    - Meta-information engines may use the Sync Operation to maintain a
+      copy of a DIT fragment.
+
+    - Caching proxy services may use the Sync Operation to maintain a
+      coherent content cache.
+
+    - Lightweight master-slave replication between heterogeneous
+      directory servers.  For example, the Sync Operation can be used by
+      a slave server to maintain a shadow copy of a DIT fragment.
+      (Note: The International Telephone Union (ITU) has defined the
+      X.500 Directory [<a href="#ref-X.500" title='"The Directory -- Overview of concepts, models and services,"'>X.500</a>] Information Shadowing Protocol (DISP)
+      [<a href="#ref-X.525" title='"The Directory: Replication"'>X.525</a>] which may be used for master-slave replication between
+      directory servers.  Other experimental LDAP replication protocols
+      also exist.)
+
+  This protocol is not intended to be used in applications requiring
+  transactional data consistency.
+
+  As this protocol transfers all visible values of entries belonging to
+  the content upon change instead of change deltas, this protocol is not
+  appropriate for bandwidth-challenged applications or deployments.
+
+
+<span class="h3"><a name="section-1.3">1.3</a>. Overview</span>
+
+  This section provides an overview of basic ways the Sync Operation can
+  be used to maintain a synchronized client copy of a DIT fragment.
+
+    - Polling for Changes: refreshOnly mode
+    - Listening for Changes: refreshAndPersist mode
+
+
+<span class="h4"><a name="section-1.3.1">1.3.1</a>. Polling for Changes (refreshOnly)</span>
+
+  To obtain its initial client copy, the client issues a Sync request: a
+  search request with the Sync Request Control with mode set to
+  refreshOnly.  The server, much like it would with a normal search
+  operation, returns (subject to access controls and other restrictions)
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 5]</span>
+</pre><pre class='newpage'><a name="page-6" id="page-6" href="#page-6" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  the content matching the search criteria (baseObject, scope, filter,
+  attributes).  Additionally, with each entry returned, the server
+  provides a Sync State Control indicating state add.  This control
+  contains the Universally Unique Identifier (UUID) [<a href="#ref-UUID" title='"Information technology - Open Systems Interconnection - Remote Procedure Call"'>UUID</a>] of the entry
+  [EntryUUID].  Unlike the Distinguished Name (DN), which may change
+  over time, an entry's UUID is stable.  The initial content is followed
+  by a SearchResultDone with a Sync Done Control.  The Sync Done Control
+  provides a syncCookie.  The syncCookie represents session state.
+
+  To poll for updates to the client copy, the client reissues the Sync
+  Operation with the syncCookie previously returned.  The server, much
+  as it would with a normal search operation, determines which content
+  would be returned as if the operation was a normal search operation.
+  However, using the syncCookie as an indicator of what content the
+  client was sent previously, the server sends copies of entries which
+  have changed with a Sync State Control indicating state add.  For each
+  changed entry, all (modified or unmodified) attributes belonging to
+  the content are sent.
+
+  The server may perform either or both of the two distinct
+  synchronization phases which are distinguished by how to synchronize
+  entries deleted from the content: the present and the delete phases.
+  When the server uses a single phase for the refresh stage, each phase
+  is marked as ended by a SearchResultDone with a Sync Done Control.  A
+  present phase is identified by a FALSE refreshDeletes value in the
+  Sync Done Control.  A delete phase is identified by a TRUE
+  refreshDeletes value.  The present phase may be followed by a delete
+  phase.  The two phases are delimited by a refreshPresent Sync Info
+  Message having a FALSE refreshDone value. In the case that both the
+  phases are used, the present phase is used to bring the client copy up
+  to the state at which the subsequent delete phase can begin.
+
+  In the present phase, the server sends an empty entry (i.e., no
+  attributes) with a Sync State Control indicating state present for
+  each unchanged entry.
+
+  The delete phase may be used when the server can reliably determine
+  which entries in the prior client copy are no longer present in the
+  content and the number of such entries is less than or equal to the
+  number of unchanged entries.  In the delete mode, the server sends an
+  empty entry with a Sync State Control indicating state delete for each
+  entry which is no longer in the content, instead of returning an empty
+  entry with state present for each present entry.
+
+  The server may send syncIdSet Sync Info Messages containing the set of
+  UUIDs of either unchanged present entries or deleted entries, instead
+  of sending multiple individual messages. If refreshDeletes of
+  syncIdSet is set to FALSE, the UUIDs of unchanged present entries are
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 6]</span>
+</pre><pre class='newpage'><a name="page-7" id="page-7" href="#page-7" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  contained in the syncUUIDs set; if refreshDeletes of syncIdSet is set
+  to TRUE, the UUIDs of the entries no longer present in the content are
+  contained in the syncUUIDs set.  An optional cookie can be included in
+  the syncIdSet to represent the state of the content after
+  synchronizing the presence or the absence of the entries contained in
+  the syncUUIDs set.
+
+  The synchronized copy of the DIT fragment is constructed by the
+  client.
+
+  If refreshDeletes of syncDoneValue is FALSE, the new copy includes all
+  changed entries returned by the reissued Sync Operation as well as all
+  unchanged entries identified as being present by the reissued Sync
+  Operation, but whose content is provided by the previous Sync
+  Operation.  The unchanged entries not identified as being present are
+  deleted from the client content.  They had been either deleted, moved,
+  or otherwise scoped-out from the content.
+
+  If refreshDeletes of syncDoneValue is TRUE, the new copy includes all
+  changed entries returned by the reissued Sync Operation as well as all
+  other entries of the previous copy except for those which are
+  identified as having been deleted from the content.
+
+  The client can, at some later time, re-poll for changes to this
+  synchronized client copy.
+
+
+<span class="h4"><a name="section-1.3.2">1.3.2</a>. Listening for Changes (refreshAndPersist)</span>
+
+  Polling for changes can be expensive in terms of server, client, and
+  network resources.  The refreshAndPersist mode allows for active
+  updates of changed entries in the content.
+
+  By selecting the refreshAndPersist mode, the client requests the
+  server to send updates of entries that are changed after the initial
+  refresh content is determined.  Instead of sending a SearchResultDone
+  Message as in polling, the server sends a Sync Info Message to the
+  client indicating that the refresh stage is complete and then enters
+  the persist stage.  After receipt of this Sync Info Message, the
+  client will construct a synchronized copy as described in <a href="#section-1.3.1">Section</a>
+  <a href="#section-1.3.1">1.3.1</a>.
+
+  The server may then send change notifications as the result of the
+  original Sync search request which now remains persistent in the
+  server.  For entries to be added to the returned content, the server
+  sends a SearchResultEntry (with attributes) with a Sync State Control
+  indicating state add.  For entries to be deleted from the content, the
+  server sends a SearchResultEntry containing no attributes and a Sync
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 7]</span>
+</pre><pre class='newpage'><a name="page-8" id="page-8" href="#page-8" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  State Control indicating state delete.  For entries to be modified in
+  the return content, the server sends a SearchResultEntry (with
+  attributes) with a Sync State Control indicating state modify.  Upon
+  modification of an entry, all (modified or unmodified) attributes
+  belonging to the content are sent.
+
+  Note that renaming an entry of the DIT may cause an add state change
+  where the entry is renamed into the content, a delete state change
+  where the entry is renamed out of the content, and a modify state
+  change where the entry remains in the content.  Also note that a
+  modification of an entry of the DIT may cause an add, delete, or
+  modify state change to the content.
+
+  Upon receipt of a change notification, the client updates its copy of
+  the content.
+
+  If the server desires to update the syncCookie during the persist
+  stage, it may include the syncCookie in any Sync State Control or Sync
+  Info Message returned.
+
+  The operation persists until canceled [<a href="#ref-CANCEL" title='"LDAP Cancel Extended Operation"'>CANCEL</a>] by the client or
+  terminated by the server.  A Sync Done Control shall be attached to
+  SearchResultDone Message to provide a new syncCookie.
+
+
+<span class="h3"><a name="section-1.4">1.4</a>. Conventions</span>
+
+  The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+  "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+  document are to be interpreted as described in <a href="./bcp14">BCP 14</a> [<a href="./rfc2119" title='"Key words for use in RFCs to Indicate Requirement Levels"'>RFC2119</a>].
+
+  Protocol elements are described using ASN.1 [<a href="#ref-X.680" title='"Abstract Syntax Notation One (ASN.1) - Specification of Basic Notation"'>X.680</a>] with implicit
+  tags.  The term "BER-encoded" means the element is to be encoded using
+  the Basic Encoding Rules [<a href="#ref-X.690" title='"Specification of ASN.1 encoding rules: Basic Encoding Rules (BER), Canonical Encoding Rules (CER), and Distinguished Encoding Rules (DER)"'>X.690</a>] under the restrictions detailed in
+  <a href="./rfc2251#section-5.1">Section&nbsp;5.1 of [RFC2251]</a>.
+
+
+<span class="h2"><a name="section-2">2</a>. Elements of the Sync Operation</span>
+
+  The Sync Operation is defined as an extension to the LDAP Search
+  Operation [<a href="./rfc2251" title='"Lightweight Directory Access Protocol (v3)"'>RFC2251</a>] where the directory user agent (DUA or client)
+  submits a SearchRequest Message with a Sync Request Control and the
+  directory system agent (DSA or server) responses with zero or more
+  SearchResultEntry Messages, each with a Sync State Control; zero or
+  more SearchResultReference Messages, each with a Sync State Control;
+  zero or more Sync Info Intermediate Response Messages; and a
+  SearchResultDone Message with a Sync Done Control.
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 8]</span>
+</pre><pre class='newpage'><a name="page-9" id="page-9" href="#page-9" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  To allow clients to discover support for this operation, servers
+  implementing this operation SHOULD publish the
+  1.3.6.1.4.1.4203.1.9.1.1 as a value of 'supportedControl' attribute
+  [<a href="./rfc2252" title='"Lightweight Directory Access Protocol (v3): Attribute Syntax Definitions"'>RFC2252</a>] of the root DSA-specific entry (DSE).  A server MAY choose
+  to advertise this extension only when the client is authorized to use
+  it.
+
+
+<span class="h3"><a name="section-2.1">2.1</a> Common ASN.1 Elements</span>
+
+<span class="h4"><a name="section-2.1.1">2.1.1</a> syncUUID</span>
+
+  The syncUUID data type is an OCTET STRING holding a 128-bit (16-octet)
+  Universally Unique Identifier (UUID) [<a href="#ref-UUID" title='"Information technology - Open Systems Interconnection - Remote Procedure Call"'>UUID</a>].
+
+      syncUUID ::= OCTET STRING (SIZE(16))
+           -- constrained to UUID
+
+
+<span class="h4"><a name="section-2.1.2">2.1.2</a> syncCookie</span>
+
+  The syncCookie is a notational convenience to indicate that, while the
+  syncCookie type is encoded as an OCTET STRING, its value is an opaque
+  value containing information about the synchronization session and its
+  state.  Generally, the session information would include a hash of the
+  operation parameters which the server requires not be changed and the
+  synchronization state information would include a commit (log)
+  sequence number, a change sequence number, or a time stamp.  For
+  convenience of description, the term no cookie refers either to null
+  cookie or to a cookie with pre-initialized synchronization state.
+
+      syncCookie ::= OCTET STRING
+
+
+<span class="h3"><a name="section-2.2">2.2</a> Sync Request Control</span>
+
+  The Sync Request Control is an LDAP Control [RFC2251, <a href="#section-4.1.2">Section 4.1.2</a>]
+  where the controlType is the object identifier
+  1.3.6.1.4.1.4203.1.9.1.1 and the controlValue, an OCTET STRING,
+  contains a BER-encoded syncRequestValue.  The criticality field is
+  either TRUE or FALSE.
+
+      syncRequestValue ::= SEQUENCE {
+          mode ENUMERATED {
+              -- 0 unused
+              refreshOnly       (1),
+              -- 2 reserved
+              refreshAndPersist (3)
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation              [Page 9]</span>
+</pre><pre class='newpage'><a name="page-10" id="page-10" href="#page-10" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+          },
+          cookie     syncCookie OPTIONAL,
+          reloadHint BOOLEAN DEFAULT FALSE
+      }
+
+  The Sync Request Control is only applicable to the SearchRequest
+  Message.
+
+
+<span class="h3"><a name="section-2.3">2.3</a> Sync State Control</span>
+
+  The Sync State Control is an LDAP Control [RFC2251, <a href="#section-4.1.2">Section 4.1.2</a>]
+  where the controlType is the object identifier
+  1.3.6.1.4.1.4203.1.9.1.2 and the controlValue, an OCTET STRING,
+  contains a BER-encoded syncStateValue.  The criticality is FALSE.
+
+      syncStateValue ::= SEQUENCE {
+          state ENUMERATED {
+              present (0),
+              add (1),
+              modify (2),
+              delete (3)
+          },
+          entryUUID syncUUID,
+          cookie    syncCookie OPTIONAL
+      }
+
+  The Sync State Control is only applicable to SearchResultEntry and
+  SearchResultReference Messages.
+
+
+<span class="h3"><a name="section-2.4">2.4</a> Sync Done Control</span>
+
+  The Sync Done Control is an LDAP Control [RFC2251, <a href="#section-4.1.2">Section 4.1.2</a>]
+  where the controlType is the object identifier
+  1.3.6.1.4.1.4203.1.9.1.3 and the controlValue contains a BER-encoded
+  syncDoneValue.  The criticality is FALSE (and hence absent).
+
+      syncDoneValue ::= SEQUENCE {
+          cookie          syncCookie OPTIONAL,
+          refreshDeletes  BOOLEAN DEFAULT FALSE
+      }
+
+  The Sync Done Control is only applicable to SearchResultDone Message.
+
+
+<span class="h3"><a name="section-2.5">2.5</a> Sync Info Message</span>
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 10]</span>
+</pre><pre class='newpage'><a name="page-11" id="page-11" href="#page-11" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  The Sync Info Message is an LDAP Intermediate Response Message
+  [<a href="#ref-LDAPIRM" title='"LDAP Intermediate Response"'>LDAPIRM</a>] where responseName is the object identifier
+  1.3.6.1.4.1.4203.1.9.1.4 and responseValue contains a BER-encoded
+  syncInfoValue.  The criticality is FALSE (and hence absent).
+
+      syncInfoValue ::= CHOICE {
+          newcookie      [0] syncCookie,
+          refreshDelete  [1] SEQUENCE {
+              cookie         syncCookie OPTIONAL,
+              refreshDone    BOOLEAN DEFAULT TRUE
+          },
+          refreshPresent [2] SEQUENCE {
+              cookie         syncCookie OPTIONAL,
+              refreshDone    BOOLEAN DEFAULT TRUE
+          },
+          syncIdSet      [3] SEQUENCE {
+              cookie         syncCookie OPTIONAL,
+              refreshDeletes BOOLEAN DEFAULT FALSE,
+              syncUUIDs      SET OF syncUUID
+          }
+      }
+
+
+<span class="h3"><a name="section-2.6">2.6</a> Sync Result Codes</span>
+
+  The following LDAP resultCode [<a href="./rfc2251" title='"Lightweight Directory Access Protocol (v3)"'>RFC2251</a>] is defined:
+
+      e-syncRefreshRequired (IANA-ASSIGNED-CODE)
+
+
+<span class="h2"><a name="section-3">3</a>. Content Synchronization</span>
+
+  The Sync Operation is invoked by the client sending a SearchRequest
+  Message with a Sync Request Control.
+
+  The absence of a cookie or an initialized synchronization state in a
+  cookie indicates a request for initial content while the presence of a
+  cookie representing a state of a client copy indicates a request for
+  content update.  Synchronization Sessions are discussed in <a href="#section-3.1">Section</a>
+  <a href="#section-3.1">3.1</a>.  Content Determination is discussed in <a href="#section-3.2">Section 3.2</a>.
+
+  The mode is either refreshOnly or refreshAndPersist.  The refreshOnly
+  and refreshAndPersist modes are discussed in <a href="#section-3.3">Section 3.3</a> and <a href="#section-3.4">Section</a>
+  <a href="#section-3.4">3.4</a>, respectively.  The refreshOnly mode consists only of a refresh
+  stage, while the refreshAndPersist mode consists of a refresh stage
+  and a subsequent persist stage.
+
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 11]</span>
+</pre><pre class='newpage'><a name="page-12" id="page-12" href="#page-12" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+<span class="h3"><a name="section-3.1">3.1</a>. Synchronization Session</span>
+
+  A sequence of Sync Operations where the last cookie returned by the
+  server for one operation is provided by the client in the next
+  operation are said to belong to the same Synchronization Session.
+
+  The client MUST specify the same content controlling parameters (see
+  <a href="#section-3.5">Section 3.5</a>) in each Search Request of the session.  The client SHOULD
+  also issue each Sync request of a session under the same
+  authentication and authorization associations with equivalent
+  integrity and protections.  If the server does not recognize the
+  request cookie or the request is made under different associations or
+  non-equivalent protections, the server SHALL return the initial
+  content as if no cookie had been provided or return an empty content
+  with the e-syncRefreshRequired LDAP result code.  The decision between
+  the return of the initial content and the return of the empty content
+  with the e-syncRefreshRequired result code MAY be based on reloadHint
+  in the Sync Request Control from the client.  If the server recognizes
+  the request cookie as representing empty or initial synchronization
+  state of the client copy, the server SHALL return the initial content.
+
+  A Synchronization Session may span multiple LDAP sessions between the
+  client and the server.  The client SHOULD issue each Sync request of a
+  session to the same server.  (Note: Shadowing considerations are
+  discussed in <a href="#section-6">Section 6</a>.)
+
+
+<span class="h3"><a name="section-3.2">3.2</a>.  Content Determination</span>
+
+  The content to be provided is determined by parameters of the Search
+  Request, as described in [<a href="./rfc2251" title='"Lightweight Directory Access Protocol (v3)"'>RFC2251</a>], and possibly other controls.  The
+  same content parameters SHOULD be used in each Sync request of a
+  session.  If different content is requested and the server is
+  unwilling or unable to process the request, the server SHALL return
+  the initial content as if no cookie had been provided or return an
+  empty content with the e-syncRefreshRequired LDAP result code.  The
+  decision between the return of the initial content and the return of
+  the empty content with the e-syncRefreshRequired result code MAY be
+  based on reloadHint in the Sync Request Control from the client.
+
+  The content may not necessarily include all entries or references
+  which would be returned by a normal search operation nor, for those
+  entries included, not all attributes returned by a normal search.
+  When the server is unwilling or unable to provide synchronization for
+  any attribute for a set of entries, the server MUST treat all filter
+  components matching against these attributes as Undefined and MUST NOT
+  return these attributes in SearchResultEntry responses.
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 12]</span>
+</pre><pre class='newpage'><a name="page-13" id="page-13" href="#page-13" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  Servers SHOULD support synchronization for all non-collective
+  user-application attributes for all entries.
+
+  The server may also return continuation references to other servers or
+  to itself.  The latter is allowed as the server may partition the
+  entries it holds into separate synchronization contexts.
+
+  The client may chase all or some of these continuations, each as a
+  separate content synchronization session.
+
+
+<span class="h3"><a name="section-3.3">3.3</a>.  refreshOnly Mode</span>
+
+  A Sync request with mode refreshOnly and with no cookie is a poll for
+  initial content.  A Sync request with mode refreshOnly and with a
+  cookie representing a synchronization state is a poll for content
+  update.
+
+
+<span class="h4"><a name="section-3.3.1">3.3.1</a>.  Initial Content Poll</span>
+
+  Upon receipt of the request, the server provides the initial content
+  using a set of zero or more SearchResultEntry and
+  SearchResultReference Messages followed by a SearchResultDone Message.
+
+  Each SearchResultEntry Message SHALL include a Sync State Control of
+  state add, entryUUID containing the entry's UUID, and no cookie.  Each
+  SearchResultReference Message SHALL include a Sync State Control of
+  state add, entryUUID containing the UUID associated with the reference
+  (normally the UUID of the associated named referral [<a href="./rfc3296" title='"Named Subordinate References in Lightweight Directory Access Protocol (LDAP) Directories"'>RFC3296</a>] object),
+  and no cookie.  The SearchResultDone Message SHALL include a Sync Done
+  Control having refreshDeletes set to FALSE.
+
+  A resultCode value of success indicates the operation successfully
+  completed.  Otherwise, the result code indicates the nature of
+  failure.  The server may return e-syncRefreshRequired result code on
+  the initial content poll if it is safe to do so when it is unable to
+  perform the operation due to various reasons. reloadHint is set to
+  FALSE in the SearchRequest Message requesting the initial content
+  poll.
+
+  If the operation is successful, a cookie representing the
+  synchronization state of the current client copy SHOULD be returned
+  for use in subsequent Sync Operations.
+
+
+<span class="h4"><a name="section-3.3.2">3.3.2</a>.  Content Update Poll</span>
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 13]</span>
+</pre><pre class='newpage'><a name="page-14" id="page-14" href="#page-14" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  Upon receipt of the request the server provides the content refresh
+  using a set of zero or more SearchResultEntry and
+  SearchResultReference Messages followed by a SearchResultDone Message.
+
+  The server is REQUIRED to either:
+      a) provide the sequence of messages necessary for eventual
+         convergence of the client's copy of the content to the server's
+         copy,
+
+      b) treat the request as an initial content request (e.g., ignore
+         the cookie or the synchronization state represented in the
+         cookie),
+
+      c) indicate that the incremental convergence is not possible by
+         returning e-syncRefreshRequired,
+
+      d) return a resultCode other than success or
+         e-syncRefreshRequired.
+
+  A Sync Operation may consist of a single present phase, a single
+  delete phase, or a present phase followed by a delete phase.
+
+  In each phase, for each entry or reference which has been added to the
+  content or been changed since the previous Sync Operation indicated by
+  the cookie, the server returns a SearchResultEntry or
+  SearchResultReference Message, respectively, each with a Sync State
+  Control consisting of state add, entryUUID containing the UUID of the
+  entry or reference, and no cookie.  Each SearchResultEntry Message
+  represents the current state of a changed entry.  Each
+  SearchResultReference Message represents the current state of a
+  changed reference.
+
+  In the present phase, for each entry which has not been changed since
+  the previous Sync Operation, an empty SearchResultEntry is returned
+  whose objectName reflects the entry's current DN, the attributes field
+  is empty, and a Sync State Control consisting of state present,
+  entryUUID containing the UUID of the entry, and no cookie.  For each
+  reference which has not been changed since the previous Sync
+  Operation, an empty SearchResultReference containing an empty SEQUENCE
+  OF LDAPURL is returned with a Sync State Control consisting of state
+  present, entryUUID containing the UUID of the entry, and no cookie.
+  No messages are sent for entries or references which are no longer in
+  the content.
+
+  Multiple empty entries with a Sync State Control of state present
+  SHOULD be coalesced into one or more Sync Info Messages of syncIdSet
+  value with refreshDeletes set to FALSE.  syncUUIDs contain a set of
+  UUIDs of the entries and references unchanged since the last Sync
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 14]</span>
+</pre><pre class='newpage'><a name="page-15" id="page-15" href="#page-15" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  Operation.  syncUUIDs may be empty.  The Sync Info Message of
+  syncIdSet may contain cookie to represent the state of the content
+  after performing the synchronization of the entries in the set.
+
+  In the delete phase, for each entry no longer in the content, the
+  server returns a SearchResultEntry whose objectName reflects a past DN
+  of the entry or is empty, the attributes field is empty, and a Sync
+  State Control consisting of state delete, entryUUID containing the
+  UUID of the deleted entry, and no cookie.  For each reference no
+  longer in the content, a SearchResultReference containing an empty
+  SEQUENCE OF LDAPURL is returned with a Sync State Control consisting
+  of state delete, entryUUID containing the UUID of the deleted
+  reference, and no cookie.
+
+  Multiple empty entries with a Sync State Control of state delete
+  SHOULD be coalesced into one or more Sync Info Messages of syncIdSet
+  value with refreshDeletes set to TRUE.  syncUUIDs contain a set of
+  UUIDs of the entries and references which has been deleted from the
+  content since the last Sync Operation.  syncUUIDs may be empty.  The
+  Sync Info Message of syncIdSet may contain cookie to represent the
+  state of the content after performing the synchronization of the
+  entries in the set.
+
+  When a present phase is followed by a delete phase, the two phases are
+  delimited by a Sync Info Message containing syncInfoValue of
+  refreshPresent, which may contain cookie representing the state after
+  completing the present phase.  The refreshPresent contains refreshDone
+  which is always FALSE in the refreshOnly mode of Sync Operation
+  because it is followed by a delete phase.
+
+  If a Sync Operation consists of a single phase, each phase and hence
+  the Sync Operation are marked ended by a SearchResultDone Message with
+  Sync Done Control which SHOULD contain cookie representing the state
+  of the content after completing the Sync Operation.  The Sync Done
+  Control contains refreshDeletes which is set to FALSE for the present
+  phase and set to TRUE for the delete phase.
+
+  If a Sync Operation consists of a present phase followed by a delete
+  phase, the Sync Operation are marked ended at the end of the delete
+  phase by a SearchResultDone Message with Sync Done Control which
+  SHOULD contain cookie representing the state of the content after
+  completing the Sync Operation.  The Sync Done Control contains
+  refreshDeletes which is set to TRUE.
+
+  The client can specify whether it prefers to receive an initial
+  content by supplying reloadHint of TRUE or to receive a
+  e-syncRefreshRequired resultCode by supplying reloadHint of FALSE
+  (hence absent), in the case that the server determines that it is
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 15]</span>
+</pre><pre class='newpage'><a name="page-16" id="page-16" href="#page-16" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  impossible or inefficient to achieve the eventual convergence by
+  continuing the current incremental synchronization thread.
+
+  A resultCode value of success indicates the operation is successfully
+  completed.  A resultCode value of e-syncRefreshRequired indicates that
+  a full or partial refresh is needed.  Otherwise, the result code
+  indicates the nature of failure.  A cookie is provided in the Sync
+  Done Control for use in subsequent Sync Operations for incremental
+  synchronization.
+
+
+<span class="h3"><a name="section-3.4">3.4</a>.  refreshAndPersist Mode</span>
+
+  A Sync request with mode refreshAndPersist asks for initial content or
+  content update (during the refresh stage) followed by change
+  notifications (during the persist stage).
+
+
+<span class="h4"><a name="section-3.4.1">3.4.1</a>. refresh Stage</span>
+
+  The content refresh is provided as described in <a href="#section-3.3">Section 3.3</a> excepting
+  that the successful completion of content refresh is indicated by
+  sending a Sync Info Message of refreshDelete or refreshPresent with a
+  refreshDone value set to TRUE instead of a SearchResultDone Message
+  with resultCode success.  A cookie SHOULD be returned in the Sync Info
+  Message to represent the state of the content after finishing the
+  refresh stage of the Sync Operation.
+
+
+<span class="h4"><a name="section-3.4.2">3.4.2</a>. persist Stage</span>
+
+  Change notifications are provided during the persist stage.
+
+  As updates are made to the DIT the server notifies the client of
+  changes to the content.  DIT updates may cause entries and references
+  to be added to the content, deleted from the content, or modified
+  within the content.  DIT updates may also cause references to be
+  added, deleted, or modified within the content.
+
+  Where DIT updates cause an entry to be added to the content, the
+  server provides a SearchResultEntry Message which represents the entry
+  as it appears in the content.  The message SHALL include a Sync State
+  Control with state of add, entryUUID containing the entry's UUID, and
+  an optional cookie.
+
+  Where DIT updates cause a reference to be added to the content, the
+  server provides a SearchResultReference Message which represents the
+  reference in the content.  The message SHALL include a Sync State
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 16]</span>
+</pre><pre class='newpage'><a name="page-17" id="page-17" href="#page-17" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  Control with state of add, entryUUID containing the UUID associated
+  with the reference, and an optional cookie.
+
+  Where DIT updates cause an entry to be modified within the content,
+  the server provides a SearchResultEntry Message which represents the
+  entry as it appears in the content.  The message SHALL include a Sync
+  State Control with state of modify, entryUUID containing the entry's
+  UUID, and an optional cookie.
+
+  Where DIT updates cause a reference to be modified within the content,
+  the server provides a SearchResultEntry Message which represents the
+  reference in the content.  The message SHALL include a Sync State
+  Control with state of modify, entryUUID containing the UUID associated
+  with the reference, and an optional cookie.
+
+  Where DIT updates cause an entry to be deleted from the content, the
+  server provides a SearchResultReference Message with an empty SEQUENCE
+  OF LDAPURL.  The message SHALL include a Sync State Control with state
+  of delete, entryUUID containing the UUID associated with the
+  reference, and an optional cookie.
+
+  Where DIT updates cause a reference to be deleted from the content,
+  the server provides a SearchResultEntry Message with no attributes.
+  The message SHALL include a Sync State Control with state of delete,
+  entryUUID containing the entry's UUID, and an optional cookie.
+
+  Multiple empty entries with a Sync State Control of state delete
+  SHOULD be coalesced into one or more Sync Info Messages of syncIdSet
+  value with refreshDeletes set to TRUE. syncUUIDs contain a set of
+  UUIDs of the entries and references which has been deleted from the
+  content.  The Sync Info Message of syncIdSet may contain cookie to
+  represent the state of the content after performing the
+  synchronization of the entries in the set.
+
+  With each of these messages, the server may provide a new cookie to be
+  used in subsequent Sync Operations.  Additionally, the server may also
+  return Sync Info Messages of choice newCookie to provide a new cookie.
+  The client SHOULD use the newest (last) cookie it received from the
+  server in subsequent Sync Operations.
+
+
+<span class="h3"><a name="section-3.5">3.5</a>.    Search Request Parameters</span>
+
+  As stated in <a href="#section-3.1">Section 3.1</a>, the client SHOULD specify the same content
+  controlling parameters in each Search Request of the session.  All
+  fields of the SearchRequest Message are considered content controlling
+  parameters except for sizeLimit and timeLimit.
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 17]</span>
+</pre><pre class='newpage'><a name="page-18" id="page-18" href="#page-18" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+<span class="h4"><a name="section-3.5.1">3.5.1</a>.  baseObject</span>
+
+  As with the normal search operation, the refresh and persist stages
+  are not isolated from DIT changes.  It is possible that the entry
+  referred to by the baseObject is deleted, renamed, or moved.  It is
+  also possible that alias object used in finding the entry referred to
+  by the baseObject is changed such that the baseObject refers to a
+  different entry.
+
+  If the DIT is updated during processing of the Sync Operation in a
+  manner that causes the baseObject to no longer refer to any entry or
+  in a manner that changes the entry the baseObject refers to, the
+  server SHALL return an appropriate non-success result code such as
+  noSuchObject, aliasProblem, aliasDereferencingProblem, referral, or
+  e-syncRefreshRequired.
+
+
+<span class="h4"><a name="section-3.5.2">3.5.2</a>.  derefAliases</span>
+
+  This operation does not support alias dereferencing during searching.
+  The client SHALL specify neverDerefAliases or derefFindingBaseObj for
+  the SearchRequest derefAliases parameter.  The server SHALL treat
+  other values (e.g., derefInSearching, derefAlways) as protocol errors.
+
+
+<span class="h4"><a name="section-3.5.3">3.5.3</a>.  sizeLimit</span>
+
+  The sizeLimit applies only to entries (regardless of their state in
+  Sync State Control) returned during the refreshOnly operation or the
+  refresh stage of the refreshAndPersist operation.
+
+
+<span class="h4"><a name="section-3.5.4">3.5.4</a>.  timeLimit</span>
+
+  For a refreshOnly Sync Operation, the timeLimit applies to the whole
+  operation.  For a refreshAndPersist operation, the timeLimit applies
+  only to the refresh stage including the generation of the Sync Info
+  Message with a refreshDone value of TRUE.
+
+
+<span class="h4"><a name="section-3.5.5">3.5.5</a>.  filter</span>
+
+  The client SHOULD avoid filter assertions which apply to the values of
+  the attributes likely to be considered by the server as ones holding
+  meta-information.  See <a href="#section-4">Section 4</a>.
+
+
+<span class="h3"><a name="section-3.6">3.6</a>.  objectName</span>
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 18]</span>
+</pre><pre class='newpage'><a name="page-19" id="page-19" href="#page-19" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  The Sync Operation uses entryUUID values provided in the Sync State
+  Control as the primary keys to entries.  The client MUST use these
+  entryUUIDs to correlate synchronization messages.
+
+  In some circumstances the DN returned may not reflect the entry's
+  current DN.  In particular, when the entry is being deleted from the
+  content, the server may provide an empty DN if the server does not
+  wish to disclose the entry's current DN (or, if deleted from the DIT,
+  the entry's last DN).
+
+  It should also be noted that the entry's DN may be viewed as meta
+  information (see <a href="#section-4.1">Section 4.1</a>).
+
+
+<span class="h3"><a name="section-3.7">3.7</a>.  Canceling the Sync Operation</span>
+
+  Servers MUST implement the LDAP Cancel [<a href="#ref-CANCEL" title='"LDAP Cancel Extended Operation"'>CANCEL</a>] Operation and support
+  cancellation of outstanding Sync Operations as described here.
+
+  To cancel an outstanding Sync Operation, the client issues an LDAP
+  Cancel [<a href="#ref-CANCEL" title='"LDAP Cancel Extended Operation"'>CANCEL</a>] Operation.
+
+  If at any time the server becomes unwilling or unable to continue
+  processing a Sync Operation, the server SHALL return a
+  SearchResultDone with a non-success resultCode indicating the reason
+  for the termination of the operation.
+
+  Whether the client or the server initiated the termination, the server
+  may provide a cookie in the Sync Done Control for use in subsequent
+  Sync Operations.
+
+
+<span class="h3"><a name="section-3.8">3.8</a>. Refresh Required</span>
+
+  In order to achieve the eventually-convergent synchronization, the
+  server may terminate the Sync Operation in the refresh or the persist
+  stage by returning a e-syncRefreshRequired resultCode to the client.
+  If no cookie is provided, a full refresh is needed. If a cookie
+  representing a synchronization state is provided in this response, an
+  incremental refresh is needed.
+
+  To obtain a full refresh, the client then issues a new synchronization
+  request with no cookie.  To obtain an incremental reload, the client
+  issues a new synchronization with the provided cookie.
+
+  The server may choose to provide a full copy in the refresh stage
+  (e.g., ignore the cookie or the synchronization state represented in
+  the cookie) instead of providing an incremental refresh in order to
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 19]</span>
+</pre><pre class='newpage'><a name="page-20" id="page-20" href="#page-20" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  achieve the eventual convergence.
+
+  The decision between the return of the initial content and the return
+  of the e-syncRefreshRequired result code may be based on reloadHint in
+  the Sync Request Control from the client.
+
+  In the case of persist stage Sync, the server returns the resultCode
+  of e-syncRefreshRequired to the client to indicate that the client
+  needs to issue a new Sync Operation in order to obtain a synchronized
+  copy of the content. If no cookie is provided, a full refresh is
+  needed.  If a cookie representing a synchronization state is provided,
+  an incremental refresh is needed.
+
+  The server may also return e-syncRefreshRequired if it determines that
+  a refresh would be more efficient than sending all the messages
+  required for convergence.
+
+  It is noted that the client may receive one or more of
+  SearchResultEntry, SearchResultReference, and/or Sync Info Messages
+  before it receives SearchResultDone Message with the
+  e-syncRefreshRequired result code.
+
+
+<span class="h3"><a name="section-3.9">3.9</a>. Chattiness Considerations</span>
+
+  The server MUST ensure that the number of entry messages generated to
+  refresh the client content does not exceed the number of entries
+  presently in the content.  While there is no requirement for servers
+  to maintain history information, if the server has sufficient history
+  to allow it to reliably determine which entries in the prior client
+  copy are no longer present in the content and the number of such
+  entries is less than or equal to the number of unchanged entries, the
+  server SHOULD generate delete entry messages instead of present entry
+  messages (see <a href="#section-3.3.2">Section 3.3.2</a>).
+
+  When the amount of history information maintained in the server is not
+  enough for the clients to perform infrequent refreshOnly Sync
+  Operations, it is likely that the server has incomplete history
+  information (e.g. due to truncation) by the time those clients connect
+  again.
+
+  The server SHOULD NOT resort to full reload when the history
+  information is not enough to generate delete entry messages.  The
+  server SHOULD generate either present entry messages only or present
+  entry messages followed by delete entry messages to bring the client
+  copy to the current state.  In the latter case, the present entry
+  messages bring the client copy to a state covered by the history
+  information maintained in the server.
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 20]</span>
+</pre><pre class='newpage'><a name="page-21" id="page-21" href="#page-21" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  The server SHOULD maintain enough (current or historical) state
+  information (such as a context-wide last modify time stamp) to
+  determine if no changes were made in the context since the content
+  refresh was provided and, and when no changes were made, generate zero
+  delete entry messages instead of present messages.
+
+  The server SHOULD NOT use the history information when its use does
+  not reduce the synchronization traffic or when its use can expose
+  sensitive information not allowed to be received by the client.
+
+  The server implementor should also consider chattiness issues which
+  span multiple Sync Operations of a session.  As noted in <a href="#section-3.8">Section 3.8</a>,
+  the server may return e-syncRefreshRequired if it determines that a
+  reload would be more efficient than continuing under the current
+  operation.  If reloadHint in the Sync Request is TRUE, the server may
+  initiate a reload without directing the client to request a reload.
+
+  The server SHOULD transfer a new cookie frequently to avoid having to
+  transfer information already provided to the client.  Even where DIT
+  changes do not cause content synchronization changes to be
+  transferred, it may be advantageous to provide a new cookie using a
+  Sync Info Message.  However, the server SHOULD avoid overloading the
+  client or network with Sync Info Messages.
+
+  During persist mode, the server SHOULD coalesce multiple outstanding
+  messages updating the same entry.  The server MAY delay generation of
+  an entry update in anticipation of subsequent changes to that entry
+  which could be coalesced.  The length of the delay should be long
+  enough to allow coalescing of update requests issued back to back but
+  short enough that the transient inconsistency induced by the delay is
+  corrected in a timely manner.
+
+  The server SHOULD use syncIdSet Sync Info Message when there are
+  multiple delete or present messages to reduce the amount of
+  synchronization traffic.
+
+  It is also noted that there may be many clients interested in a
+  particular directory change, and servers attempting to service all of
+  these at once may cause congestion on the network.  The congestion
+  issues are magnified when the change requires a large transfer to each
+  interested client.  Implementors and deployers of servers should take
+  steps to prevent and manage network congestion.
+
+
+<span class="h3"><a name="section-3.10">3.10</a>. Operation Multiplexing</span>
+
+  The LDAP protocol model [<a href="./rfc2251" title='"Lightweight Directory Access Protocol (v3)"'>RFC2251</a>] allows operations to be multiplexed
+  over a single LDAP session.  Clients SHOULD NOT maintain multiple LDAP
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 21]</span>
+</pre><pre class='newpage'><a name="page-22" id="page-22" href="#page-22" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  sessions with the same server.  Servers SHOULD ensure that responses
+  from concurrently processed operations are interleaved fairly.
+
+  Clients SHOULD combine Sync Operations whose result set is largely
+  overlapping.  This avoids having to return multiple messages, once for
+  each overlapping session, for changes to entries in the overlap.
+
+  Clients SHOULD NOT combine Sync Operations whose result sets are
+  largely non-overlapping with each other.  This ensures that an event
+  requiring a e-syncRefreshRequired response can be limited to as few
+  result sets as possible.
+
+
+<span class="h2"><a name="section-4">4</a>. Meta Information Considerations</span>
+
+<span class="h3"><a name="section-4.1">4.1</a>. Entry DN</span>
+
+  As an entry's DN is constructed from its relative DN (RDN) and the
+  entry's parent's DN, it is often viewed as meta information.
+
+  While renaming or moving to a new superior causes the entry's DN to
+  change, that change SHOULD NOT, by itself, cause synchronization
+  messages to be sent for that entry.  However, if the renaming or the
+  moving could cause the entry to be added or deleted from the content,
+  appropriate synchronization messages should be generated to indicate
+  this to the client.
+
+  When a server treats the entry's DN as meta information, the server
+  SHALL either
+
+      - evaluate all MatchingRuleAssertions [<a href="./rfc2251" title='"Lightweight Directory Access Protocol (v3)"'>RFC2251</a>] to TRUE if
+        matching a value of an attribute of the entry and otherwise
+        Undefined, or
+      - evaluate all MatchingRuleAssertion with dnAttributes of TRUE as
+        Undefined.
+
+  The latter choice is offered for ease of server implementation.
+
+
+<span class="h3"><a name="section-4.2">4.2</a>. Operational Attributes</span>
+
+  Where values of an operational attribute is determined by values not
+  held as part of the entry it appears in, the operational attribute
+  SHOULD NOT support synchronization of that operational attribute.
+
+  For example, in servers which implement X.501 subschema model [X.501],
+  servers should not support synchronization of the subschemaSubentry
+  attribute as its value is determined by values held and administrated
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 22]</span>
+</pre><pre class='newpage'><a name="page-23" id="page-23" href="#page-23" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  in subschema subentries.
+
+  As a counter example, servers which implement aliases [<a href="./rfc2256" title='"A Summary of the X.500(96) User Schema for use with LDAPv3"'>RFC2256</a>][X.501]
+  can support synchronization of the aliasedObjectName attribute as its
+  values are held and administrated as part of the alias entries.
+
+  Servers SHOULD support synchronization of the following operational
+  attributes: createTimestamp, modifyTimestamp, creatorsName,
+  modifiersName [<a href="./rfc2252" title='"Lightweight Directory Access Protocol (v3): Attribute Syntax Definitions"'>RFC2252</a>].  Servers MAY support synchronization of other
+  operational attributes.
+
+
+<span class="h3"><a name="section-4.3">4.3</a>. Collective Attributes</span>
+
+  A collective attribute is "a user attribute whose values are the same
+  for each member of an entry collection" [X.501].  Use of collective
+  attributes in LDAP is discussed in [<a href="./rfc3371">RFC3371</a>].
+
+  Modification of a collective attribute generally affects the content
+  of multiple entries, which are the members of the collection.  It is
+  inefficient to include values of collective attributes visible in
+  entries of the collection, as a single modification of a collective
+  attribute requires transmission of multiple SearchResultEntry (one for
+  each entry of the collection which the modification affected) to be
+  transmitted.
+
+  Servers SHOULD NOT synchronize collective attributes appearing in
+  entries of any collection.  Servers MAY support synchronization of
+  collective attributes appearing in collective attribute subentries.
+
+
+<span class="h3"><a name="section-4.4">4.4</a>. Access and Other Administrative Controls</span>
+
+  Entries are commonly subject to access and other administrative
+  Controls.  While portions of the policy information governing a
+  particular entry may be held in the entry, policy information is often
+  held elsewhere (in superior entries, in subentries, in the root DSE,
+  in configuration files etc.).  Because of this, changes to policy
+  information make it difficult to ensure eventual convergence during
+  incremental synchronization.
+
+  Where it is impractical or infeasible to generate content changes
+  resulting from a change to policy information, servers may opt to
+  return e-syncRefreshRequired or treat the Sync Operation as an initial
+  content request (e.g., ignore the cookie or the synchronization state
+  represented in the cookie).
+
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 23]</span>
+</pre><pre class='newpage'><a name="page-24" id="page-24" href="#page-24" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+<span class="h2"><a name="section-5">5</a>. Interaction with Other Controls</span>
+
+  The Sync Operation may be used with:
+
+      - ManageDsaIT Control [<a href="./rfc3296" title='"Named Subordinate References in Lightweight Directory Access Protocol (LDAP) Directories"'>RFC3296</a>]
+      - Subentries Control [<a href="./rfc3672" title='"Subentries in LDAP"'>RFC3672</a>]
+
+  as described below.  The Sync Operation may be used with other LDAP
+  extensions as detailed in other documents.
+
+
+<span class="h3"><a name="section-5.1">5.1</a>. ManageDsaIT Control</span>
+
+  The ManageDsaIT Control [<a href="./rfc3296" title='"Named Subordinate References in Lightweight Directory Access Protocol (LDAP) Directories"'>RFC3296</a>] indicates that the operation acts
+  upon the DSA Information Tree and causes referral and other special
+  entries to be treated as object entries with respect to the operation.
+
+
+<span class="h3"><a name="section-5.2">5.2</a>. Subentries Control</span>
+
+  The Subentries Control is used with the search operation "to control
+  the visibility of entries and subentries which are within scope"
+  [<a href="./rfc3672" title='"Subentries in LDAP"'>RFC3672</a>].  When used with the Sync Operation, the subentries control
+  and other factors (search scope, filter, etc.) are used to determine
+  whether an entry or subentry appear in the content or not.
+
+
+<span class="h2"><a name="section-6">6</a>. Shadowing Considerations</span>
+
+  As noted in [<a href="./rfc2251" title='"Lightweight Directory Access Protocol (v3)"'>RFC2251</a>], some servers may hold shadow copies of entries
+  which can be used to answer search and comparison queries.  Such
+  servers may also support content synchronization requests.  This
+  section discusses considerations for implementors and deployers for
+  the implementation and deployment of the Sync operation in shadowed
+  directories.
+
+  While a client may know of multiple servers which are equally capable
+  of being used to obtain particular directory content from, a client
+  SHOULD NOT assume that each of these server is equally capable of
+  continuing a content synchronization session.  As stated in <a href="#section-3.1">Section</a>
+  <a href="#section-3.1">3.1</a>, the client SHOULD issue each Sync request of a Sync session to
+  the same server.
+
+  However, through domain naming or IP address redirection or other
+  techniques, multiple physical servers can be made to appear as one
+  logical server to a client.  Only servers which are equally capable in
+  regards to their support for the Sync operation and which hold equally
+  complete copies of the entries should be made to appear as one logical
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 24]</span>
+</pre><pre class='newpage'><a name="page-25" id="page-25" href="#page-25" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  server.  In particular, each physical server acting as one logical
+  server SHOULD be equally capable of continuing a content
+  synchronization based upon cookies provided by any of the other
+  physical servers without requiring a full reload.  Because there is no
+  standard LDAP shadowing mechanism, the specification of how to
+  independently implement equally capable servers (as well as the
+  precise definition of "equally capable") is left to future documents.
+
+  It is noted that it may be difficult for the server to reliably
+  determine what content was provided to the client by another server,
+  especially in the shadowing environments which allow shadowing events
+  to be coalesced.  Where so, the use of the delete phase discussed in
+  <a href="#section-3.3.2">Section 3.3.2</a> may not be applicable.
+
+
+<span class="h2"><a name="section-7">7</a>. Security Considerations</span>
+
+  In order to maintain a synchronized copy of the content, a client is
+  to delete information from its copy of the content as described above.
+  However, the client may maintain knowledge of information disclosed to
+  it by the server separate from its copy of the content used for
+  synchronization.  Management of this knowledge is beyond the scope of
+  this document.  Servers should be careful not to disclose information
+  for content which the client is not authorized to have knowledge of
+  and/or about.
+
+  While the information provided by a series of refreshOnly Sync
+  Operations is similar to that provided by a series of Search
+  Operations, persist stage may disclose additional information.  A
+  client may be able to discern information about the particular
+  sequence of update operations which caused content change.
+
+  Implementors should take precautions against malicious cookie content,
+  including malformed cookies or valid cookies used with different
+  security associations and/or protections in attempt to obtain
+  unauthorized access to information.  Servers may include a digital
+  signature in the cookie to detect tampering.
+
+  The operation may be the target of direct denial of service attacks.
+  Implementors should provide safeguards to ensure the operation is not
+  abused.  Servers may place access control or other restrictions upon
+  the use of this operation.
+
+  It is noted that even small updates to the directory may cause
+  significant amount of traffic to be generated to clients using this
+  operation.  A user could abuse its update privileges to mount an
+  indirect denial of service to these clients, other clients, and/or
+  portions of the network.  Servers should provide safeguards to ensure
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 25]</span>
+</pre><pre class='newpage'><a name="page-26" id="page-26" href="#page-26" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  update operations are not abused.
+
+  Implementors of this (or any) LDAP extension should be familiar with
+  general LDAP security considerations [<a href="./rfc3377" title='"Lightweight Directory Access Protocol (v3): Technical Specification"'>RFC3377</a>].
+
+
+<span class="h2"><a name="section-8">8</a>. IANA Considerations</span>
+
+  Registration of the following values is requested.
+
+  The OID arc 1.3.6.1.4.1.4203.1.9.1 was assigned [<a href="#ref-ASSIGN" title='"OpenLDAP OID Delegations"'>ASSIGN</a>] by OpenLDAP
+  Foundation, under its IANA-assigned private enterprise allocation
+  [<a href="#ref-PRIVATE" title='"Private Enterprise Numbers"'>PRIVATE</a>], for use in this specification.
+
+
+<span class="h3"><a name="section-8.2">8.2</a>.  LDAP Protocol Mechanism</span>
+
+  It is requested that IANA register the LDAP Protocol Mechanism
+  described in this document.
+
+      Subject: Request for LDAP Protocol Mechanism Registration
+      Object Identifier: 1.3.6.1.4.1.4203.1.9.1.1
+      Description: LDAP Content Synchronization Control
+      Person &amp; email address to contact for further information:
+          Kurt Zeilenga &lt;kurt@openldap.org&gt;
+      Usage: Control
+      Specification: RFC XXXX
+      Author/Change Controller: IESG
+      Comments: none
+
+
+<span class="h3"><a name="section-8.3">8.3</a>.  LDAP Result Codes</span>
+
+  It is requested that IANA register the LDAP Result Code described in
+  this document.
+
+      Subject: LDAP Result Code Registration
+      Person &amp; email address to contact for further information:
+          Kurt Zeilenga &lt;kurt@OpenLDAP.org&gt;
+      Result Code Name: e-syncRefreshRequired (IANA-ASSIGNED-CODE)
+      Specification: RFC XXXX
+      Author/Change Controller: IESG
+      Comments:  none
+
+
+<span class="h2"><a name="section-9">9</a>. Acknowledgments</span>
+
+  This document borrows significantly from the LDAP Client Update
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 26]</span>
+</pre><pre class='newpage'><a name="page-27" id="page-27" href="#page-27" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  Protocol [<a href="#ref-LCUP" title='"LDAP Client Update Protocol"'>LCUP</a>], a product of the IETF LDUP working group.  This
+  document also benefited from Persistent Search [<a href="#ref-PSEARCH" title='"Persistent Search: A Simple LDAP Change Notification Mechanism"'>PSEARCH</a>], Triggered
+  Search [<a href="#ref-TSEARCH" title='"LDAPv3 Triggered Search Control"'>TSEARCH</a>], and Directory Synchronization [<a href="#ref-DIRSYNC" title='"Microsoft LDAP Control for Directory Synchronization"'>DIRSYNC</a>] works.  This
+  document also borrows from "Lightweight Directory Access Protocol
+  (v3)" [<a href="./rfc2251" title='"Lightweight Directory Access Protocol (v3)"'>RFC2251</a>].
+
+
+<span class="h2"><a name="section-10">10</a>. Normative References</span>
+
+  [<a name="ref-RFC2119" id="ref-RFC2119">RFC2119</a>]     Bradner, S., "Key words for use in RFCs to Indicate
+                Requirement Levels", <a href="./bcp14">BCP 14</a> (also <a href="./rfc2119">RFC 2119</a>), March 1997.
+
+  [<a name="ref-RFC2251" id="ref-RFC2251">RFC2251</a>]     Wahl, M., T. Howes and S. Kille, "Lightweight Directory
+                Access Protocol (v3)", <a href="./rfc2251">RFC 2251</a>, December 1997.
+
+  [<a name="ref-RFC2252" id="ref-RFC2252">RFC2252</a>]     Wahl, M., A. Coulbeck, T. Howes, and S. Kille,
+                "Lightweight Directory Access Protocol (v3):  Attribute
+                Syntax Definitions", <a href="./rfc2252">RFC 2252</a>, December 1997.
+
+  [<a name="ref-RFC3296" id="ref-RFC3296">RFC3296</a>]     Zeilenga, K., "Named Subordinate References in
+                Lightweight Directory Access Protocol (LDAP)
+                Directories", <a href="./rfc3296">RFC 3296</a>, July 2002.
+
+  [<a name="ref-RFC3377" id="ref-RFC3377">RFC3377</a>]     Hodges, J. and R. Morgan, "Lightweight Directory Access
+                Protocol (v3): Technical Specification", <a href="./rfc3377">RFC 3377</a>,
+                September 2002.
+
+  [<a name="ref-RFC3671" id="ref-RFC3671">RFC3671</a>]     Zeilenga, K., "Collective Attributes in LDAP", <a href="./rfc3671">RFC 3671</a>,
+                December 2003.
+
+  [<a name="ref-RFC3672" id="ref-RFC3672">RFC3672</a>]     Zeilenga, K. and S. Legg, "Subentries in LDAP", <a href="./rfc3672">RFC</a>
+                <a href="./rfc3672">3672</a>, December 2003.
+
+  [<a name="ref-CANCEL" id="ref-CANCEL">CANCEL</a>]      Zeilenga, K., "LDAP Cancel Extended Operation",
+                <a href="./draft-zeilenga-ldap-cancel-xx.txt">draft-zeilenga-ldap-cancel-xx.txt</a>, a work in progress.
+  [EntryUUID]   Zeilenga, K., "The LDAP EntryUUID Operational
+                Attribute", <a href="./draft-zeilenga-ldap-uuid-xx.txt">draft-zeilenga-ldap-uuid-xx.txt</a>, a work in
+                progress.
+
+  [<a name="ref-LDAPIRM" id="ref-LDAPIRM">LDAPIRM</a>]     Harrison, R. and Zeilenga, K., "LDAP Intermediate
+                Response",
+                <a href="./draft-rharrison-ldap-intermediate-resp-00.txt">draft-rharrison-ldap-intermediate-resp-00.txt</a>, a work in
+                progress.
+
+  [<a name="ref-UUID" id="ref-UUID">UUID</a>]        International Organization for Standardization (ISO),
+                "Information technology - Open Systems Interconnection -
+                Remote Procedure Call", ISO/IEC 11578:1996
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 27]</span>
+</pre><pre class='newpage'><a name="page-28" id="page-28" href="#page-28" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  [<a name="ref-X.680" id="ref-X.680">X.680</a>]       International Telecommunication Union -
+                Telecommunication Standardization Sector, "Abstract
+                Syntax Notation One (ASN.1) - Specification of Basic
+                Notation", X.680(1997) (also ISO/IEC 8824-1:1998).
+
+  [<a name="ref-X.690" id="ref-X.690">X.690</a>]       International Telecommunication Union -
+                Telecommunication Standardization Sector, "Specification
+                of ASN.1 encoding rules: Basic Encoding Rules (BER),
+                Canonical Encoding Rules (CER), and Distinguished
+                Encoding Rules (DER)", X.690(1997) (also ISO/IEC
+                8825-1:1998).
+
+
+<span class="h2"><a name="section-11">11</a>. Informative References</span>
+
+  [<a name="ref-RFC2256" id="ref-RFC2256">RFC2256</a>]     Wahl, M., "A Summary of the X.500(96) User Schema for
+                use with LDAPv3", <a href="./rfc2256">RFC 2256</a>, December 1997.
+
+  [<a name="ref-RFC3383" id="ref-RFC3383">RFC3383</a>]     Zeilenga, K., "IANA Considerations for LDAP", <a href="./bcp64">BCP 64</a>
+                (also <a href="./rfc3383">RFC 3383</a>), September 2002.
+
+  [<a name="ref-PRIVATE" id="ref-PRIVATE">PRIVATE</a>]     IANA, "Private Enterprise Numbers",
+                <a href="http://www.iana.org/assignments/enterprise-numbers">http://www.iana.org/assignments/enterprise-numbers</a>.
+
+  [<a name="ref-ASSIGN" id="ref-ASSIGN">ASSIGN</a>]      OpenLDAP Foundation, "OpenLDAP OID Delegations",
+                <a href="http://www.openldap.org/foundation/oid-delegate.txt">http://www.openldap.org/foundation/oid-delegate.txt</a>.
+
+  [<a name="ref-X.500" id="ref-X.500">X.500</a>]       International Telecommunication Union -
+                Telecommunication Standardization Sector, "The Directory
+                -- Overview of concepts, models and services,"
+                X.500(1993) (also ISO/IEC 9594-1:1994).
+
+  [<a name="ref-X.511" id="ref-X.511">X.511</a>]       International Telecommunication Union -
+                Telecommunication Standardization Sector, "The
+                Directory: Abstract Service Definition", X.511(1993).
+
+  [<a name="ref-X.525" id="ref-X.525">X.525</a>]       International Telecommunication Union -
+                Telecommunication Standardization Sector, "The
+                Directory: Replication", X.525(1993).
+
+  [<a name="ref-UUIDinfo" id="ref-UUIDinfo">UUIDinfo</a>]    The Open Group, "Universally Unique Identifier" appendix
+                of the CAE Specification "DCE 1.1: Remote Procedure
+                Calls", Document Number C706,
+                &lt;<a href="http://www.opengroup.org/products/publications/catalog/c706.htm">http://www.opengroup.org/products/publications/</a>
+                <a href="http://www.opengroup.org/products/publications/catalog/c706.htm">catalog/c706.htm</a>&gt; (appendix available at:
+                &lt;<a href="http://www.opengroup.org/onlinepubs/9629399/apdxa.htm">http://www.opengroup.org/onlinepubs/9629399/</a>
+                <a href="http://www.opengroup.org/onlinepubs/9629399/apdxa.htm">apdxa.htm</a>&gt;), August 1997.
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 28]</span>
+</pre><pre class='newpage'><a name="page-29" id="page-29" href="#page-29" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  [<a name="ref-DIRSYNC" id="ref-DIRSYNC">DIRSYNC</a>]     Armijo, M., "Microsoft LDAP Control for Directory
+                Synchronization", <a href="./draft-armijo-ldap-dirsync-xx.txt">draft-armijo-ldap-dirsync-xx.txt</a>, a
+                work in progress.
+
+  [<a name="ref-LCUP" id="ref-LCUP">LCUP</a>]        Megginson, R., et. al., "LDAP Client Update Protocol",
+                <a href="./draft-ietf-ldup-lcup-xx.txt">draft-ietf-ldup-lcup-xx.txt</a>, a work in progress.
+
+  [<a name="ref-PSEARCH" id="ref-PSEARCH">PSEARCH</a>]     Smith, M., et. al., "Persistent Search: A Simple LDAP
+                Change Notification Mechanism",
+                <a href="./draft-ietf-ldapext-psearch-xx.txt">draft-ietf-ldapext-psearch-xx.txt</a>, a work in progress.
+
+  [<a name="ref-TSEARCH" id="ref-TSEARCH">TSEARCH</a>]     Wahl, M., "LDAPv3 Triggered Search Control",
+                <a href="./draft-ietf-ldapext-trigger-xx.txt">draft-ietf-ldapext-trigger-xx.txt</a>, a work in progress.
+
+
+<span class="h2"><a name="section-12">12</a>. Authors' Addresses</span>
+
+  Kurt D. Zeilenga
+  OpenLDAP Foundation
+  &lt;Kurt@OpenLDAP.org&gt;
+
+  Jong Hyuk Choi
+  IBM Corporation
+  &lt;jongchoi@us.ibm.com&gt;
+
+
+
+<span class="h2"><a name="appendix-A">Appendix A</a>.  CSN-based Implementation Considerations</span>
+
+  This appendix is provided for informational purposes only, it is not a
+  normative part of the LDAP Content Synchronization Operation's
+  technical specification.
+
+  This appendix discusses LDAP Content Synchronization Operation server
+  implementation considerations associated with a Change Sequence Number
+  based approaches.
+
+  Change Sequence Number based approaches are targeted for use in
+  servers which do not maintain history information (e.g., change logs,
+  state snapshots, etc.) about changes made to the Directory and hence,
+  must rely on current directory state and minimal synchronization state
+  information embedded in Sync Cookie.   Servers which maintain history
+  information should consider other approaches which exploit the history
+  information.
+
+  A Change Sequence Number is effectively a time stamp which has
+  sufficient granularity to ensure that the precedence relationship in
+  time of two updates to the same object can be determined.  Change
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 29]</span>
+</pre><pre class='newpage'><a name="page-30" id="page-30" href="#page-30" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  Sequence Numbers are not to be confused with Commit Sequence Numbers
+  or Commit Log Record Numbers.  A Commit Sequence Number allows one to
+  determine how two commits (to the same object or different objects)
+  relate to each other in time.  Change Sequence Number associated with
+  different entries may be committed out of order.  In the remainder of
+  this Appendix, the term CSN refers to a Change Sequence Number.
+
+  In these approaches, the server not only maintains a CSN for each
+  directory entry (the entry CSN), but also maintains a value which we
+  will call the context CSN.  The context CSN is the greatest committed
+  entry CSN which is not greater than any outstanding (uncommitted)
+  entry CSNs for all entries in a directory context.  The values of
+  context CSN are used in syncCookie values as synchronization state
+  indicators.
+
+  As search operations are not isolated from individual directory update
+  operations and individual update operations cannot be assumed to be
+  serialized, one cannot assume that the returned content incorporates
+  all relevant changes whose change sequence number is less than or
+  equal to the greatest entry CSN in the content.  The content
+  incorporates all the relevant changes whose change sequence number is
+  less than or equal to context CSN before search processing.  The
+  content may also incorporate any subset of the changes whose change
+  sequence number is greater than context CSN before search processing
+  but less than or equal to the context CSN after search processing.
+  The content does not incorporate any of the changes whose CSN is
+  greater than the context CSN after search processing.
+
+  A simple server implementation could use value of the context CSN
+  before search processing to indicate state.  Such an implementation
+  would embed this value into each SyncCookie returned.  We'll call this
+  the cookie CSN.  When a refresh was requested, the server would simply
+  generate "update" messages for all entries in the content whose CSN is
+  greater than the supplied cookie CSN and generate "present" messages
+  for all other entries in the content.  However, if the current context
+  CSN is the same as the cookie CSN, the server should instead generate
+  zero "updates" and zero "delete" messages, and indicate refreshDeletes
+  of TRUE as the directory has not changed.
+
+  The implementation should also consider the impact of changes to meta
+  information, such as access controls, which affects content
+  determination.  One approach is for the server to maintain a context
+  wide meta information CSN or meta CSN.  This meta CSN would be updated
+  whenever meta information affecting content determination was changed.
+  If the value of the meta CSN is greater than cookie CSN, the server
+  should ignore the cookie and treat the request as an initial request
+  for content.
+
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 30]</span>
+</pre><pre class='newpage'><a name="page-31" id="page-31" href="#page-31" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  Additionally, servers may want to consider maintaining some
+  per-session history information to reduce the number of messages
+  needed to be transferred during incremental refreshes.  Specifically,
+  a server could record information about entries as they leave the
+  scope of a disconnected sync session and later use this information to
+  generate delete messages instead of present messages.
+
+  When the history information is truncated, the CSN of the latest
+  truncated history information entry may be recorded as the truncated
+  CSN of the history information. The truncated CSN may be used to
+  determine whether a client copy can be covered by the history
+  information by comparing it to the synchronization state contained in
+  the cookie supplied by the client.
+
+  When there are a large number of sessions, it may make sense to
+  maintain such history only for the selected clients.  Also, servers
+  taking this approach need to consider resource consumption issues to
+  ensure reasonable server operation and to protect against abuse.  It
+  may be appropriate to restrict this mode of operation by policy.
+
+
+
+
+Intellectual Property Rights
+
+  The IETF takes no position regarding the validity or scope of any
+  intellectual property or other rights that might be claimed to pertain
+  to the implementation or use of the technology described in this
+  document or the extent to which any license under such rights might or
+  might not be available; neither does it represent that it has made any
+  effort to identify any such rights.  Information on the IETF's
+  procedures with respect to rights in standards-track and
+  standards-related documentation can be found in <a href="./bcp11">BCP-11</a>.  Copies of
+  claims of rights made available for publication and any assurances of
+  licenses to be made available, or the result of an attempt made to
+  obtain a general license or permission for the use of such proprietary
+  rights by implementors or users of this specification can be obtained
+  from the IETF Secretariat.
+
+  The IETF invites any interested party to bring to its attention any
+  copyrights, patents or patent applications, or other proprietary
+  rights which may cover technology that may be required to practice
+  this standard.  Please address the information to the IETF Executive
+  Director.
+
+
+
+Full Copyright
+
+
+
+<span class="grey">Zeilenga               LDAP Content Sync Operation             [Page 31]</span>
+</pre><pre class='newpage'><a name="page-32" id="page-32" href="#page-32" class="invisible"> </a>
+<span class="grey">INTERNET-DRAFT         <a href="./draft-zeilenga-ldup-sync-05">draft-zeilenga-ldup-sync-05</a>       3 February 2004</span>
+
+
+  Copyright (C) The Internet Society (2004). All Rights Reserved.
+
+  This document and translations of it may be copied and furnished to
+  others, and derivative works that comment on or otherwise explain it
+  or assist in its implementation may be prepared, copied, published and
+  distributed, in whole or in part, without restriction of any kind,
+  provided that the above copyright notice and this paragraph are
+  included on all such copies and derivative works.  However, this
+  document itself may not be modified in any way, such as by removing
+  the copyright notice or references to the Internet Society or other
+  Internet organizations, except as needed for the  purpose of
+  developing Internet standards in which case the procedures for
+  copyrights defined in the Internet Standards process must be followed,
+  or as required to translate it into languages other than English.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Zeilenga               LDAP Content Sync Operation             [Page 32]
+</pre><pre class='newpage'>
+
+
+</pre><br />
+<span class="noprint"><small><small>Html markup produced by rfcmarkup 1.98, available from
+<a href="http://tools.ietf.org/tools/rfcmarkup/">http://tools.ietf.org/tools/rfcmarkup/</a>
+</small></small></span>
+</body></html>
