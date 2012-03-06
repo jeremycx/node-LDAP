@@ -2,17 +2,17 @@ var events = require('events')
     , util = require('util');
 
 try {
-    LDAPConnection = require("./build/default/LDAP").LDAPConnection;
+    LDAPConnection = require('./build/default/LDAP').LDAPConnection;
 } catch(e) {
-    LDAPConnection = require("./build/Release/LDAP").LDAPConnection;
+    LDAPConnection = require('./build/Release/LDAP').LDAPConnection;
 }
 
 //have the LDAPConnection class inherit properties like 'emit' from the EventEmitter class
 LDAPConnection.prototype.__proto__ = events.EventEmitter.prototype;
 
 function LDAPError(message, msgid) {  
-    this.name = "LDAPError";  
-    this.message = message || "Default Message";  
+    this.name = 'LDAPError';  
+    this.message = message || 'Default Message';  
     this.msgid = msgid;
 }  
 LDAPError.prototype = new Error();
@@ -61,6 +61,10 @@ var LDAP = function(opts) {
     self.LDAP_SYNC_DELETE = 3;
     self.LDAP_SYNC_NEW_COOKIE = 4;
 
+    self.LDAP_SYNC_CAPI_PRESENTS = 16;
+    self.LDAP_SYNC_CAPI_DELETES = 19;
+    self.LDAP_SYNC_CAPI_PRESENTS_IDSET = 48;
+    self.LDAP_SYNC_CAPI_DELETES_IDSET = 51;
     self.LDAP_SYNC_CAPI_DONE = 80;
 
     function setCallback(msgid, replay, args, fn) {
@@ -166,6 +170,14 @@ var LDAP = function(opts) {
         switch(phase) {
         case self.LDAP_SYNC_CAPI_DONE:
             return 'LDAP_SYNC_CAPI_DONE';
+        case self.LDAP_SYNC_CAPI_PRESENTS:
+            return 'LDAP_SYNC_CAPI_PRESENTS';
+        case self.LDAP_SYNC_CAPI_DELETES:
+            return 'LDAP_SYNC_CAPI_DELETES';
+        case self.LDAP_SYNC_CAPI_PRESENTS_IDSET:
+            return 'LDAP_SYNC_CAPI_PRESENTS_IDSET';
+        case self.LDAP_SYNC_CAPI_DELETES_IDSET:
+            return 'LDAP_SYNC_CAPI_DELETES_IDSET';
         default:
             return 'UNKNOWN_PHASE (' + phase + ')';
         }
@@ -196,15 +208,41 @@ var LDAP = function(opts) {
             binding.on('syncintermediate', s.syncintermediate);
         }
 
-        binding.sync(s.base, parseInt(s.scope), 
-                     s.filter, 'attrs', s.cookie?s.cookie:undefined);
+        if (!s) {
+            throw new Error('Options Required');
+        }
+
+        if (!s.base) {
+            throw new Error('Base required');
+        }
+
+        if (!s.rid) {
+            throw new Error('3-digit RID Required. Make one up.');
+        }
+
+        binding.sync(s.base, 
+                     s.scope?parseInt(s.scope):self.SUBTREE,
+                     s.filter?s.filter:'(objectClass=*)', 
+                     s.attrs?s.attrs:'*', 
+                     s.cookie?s.cookie:"rid="+s.rid);
         syncopts = s;
     }
 
     function search(s_opts, fn) {
         stats.searches++;
-        return setCallback(binding.search(s_opts.base, s_opts.scope, s_opts.filter,
-                                          s_opts.attrs), search, arguments, fn);
+        
+        if (!s_opts) {
+            throw new Error("Opts required");
+        }
+        if (!s_opts.base) {
+            throw new Error("Base required");
+        }
+
+        return setCallback(binding.search(s_opts.base, 
+                                          s_opts.scope?s_opts.scope:self.SUBTREE, 
+                                          s_opts.filter?s_opts.filter:'(objectClass=*)',
+                                          s_opts.attrs?s_opts.attrs:'*'),
+                                          search, arguments, fn);
     }
 
     binding.on('searchresult', function(msgid, data) {
@@ -217,11 +255,12 @@ var LDAP = function(opts) {
         handleCallback(msgid);
     });
 
-    // we're likely to have a few different symbols
-    // emitting -- one for each phase, etc. 
-    // keep it simple for now.
-    binding.on('syncresult', function(msgid, data) {
-        syncopts.fn(data);
+    binding.on('newcookie', function(cookie) {
+        // this way a reconnect always starts from the last known cookie.
+        if (cookie) {
+            syncopts.cookie = cookie;
+            console.log('Storing new cookie ' + syncopts.cookie);
+        }
     });
 
     binding.on('error', function(err) {
