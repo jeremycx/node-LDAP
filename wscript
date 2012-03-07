@@ -16,7 +16,7 @@ def configure(conf):
   conf.env.append_unique('CPPFLAGS', ["-I/usr/local/include"])
   conf.env.append_unique('CXXFLAGS', ["-Wall"])
 
-  conf.env.append_unique('LINKFLAGS', ["-L/usr/local/lib", "-m32"])
+  conf.env.append_unique('LINKFLAGS', ["-L/usr/local/lib"])
 
 
 def build(bld):
