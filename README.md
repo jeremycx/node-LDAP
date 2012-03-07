@@ -1,8 +1,19 @@
-node-ldap
-=========
+node-LDAP 1.0.0
+===============
 
 OpenLDAP client bindings for Node.js. Requires libraries from
 http://www.openldap.org installed.
+
+This latest version implements proper reconnects to a lost LDAP server.
+
+Of note in this release is access to LDAP Syncrepl. With this API, you
+can subscribe to changes to the LDAP database, and be notified (and
+fire a callback) when anything is changed in LDAP. Use Syncrepl to
+completely mirror an LDAP database, or use it to implement triggers
+that perform an action when LDAP is modified.
+
+The API is finally stable, and (somewhat) sane.
+
 
 Contributing
 ------------
@@ -22,47 +33,63 @@ Node >= 0.6
 
 For < 0.6 compaibility, check out v0.4
 
-Installation
-------------
+Install
+=======
 
-To build, ensure the OpenLDAP client libraries are installed, and
+You must ensure you lave the latest OpenLDAP client libraries
+installed from http:///www.openldap.org
 
-   npm install https://github.com/jeremycx/node-LDAP/tarball/master -g
+To install the 1.0.0 release from npm:
 
-Connection.open(uri, version)
------------------------------
+    npm install node-LDAP
 
-Opens a new connection to the LDAP server or servers. Does not make a
-connection attept (that is saved until the first command is issued).
 
-Basically, this call will always succeeds, but may throw an error in
-the case of improper parameters. Will not return an error unless no
-memory is available.
+API
+===
 
-Open Example
-------------
+    new LDAP(otions);
 
-        var LDAPConnection = require("../LDAP").Connection;
-        var LDAP = new LDAPConnection();
-        
-        if (LDAP.open("ldap://server1.domain.com ldap://server2.domain.com", 3) < 0) {
-           throw new Error("Unable to connect to server");
-        }                                                
+Creating an instance:
 
-Connection.simpleBind([dn, password,] callback(msgid, err));
------------------------------------
 
-Authenticates to the server. When the response is ready, or the
-timeout occurs, will execute the callback with the error value set.
+    var LDAP = require('LDAP');
+    var ldap = new LDAP({ uri: 'ldap://my.ldap.server', version: 3});
 
-dn and password must be omited, when doing anonymous bind.
 
-Connection.search(base, scope, filter, attrs, function(msgid, err, data))
----------------------------------------------
+ldap.open()
+-----------
 
-Searches LDAP within the given base for entries matching the given
-filter, and returns all attrs for matching entries. To get all
-available attrs, use "\*".
+    ldap.open(callback);
+
+Now that you have an instance, you can open a connection. This will
+automatically reconnect until you close():
+
+    ldap.open(function(err) {
+        if (err) {
+           throw new Error('Can not connect');
+        }
+        // connection is ready.
+
+    });
+
+ldap.simplebind()
+-----------------
+Calling open automatically does an anonymous bind to check to make
+sure the connection is actually open. If you call simplebind(), you
+will upgrade the existing anonymous bind.
+
+ldap.search()
+-------------
+    ldap.search(options, callback(err, data));
+
+Options are provided as a JS object:
+
+    {
+        base: '',
+        scope: '',
+        filter: '',
+        attrs: ''
+    }
 
 Scopes are specified as one of the following integers:
 
@@ -72,11 +99,11 @@ Scopes are specified as one of the following integers:
 * Connection.SUBORDINATE = 3;
 * Connection.DEFAULT = -1;
 
-If a disconnect or other server error occurs, the backing library will
-attempt to reconnect automatically, and if this reconnection fails,
-Connection.open() will return -1.
+ldap.findandbind()
+------------------
+A convenience function that is in here only to encourage developers to
+do LDAP authentication "the right way" if possible.
 
-See also "man 3 ldap" for details.
 
 Connection.searchPaged(base, scope, filter, attrs, pageSize, function(msgid, err, data) [, cookie])
 ---------------------------------------------------------------------------------------------------
@@ -97,27 +124,12 @@ as for simple search. Request for next page is sent only after the callback
 returns. After all data has arrived, callback is called once more, with data
 equal to null.
 
-Search Example
---------------
 
-        var LDAPConnection = require("../LDAP").Connection;
-        var LDAP = new LDAPConnection();
-        
-        // Open a connection.
-        LDAP.open("ldap://ldap1.example.com");
-        LDAP.search("o=company", LDAP.SUBTREE, "(uid=alice)", "*", function(msgid, error, data) {
-            switch(error) {
-            case -2:
-                 console.log("Timeout");
-                 break;
-            case -1:
-                 console.log("Server gone away");
-                 break;
-            default:
-                console.log(data[0].uid[0]);
-                break;
-            }                
-        });
+SYNCREPL API
+============
+TODO.
+
+
 
 TODO:
 -----
