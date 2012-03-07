@@ -78,9 +78,18 @@ Calling open automatically does an anonymous bind to check to make
 sure the connection is actually open. If you call simplebind(), you
 will upgrade the existing anonymous bind.
 
+    ldap.simplebind(options, function(err));
+
+Options are binddn and password:
+
+    {
+        binddn: '',
+        password: ''
+    }
+
 ldap.search()
 -------------
-    ldap.search(options, callback(err, data));
+    ldap.search(options, function(err, data));
 
 Options are provided as a JS object:
 
@@ -103,6 +112,21 @@ ldap.findandbind()
 ------------------
 A convenience function that is in here only to encourage developers to
 do LDAP authentication "the right way" if possible.
+
+    ldap.findandbind(options, function(err, data))
+
+Options are exactly like the search options, with the addition of a
+"password" attribute:
+
+    {
+        base: '',
+        filter: '',
+        scope: '',
+        attrs: '',
+        password: ''
+    }
+
+Calls the callback with the record it authenticated against.
 
 
 Connection.searchPaged(base, scope, filter, attrs, pageSize, function(msgid, err, data) [, cookie])
