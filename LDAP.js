@@ -87,13 +87,13 @@ var LDAP = function(opts) {
         return msgid;
     }
 
-    function handleCallback(msgid, data) {
+    function handleCallback(msgid, err, data) {
         if (callbacks[msgid]) {
             if (typeof callbacks[msgid].fn == 'function') {
                 var thiscb = callbacks[msgid];
                 delete callbacks[msgid];
                 clearTimeout(thiscb.tm);
-                thiscb.fn(undefined, data);
+                thiscb.fn(err, data);
             }
         } else {
             stats.lateresponses++;
@@ -111,8 +111,8 @@ var LDAP = function(opts) {
 
     function open(fn) {
         stats.opens++;
-        binding.open(opts.uri, (opts.version || 3));
-        return simpleBind(fn); // do an anon bind to get it all ready.
+        binding.open(opts.uri || 'ldap://localhost', (opts.version || 3));
+        return bind(fn); // do an anon bind to get it all ready.
     }
 
     function backoff() {
@@ -149,7 +149,44 @@ var LDAP = function(opts) {
         return stats;
     }
 
-    function simpleBind(fn) {
+    function close() {
+        binding.close();
+    }
+
+
+    function simpleBind(bindopts, fn) {
+        if (!bindopts || !bindopts.binddn || !bindopts.password) {
+            throw new Error('Bind requires options: binddn and password');
+        }
+        opts.binddn = bindopts.binddn;
+        opts.password = bindopts.password;
+        bind(fn);
+    }
+
+    function findandbind(fbopts, fn) {
+        if (!fbopts || !fbopts.filter || !fbopts.scope || !fbopts.base ||!fbopts.password) {
+            throw new Error('findandbind requires options: filter, scope, base and password');
+        }
+        search(fbopts, function(err, data) {
+            if (data.length != 1) {
+                fn(new Error('Search returned != 1 results'));
+                return;
+            }
+            if (err) {
+                fn(err);
+                return;
+            }
+            simpleBind({ binddn: data[0].dn, password: fbopts.password }, function(err) {
+                if (err) {
+                    fn(err);
+                    return;
+                }
+                fn(undefined, data[0]);
+            });
+        });
+    }
+
+    function bind(fn) {
         var msgid;
         if (!opts.binddn) {
             msgid = binding.simpleBind();
@@ -211,14 +248,35 @@ var LDAP = function(opts) {
                                           search, arguments, fn);
     }
 
-    binding.on('searchresult', function(msgid, data) {
+    function modify(dn, mods, fn) {
+        if (!dn || typeof mods != 'array') {
+            throw new Error('modify requires a dn and an array of modifications');
+        }
+        return setCallback(binding.modify(dn, mods), arguments, fn);
+    }
+
+    function add(dn, attrs, fn) {
+        if (!dn || typeof attrs != 'array') {
+            throw new Error('add requires a dn and an array of attributes');
+        }
+        return setCallback(binding.add(dn. attrs), arguments, fn);
+    }
+
+    function rename(dn, newrdn, fn) {
+        if (!dn || !newrdn) {
+            throw new Error('rename requires a dn and newrdn');
+        }
+        return setCallback(binding.rename(dn, newrdn), arguments, fn);
+    }
+
+    binding.on('searchresult', function(msgid, errcode, data) {
         stats.searchresults++;
-        handleCallback(msgid, data);
+        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data);
     });
 
-    binding.on('result', function(msgid) {
+    binding.on('result', function(msgid, errcode, data) {
         stats.results++;
-        handleCallback(msgid);
+        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data);
     });
 
     binding.on('newcookie', function(newcookie) {
@@ -252,8 +310,13 @@ var LDAP = function(opts) {
     this.open = open;
     this.simpleBind = simpleBind;
     this.search = search;
+    this.findandbind = findandbind;
     this.getStats = getStats;
     this.sync = sync;
+    this.close = close;
+    this.modify = modify;
+    this.add = add;
+    this.rename = rename;
 };
 
 util.inherits(LDAP, events.EventEmitter);
