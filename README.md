@@ -59,7 +59,7 @@ Creating an instance:
 ldap.open()
 -----------
 
-    ldap.open(callback);
+    ldap.open(function(err));
 
 Now that you have an instance, you can open a connection. This will
 automatically reconnect until you close():
