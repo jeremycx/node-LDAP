@@ -122,7 +122,7 @@ always a single-valued string.
         uid: [ 'fred' ],
         homeDirectory: [ '/home/fred' ],
         cn: [ 'fred' ],
-        dn: 'cn=fred,dc=playground,dc=999,dc=ssi' } ]
+        dn: 'cn=fred,dc=ssimicro,dc=com' } ]
 
 ldap.findandbind()
 ------------------
