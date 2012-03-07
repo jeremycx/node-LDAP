@@ -112,7 +112,7 @@ Results are returned as an array of zero or more objects. Each object
 has attributes named after the LDAP attributes in the found
 record(s). Each attribute contains an array of values for that
 attribute (even if the attribute is single-valued - having to check typeof()
-before you can act on "anything* is a pet peeve of
+before you can act on /anything/ is a pet peeve of
 mine). The exception to this rule is the 'dn' attribute - this is
 always a single-valued string.
 
