@@ -628,7 +628,9 @@ public:
             }
           }
         }
-        // TODO: free controls?
+	if ( ctrls != NULL ) {
+		ldap_controls_free( ctrls );
+	}
       }
       for (attrname = ldap_first_attribute(c->ld, entry, &berptr) ;
            attrname ; attrname = ldap_next_attribute(c->ld, entry, berptr)) {
@@ -708,7 +710,6 @@ public:
 
           ldap_parse_result(c->ld, res, &errp, NULL, NULL, NULL, NULL, 0);
           
-          //TODO: get more stuff from the result
           args[0] = symbol_result; 
           args[1] = Integer::New(msgid);
           args[2] = errp?Integer::New(errp):Undefined();
@@ -753,7 +754,6 @@ public:
     ARG_STR(attrs_str,    3);
     ARG_STR(cookie,       4);
 
-    // TODO: parse and convert attrs
     char *bufhead = strdup(*attrs_str);
     char *buf = bufhead;
 
