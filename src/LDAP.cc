@@ -8,7 +8,22 @@
 #include <errno.h>
 
 #include <ldap.h>
+
+#ifdef __FreeBSD__
 #include <uuid.h>
+#define uuid_to_string(uu, uuid) { \
+    uint32_t status; \
+    uuid_to_string(uu, &uuid, &status); \
+  }
+#endif
+
+#ifdef __APPLE__ 
+#include <uuid/uuid.h>
+#define uuid_to_string(uu, uuid) { \
+    uuid = (char *)malloc(33);     \
+    uuid_unparse_lower(*uu, (char *)uuid);      \
+  }
+#endif
 
 using namespace node;
 using namespace v8;
@@ -609,12 +624,11 @@ public:
           if ( ber != NULL ) {
             /* scan entryUUID in-place ("m") */
             if ( ber_scanf( ber, "{em" /*"}"*/, &state, &entryUUID ) == LBER_ERROR || entryUUID.bv_len != 0 ) {
-              uint32_t status;
               char * uuid;
               struct berval cookie;
               ber_len_t		len;
 
-              uuid_to_string((const uuid_t *)entryUUID.bv_val, &uuid, &status);
+              uuid_to_string((const uuid_t *)entryUUID.bv_val, uuid);
               js_result->Set(String::New("_syncUUID"), String::New(uuid));
               js_result->Set(String::New("_syncState"), Integer::New(state));
               free(uuid);
@@ -870,9 +884,8 @@ public:
     js_result_list = Array::New(i);
 
     for ( i = 0; syncUUIDs[ i ].bv_val != NULL; i++ ) {
-      uint32_t status;
       char * uuid;
-      uuid_to_string((const uuid_t *)syncUUIDs[ i ].bv_val, &uuid, &status);
+      uuid_to_string((const uuid_t *)syncUUIDs[ i ].bv_val, uuid);
       js_result_list->Set(Integer::New(i), String::New(uuid));
       free(uuid);
     }
