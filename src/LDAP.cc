@@ -102,6 +102,7 @@ class LDAPConnection : public ObjectWrap
 private:
   LDAP  *ld;
   unsigned int sync_id;
+  unsigned int io_isset;
   ldap_syncphase syncphase;
   ldap_sync_refresh_t refreshPhase;
   ev_io read_watcher_;
@@ -139,6 +140,7 @@ public:
     NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
     NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
     NODE_SET_PROTOTYPE_METHOD(t, "search", Search);
+    NODE_SET_PROTOTYPE_METHOD(t, "err2string", err2string);
     NODE_SET_PROTOTYPE_METHOD(t, "sync", Sync);
     NODE_SET_PROTOTYPE_METHOD(t, "modify", Modify);
     NODE_SET_PROTOTYPE_METHOD(t, "simpleBind", SimpleBind);
@@ -160,6 +162,7 @@ public:
     
     c->ld = NULL;
     c->sync_id = 0;
+    c->io_isset = 0;
 
     return args.This();
   }
@@ -169,9 +172,7 @@ public:
     HandleScope scope;
     GETOBJ(c);
     int err;
-    ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to Open()");
-    ENFORCE_ARG_STR(0);
-    ENFORCE_ARG_NUMBER(1);
+
     ARG_STR(uri, 0);
     ARG_INT(ver, 1);
 
@@ -314,6 +315,15 @@ public:
     RETURN_INT(msgid);
   }
 
+  NODE_METHOD(err2string) {
+    HandleScope scope;
+
+    ARG_INT(code, 0);
+    
+    return scope.Close(String::New(ldap_err2string(code)));
+  }
+  
+
   NODE_METHOD(Modify) {
     HandleScope scope;
     GETOBJ(c);
@@ -396,10 +406,6 @@ public:
     int msgid;
     int fd;
 
-    // Validate args. God.
-    ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to Add()");
-    ENFORCE_ARG_STR(0);
-    ENFORCE_ARG_ARRAY(1);
     ARG_STR(dn, 0);
     ARG_ARRAY(attrsHandle, 1);
 
@@ -543,9 +549,13 @@ public:
   static void SetIO(LDAPConnection *c) {
     int fd;
 
+    if (c->io_isset) {
+      return;
+    }
+
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
 
-    if (fd > 0) {
+    if ((fd > 0) && (c->read_watcher_.fd != fd)) {
       if (ev_is_active(&c->read_watcher_)) {
         ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
       }
@@ -645,9 +655,8 @@ public:
   {
     HandleScope scope;
     LDAPConnection *c = static_cast<LDAPConnection*>(w->data);
-    LDAPMessage	* msg = NULL;
     LDAPMessage * res = NULL;
-    Handle<Value> args[4];
+    Handle<Value> args[5];
     int msgid = 0;
 
     // not sure if this is neccesary...
@@ -676,28 +685,36 @@ public:
       EMITDISCONNECT(c);
       return;
     default:
-      msg = res;
-
-      msgid = ldap_msgid(msg);
+      msgid = ldap_msgid(res);
           
-      switch ( ldap_msgtype( msg ) ) {
+      switch ( ldap_msgtype( res ) ) {
       case LDAP_RES_SEARCH_REFERENCE:
         break;
       case LDAP_RES_SEARCH_ENTRY:
       case LDAP_RES_SEARCH_RESULT:
         args[0] = symbol_search;
         args[1] = Integer::New(msgid);
-        args[2] = c->parseReply(c, res);
-        EMIT(c, 3, args);
+        args[2] = Undefined(); // TODO: check for errors.
+        args[3] = c->parseReply(c, res);
+        EMIT(c, 4, args);
         break;
 
       case LDAP_RES_BIND:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
-        args[0] = symbol_result; 
-        args[1] = Integer::New(msgid);
-        EMIT(c, 2, args);
+        {
+          int errp;
+
+          ldap_parse_result(c->ld, res, &errp, NULL, NULL, NULL, NULL, 0);
+          
+          //TODO: get more stuff from the result
+          args[0] = symbol_result; 
+          args[1] = Integer::New(msgid);
+          args[2] = errp?Integer::New(errp):Undefined();
+          args[3] = Undefined(); // Any data goes here
+          EMIT(c, 4, args);
+        }
         break;
       default:
         args[0] = symbol_unknown;
@@ -820,7 +837,7 @@ public:
 
           default:
             break;
-            // ?? error or shutup?
+            // ?? error or shaddup?
           }
         }
         ldap_msgfree(res);
