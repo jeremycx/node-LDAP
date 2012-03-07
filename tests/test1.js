@@ -1,5 +1,5 @@
 var LDAP = require('../LDAP');
-var ldap = new LDAP({ uri: 'ldap://64.247.130.65', version: 3);
+var ldap = new LDAP({ uri: 'ldap://64.247.130.65', version: 3 });
 
 ldap.maxconnectretries = 3;
 ldap.retrywait = 10;

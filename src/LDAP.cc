@@ -17,6 +17,14 @@
   }
 #endif
 
+#ifdef __linux__ 
+#include <uuid/uuid.h>
+#define uuid_to_string(uu, uuid) { \
+    uuid = (char *)malloc(33);     \
+    uuid_unparse_lower(*uu, (char *)uuid);      \
+  }
+#endif
+
 #ifdef __APPLE__ 
 #include <uuid/uuid.h>
 #define uuid_to_string(uu, uuid) { \
@@ -212,16 +220,16 @@ public:
   NODE_METHOD(Close) {
     HandleScope scope;
     GETOBJ(c);
-    int res;
+    int res = 0;
 
     if (c->ld) {
       res = ldap_unbind(c->ld);
     }
     c->ld = NULL;
 
-    ev_io_stop(EV_DEFAULT_ &(c->read_watcher_));
+    ev_io_stop(EV_DEFAULT_ &(c->read_watcher_)); 
 
-    RETURN_INT(0);
+    RETURN_INT(res);
   }
 
 
@@ -758,7 +766,7 @@ public:
                *ctrls[ 2 ];
     BerElement	*ber = NULL;
     int rc;
-    char ** attrs;
+    char * attrs[255];
     char ** ap;
     int msgid;
 
@@ -817,11 +825,10 @@ public:
   static void check_sync_results(LDAPConnection * c) {
     LDAPMessage * res = NULL;
     LDAPMessage * msg = NULL;
-    unsigned int msgid;
     int refreshDone;
 
     for ( ; ; )
-      switch(ldap_result(c->ld, c->sync_id, LDAP_MSG_RECEIVED, &ldap_tv, &res) > 0) {
+      switch(ldap_result(c->ld, c->sync_id, LDAP_MSG_RECEIVED, &ldap_tv, &res)) {
       case 0:
         goto done;
         break;
@@ -833,8 +840,6 @@ public:
         for ( msg = ldap_first_message( c->ld, res );
               msg != NULL;
               msg = ldap_next_message( c->ld, msg ) ) {
-
-          msgid = ldap_msgid(msg);
 
           switch(ldap_msgtype(msg)) {
           case LDAP_RES_SEARCH_ENTRY:
