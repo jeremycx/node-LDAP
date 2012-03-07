@@ -108,6 +108,22 @@ Scopes are specified as one of the following integers:
 * Connection.SUBORDINATE = 3;
 * Connection.DEFAULT = -1;
 
+Results are returned as an array of zero or more objects. Each object
+has attributes named after the LDAP attributes in the found
+record(s). Each attribute contains an array of values for that
+attribute (even if the attribute is single-valued - having to check typeof()
+before you can act on "anything* is a pet peeve of
+mine). The exception to this rule is the 'dn' attribute - this is
+always a single-valued string.
+
+      [ { gidNumber: [ '2000' ],
+        objectClass: [ 'posixAccount', 'top', 'account' ],
+        uidNumber: [ '3214' ],
+        uid: [ 'fred' ],
+        homeDirectory: [ '/home/fred' ],
+        cn: [ 'fred' ],
+        dn: 'cn=fred,dc=playground,dc=999,dc=ssi' } ]
+
 ldap.findandbind()
 ------------------
 A convenience function that is in here only to encourage developers to
