@@ -208,27 +208,6 @@ Example:
 
     ldap.rename('cn=name,dc=example,dc=com', 'cn=newname')
 
-
-Connection.searchPaged(base, scope, filter, attrs, pageSize, function(msgid, err, data) [, cookie])
----------------------------------------------------------------------------------------------------
-
-LDAP servers are usually limited in how many items they are willing to return -
-1024 or 4096 are some typical values. For larger LDAP directories, you need to
-either partition your results with filter, or use paged search.
-
-Note that it's only extension to the protocol, server doesn't have to support
-it. In such case, callback will be called with nonzero err (actually, it would
-be nice if someone could verify this, the server it was tested on had this
-feature).
-
-Cookie parameter is only for internal use, leave it undefined in your calls.
-
-Results are passed to callback function as they arrive in the same format
-as for simple search. Request for next page is sent only after the callback
-returns. After all data has arrived, callback is called once more, with data
-equal to null.
-
-
 SYNCREPL API
 ============
 
