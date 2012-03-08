@@ -10,7 +10,7 @@ var tests = [
             ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
                         [
                             { op: 'add', 
-                              type: 'title', 
+                              attr: 'title', 
                               vals: [ 'King of Callbacks' ] 
                             }
                         ], function(err, data) {
@@ -26,7 +26,7 @@ var tests = [
             ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
                         [
                             { op: 'add', 
-                              type: 'nosuchattr', 
+                              attr: 'nosuchattr', 
                               vals: [ 'King of Callbacks' ] 
                             }
                         ], function(err, data) {
@@ -42,7 +42,7 @@ var tests = [
             ldap.modify('cn=Oooooh Alberto,ou=Beancounters,dc=sample,dc=com',
                         [
                             { op: 'add', 
-                              type: 'title', 
+                              attr: 'title', 
                               vals: [ 'King of Callbacks' ] 
                             }
                         ], function(err, data) {
@@ -134,10 +134,10 @@ var tests = [
         fn: function() {
             ldap.add('cn=Darren,ou=accounting,dc=sample,dc=com',
                      [
-                         { type: 'objectClass',  vals: ['organizationalPerson', 'person', 'top' ] },
-                         { type: 'cn',           vals: [ 'Darren' ] },
-                         { type: 'sn',           vals: [ 'Smith' ] },
-                         { type: 'userPassword', vals: [ 'secret' ] }
+                         { attr: 'objectClass',  vals: ['organizationalPerson', 'person', 'top' ] },
+                         { attr: 'cn',           vals: [ 'Darren' ] },
+                         { attr: 'sn',           vals: [ 'Smith' ] },
+                         { attr: 'userPassword', vals: [ 'secret' ] }
                      ], function(err, data) {
                          assert(!err, 'Add failed');
                          next();
@@ -150,9 +150,9 @@ var tests = [
         fn: function() {
             ldap.add('cn=Darren,ou=accounting,dc=sample,dc=com',
                      [
-                         { type: 'objectClass',  vals: [ 'notanobjectclass', 'organizationalPerson', 'person', 'top' ] },
-                         { type: 'sn',           vals: [ 'Smith' ] },
-                         { type: 'userPassword', vals: [ 'secret' ] }
+                         { attr: 'objectClass',  vals: [ 'notanobjectclass', 'organizationalPerson', 'person', 'top' ] },
+                         { attr: 'sn',           vals: [ 'Smith' ] },
+                         { attr: 'userPassword', vals: [ 'secret' ] }
                      ], function(err, data) {
                          assert(err, 'Add should have failed');
                          next();
@@ -165,10 +165,10 @@ var tests = [
         fn: function() {
             ldap.add('cn=Darren,ou=accounting,dc=sample,dc=com',
                      [
-                         { type: 'objectClass',  vals: [ 'organizationalPerson', 'person', 'top' ] },
-                         { type: 'sn',           vals: [ 'Smith' ] },
-                         { type: 'badattr',      vals: [ 'Fried' ] },
-                         { type: 'userPassword', vals: [ 'secret' ] }
+                         { attr: 'objectClass',  vals: [ 'organizationalPerson', 'person', 'top' ] },
+                         { attr: 'sn',           vals: [ 'Smith' ] },
+                         { attr: 'badattr',      vals: [ 'Fried' ] },
+                         { attr: 'userPassword', vals: [ 'secret' ] }
                      ], function(err, data) {
                          assert(err, 'Add should have failed');
                          next();
@@ -298,7 +298,7 @@ function next() {
     if (currenttest) {
         process.nextTick(currenttest.fn);
     } else {
-//        process.exit();
+        ldap.close();
     }
 }
 
