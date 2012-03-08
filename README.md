@@ -274,5 +274,7 @@ notify the callback what should be done with the record.
 
 TODO:
 -----
+* Integration testing for syncrepl.
+* Real-world testing of syncrepl.
 * Testing against Microsoft Active Directory is welcomed, as I don't
 have a server to test against.
