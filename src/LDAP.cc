@@ -399,7 +399,7 @@ public:
       }
 
       // Step 2: mod_type
-      String::Utf8Value mod_type(modHandle->Get(String::New("type")));
+      String::Utf8Value mod_type(modHandle->Get(String::New("attr")));
       ldapmods[i]->mod_type = strdup(*mod_type);
 
       // Step 3: mod_vals
@@ -460,7 +460,7 @@ public:
       ldapmods[i]->mod_op = LDAP_MOD_ADD;
 
       // Step 2: mod_type
-      String::Utf8Value mod_type(attrHandle->Get(String::New("type")));
+      String::Utf8Value mod_type(attrHandle->Get(String::New("attr")));
       ldapmods[i]->mod_type = strdup(*mod_type);
 
       // Step 3: mod_vals
