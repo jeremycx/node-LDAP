@@ -5,30 +5,40 @@ var assert = require('assert');
 var tests = [
     {
         name: 'PAGEDSEARCH',
-        description: 'Paged Search with invalid cookie',
+        description: 'Paged Search',
         fn: function() {
             ldap.search({
                 base: 'dc=sample,dc=com',
                 filter: '(objectClass=*)',
                 attrs: 'dn',
-                pagesize: 2
+                pagesize: 3
             }, function(err, data, cookie) {
                 assert(!err, err);
                 assert(cookie, 'No cookie returned');
-                assert(data.length == 2, 'Result larger than page size: ' + data.length);
+                assert(data.length == 3, 'Result larger than page size: ' + data.length);
                 var firstentry = data[0];
                 ldap.search({
                     base: 'dc=sample,dc=com',
                     filter: '(objectClass=*)',
                     attrs: 'dn',
-                    pagesize: 2,
+                    pagesize: 3,
                     cookie: cookie
                 }, function(err, data, cookie) {
                     assert(!err, err);
                     assert(cookie);
-                    assert(data.length == 2, 'Result larger than ' + data.length);
+                    assert(data.length == 3, 'Result larger than ' + data.length);
                     assert(data[0].dn != firstentry.dn, 'Same results on each page');
-                    next();
+                    ldap.search({
+                        base: 'dc=sample,dc=com',
+                        filter: '(objectClass=*)',
+                        attrs: 'dn',
+                        pagesize: 3,
+                        cookie: cookie
+                    }, function(err, data, cookie) {
+                        assert(!err, err);
+                        assert(!cookie); // no cookie, out of results.
+                        next();
+                    });
                 });
             });
         }
