@@ -87,13 +87,13 @@ var LDAP = function(opts) {
         return msgid;
     }
 
-    function handleCallback(msgid, err, data) {
+    function handleCallback(msgid, err, data, cookie) {
         if (callbacks[msgid]) {
             if (typeof callbacks[msgid].fn == 'function') {
                 var thiscb = callbacks[msgid];
                 delete callbacks[msgid];
                 clearTimeout(thiscb.tm);
-                thiscb.fn(err, data);
+                thiscb.fn(err, data, cookie);
             }
         } else {
             stats.lateresponses++;
@@ -246,7 +246,8 @@ var LDAP = function(opts) {
         return setCallback(binding.search(s_opts.base, 
                                           s_opts.scope?s_opts.scope:self.SUBTREE, 
                                           s_opts.filter?s_opts.filter:'(objectClass=*)',
-                                          s_opts.attrs?s_opts.attrs:'*'),
+                                          s_opts.attrs?s_opts.attrs:'*', s_opts.pagesize, 
+                                          s_opts.cookie),
                                           search, arguments, fn);
     }
 
@@ -271,9 +272,9 @@ var LDAP = function(opts) {
         return setCallback(binding.rename(dn, newrdn), rename, arguments, fn);
     }
 
-    binding.on('searchresult', function(msgid, errcode, data) {
+    binding.on('searchresult', function(msgid, errcode, data, cookie) {
         stats.searchresults++;
-        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data);
+        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data, cookie);
     });
 
     binding.on('result', function(msgid, errcode, data) {
