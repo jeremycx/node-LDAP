@@ -4,6 +4,51 @@ var assert = require('assert');
 
 var tests = [
     {
+        name: 'PAGEDSEARCH',
+        description: 'Paged Search with invalid cookie',
+        fn: function() {
+            ldap.search({
+                base: 'dc=sample,dc=com',
+                filter: '(objectClass=*)',
+                attrs: 'dn',
+                pagesize: 2
+            }, function(err, data, cookie) {
+                assert(!err, err);
+                assert(cookie, 'No cookie returned');
+                assert(data.length == 2, 'Result larger than page size: ' + data.length);
+                var firstentry = data[0];
+                ldap.search({
+                    base: 'dc=sample,dc=com',
+                    filter: '(objectClass=*)',
+                    attrs: 'dn',
+                    pagesize: 2,
+                    cookie: cookie
+                }, function(err, data, cookie) {
+                    assert(!err, err);
+                    assert(cookie);
+                    assert(data.length == 2, 'Result larger than ' + data.length);
+                    assert(data[0].dn != firstentry.dn, 'Same results on each page');
+                    next();
+                });
+            });
+        }
+    },
+    {
+        name: 'PAGEDSEARCH - Badcookie',
+        description: 'Paged Search with invalid cookie',
+        fn: function() {
+            ldap.search({
+                base: 'dc=sample,dc=com',
+                filter: '(objectClass=*)',
+                pagesize: 2,
+                cookie: ''
+            }, function(err, data) {
+                assert(err, 'Should have failed');
+                next();
+            });
+        }
+    },
+    {
         name: 'MODIFY',
         description: 'Modify a record',
         fn: function() {
