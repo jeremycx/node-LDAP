@@ -80,7 +80,7 @@ typedef enum {
   if (!args[n]->IsString()) THROW("Argument must be string");
 
 #define ENFORCE_ARG_ARRAY(n)                      \
-  if (!args[n]->IsArray()) THROW("Argument must be string");
+  if (!args[n]->IsArray()) THROW("Argument must be an array");
 
 #define ENFORCE_ARG_NUMBER(n)                      \
   if (!args[n]->IsNumber()) THROW("Argument must be numeric");
@@ -125,7 +125,6 @@ class LDAPConnection : public ObjectWrap
 private:
   LDAP  *ld;
   unsigned int sync_id;
-  unsigned int io_isset;
   ldap_syncphase syncphase;
   ldap_sync_refresh_t refreshPhase;
   ev_io read_watcher_;
@@ -185,7 +184,6 @@ public:
     
     c->ld = NULL;
     c->sync_id = 0;
-    c->io_isset = 0;
 
     return args.This();
   }
@@ -222,12 +220,17 @@ public:
     GETOBJ(c);
     int res = 0;
 
+    if (ev_is_active(&c->read_watcher_)) {
+      ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
+    }
+
     if (c->ld) {
       res = ldap_unbind(c->ld);
     }
     c->ld = NULL;
+    c->read_watcher_.fd = 0;
 
-    ev_io_stop(EV_DEFAULT_ &(c->read_watcher_)); 
+    // TODO: clear and free the sync parts
 
     RETURN_INT(res);
   }
@@ -340,6 +343,13 @@ public:
 
   NODE_METHOD(err2string) {
     HandleScope scope;
+    GETOBJ(c);
+    int err;
+
+    if (args.Length() < 1) {
+      ldap_get_option(c->ld, LDAP_OPT_RESULT_CODE, (void *)&err);
+      return scope.Close(String::New(ldap_err2string(err)));
+    }
 
     ARG_INT(code, 0);
     
@@ -351,11 +361,6 @@ public:
     HandleScope scope;
     GETOBJ(c);
     int msgid;
-
-    // Validate args. God.
-    ENFORCE_ARG_LENGTH(2, "Invaid number of arguments to Modify()");
-    ENFORCE_ARG_STR(0);
-    ENFORCE_ARG_ARRAY(1);
 
     ARG_STR(dn, 0);
     ARG_ARRAY(modsHandle, 1);
@@ -452,7 +457,7 @@ public:
       ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
 
       // Step 1: mod_op
-      ldapmods[i]->mod_op = 0;
+      ldapmods[i]->mod_op = LDAP_MOD_ADD;
 
       // Step 2: mod_type
       String::Utf8Value mod_type(attrHandle->Get(String::New("type")));
@@ -497,40 +502,24 @@ public:
     HandleScope scope;
     GETOBJ(c);
     int msgid;
-    int fd;
 
     // Validate args.
     ENFORCE_ARG_LENGTH(2, "Invalid number of arguments to Rename()");
     ENFORCE_ARG_STR(0);
     ENFORCE_ARG_STR(1);
-    ENFORCE_ARG_STR(2);
-    ENFORCE_ARG_BOOL(3);
     ARG_STR(dn, 0);
     ARG_STR(newrdn, 1);
-    ARG_STR(newparent, 2);
-    //    ARG_BOOL(deleteoldrdn, 3);
 
     if (c->ld == NULL) {
       EMITDISCONNECT(c);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
-    if ((msgid = ldap_modrdn(c->ld, *dn, *newrdn) == LDAP_SERVER_DOWN)) {
+    if (((msgid = ldap_modrdn(c->ld, *dn, *newrdn)) == LDAP_SERVER_DOWN)) {
       EMITDISCONNECT(c);
-      RETURN_INT(LDAP_SERVER_DOWN);
-    }
-
-    ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-    if (c->read_watcher_.fd != fd) {
-      if (ev_is_active(&c->read_watcher_)) {
-        ev_io_stop( EV_DEFAULT_UC_ & (c->read_watcher_) );
-      }
-      ev_io_set(&(c->read_watcher_), fd, EV_READ);
-      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
     }
 
     RETURN_INT(msgid);
-
   }
 
   NODE_METHOD(SimpleBind)
@@ -571,10 +560,6 @@ public:
 
   static void SetIO(LDAPConnection *c) {
     int fd;
-
-    if (c->io_isset) {
-      return;
-    }
 
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
 
@@ -710,7 +695,7 @@ public:
       return;
     default:
       msgid = ldap_msgid(res);
-          
+
       switch ( ldap_msgtype( res ) ) {
       case LDAP_RES_SEARCH_REFERENCE:
         break;
@@ -807,9 +792,10 @@ public:
     free(bufhead);
 
     if ( rc != LDAP_SUCCESS ) {
-      if (rc == LDAP_SYNC_REFRESH_REQUIRED) {
-        fprintf(stderr, "REFRESH REQUIRED!\n");
-      }
+      // if (rc == LDAP_SYNC_REFRESH_REQUIRED) {
+        
+        // fprintf(stderr, "REFRESH REQUIRED!\n");
+      // }
       msgid = -1;
     }
 
