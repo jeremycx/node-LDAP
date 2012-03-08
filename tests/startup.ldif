@@ -1,9 +1,42 @@
 dn: dc=sample,dc=com
-objectclass: dcObject
-objectclass: organization
-o: Sample Company
+objectClass: dcObject
+objectClass: organization
 dc: sample
+o: Sample Company
+
+dn: cn=Charlie,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Charlie
+sn: Root
+userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
+
+dn: cn=Babs,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Babs
+sn: Jensen
+userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
+
+dn: ou=Accounting,dc=sample,dc=com
+objectClass: organizationalUnit
+objectClass: top
+ou: Accounting
+
+dn: cn=Albert,ou=Accounting,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Albert
+sn: Root
+userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
 
 dn: cn=Manager,dc=sample,dc=com
-objectclass: organizationalRole
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
 cn: Manager
+sn: Root
+userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
