@@ -144,6 +144,45 @@ Options are exactly like the search options, with the addition of a
 
 Calls the callback with the record it authenticated against.
 
+ldap.add()
+----------
+
+    ldap.add(dn, [attrs], function(err))
+
+dn is the full DN of the record you want to add, attrs to be provided
+as follows:
+
+    [
+        { attr: 'objectClass',  vals: [ 'organizationalPerson', 'person', 'top' ] },
+        { attr: 'sn',           vals: [ 'Smith' ] },
+        { attr: 'badattr',      vals: [ 'Fried' ] }
+    ]
+
+ldap.modify()
+-------------
+
+    ldap.modify(dn, [ changes ], function(err))
+
+Modifies the provided dn as per the changes array provided.
+
+    [
+        { op: 'add', 
+          attr: 'title', 
+          vals: [ 'King of Callbacks' ] 
+        }
+    ]
+
+ldap.rename()
+-------------
+
+    ldap.rename(dn, newrdn, function(err))
+
+Will rename the entry to the new RDN provided.
+
+Example:
+
+    ldap.rename('cn=name,dc=example,dc=com', 'cn=newname')
+
 
 Connection.searchPaged(base, scope, filter, attrs, pageSize, function(msgid, err, data) [, cookie])
 ---------------------------------------------------------------------------------------------------
