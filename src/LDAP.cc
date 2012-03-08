@@ -11,24 +11,24 @@
 
 #ifdef __FreeBSD__
 #include <uuid.h>
-#define uuid_to_string(uu, uuid) { \
-    uint32_t status; \
-    uuid_to_string(uu, &uuid, &status); \
+#define uuid_to_string(uu, uuid) {              \
+    uint32_t status;                            \
+    uuid_to_string(uu, &uuid, &status);         \
   }
 #endif
 
 #ifdef __linux__ 
 #include <uuid/uuid.h>
-#define uuid_to_string(uu, uuid) { \
-    uuid = (char *)malloc(33);     \
+#define uuid_to_string(uu, uuid) {              \
+    uuid = (char *)malloc(33);                  \
     uuid_unparse_lower(*uu, (char *)uuid);      \
   }
 #endif
 
 #ifdef __APPLE__ 
 #include <uuid/uuid.h>
-#define uuid_to_string(uu, uuid) { \
-    uuid = (char *)malloc(33);     \
+#define uuid_to_string(uu, uuid) {              \
+    uuid = (char *)malloc(33);                  \
     uuid_unparse_lower(*uu, (char *)uuid);      \
   }
 #endif
@@ -64,31 +64,31 @@ typedef enum {
 #define REQ_FUN_ARG(I, VAR)                                             \
   if (args.Length() <= (I) || !args[I]->IsFunction())                   \
     return ThrowException(Exception::TypeError(                         \
-                  String::New("Argument " #I " must be a function")));  \
+                                               String::New("Argument " #I " must be a function"))); \
   Local<Function> VAR = Local<Function>::Cast(args[I]);
 
-#define THROW(msg) \
+#define THROW(msg)                                              \
   return ThrowException(Exception::Error(String::New(msg)));
 
-#define GETOBJ(r) \
+#define GETOBJ(r)                                                       \
   LDAPConnection * c = ObjectWrap::Unwrap<LDAPConnection>(args.This());
 
-#define ENFORCE_ARG_LENGTH(n, m)                   \
+#define ENFORCE_ARG_LENGTH(n, m)                \
   if (args.Length() < n) THROW(m);
   
-#define ENFORCE_ARG_STR(n)                      \
+#define ENFORCE_ARG_STR(n)                                      \
   if (!args[n]->IsString()) THROW("Argument must be string");
 
-#define ENFORCE_ARG_ARRAY(n)                      \
+#define ENFORCE_ARG_ARRAY(n)                                    \
   if (!args[n]->IsArray()) THROW("Argument must be an array");
 
-#define ENFORCE_ARG_NUMBER(n)                      \
+#define ENFORCE_ARG_NUMBER(n)                                   \
   if (!args[n]->IsNumber()) THROW("Argument must be numeric");
 
-#define ENFORCE_ARG_BOOL(n)                      \
+#define ENFORCE_ARG_BOOL(n)                                     \
   if (!args[n]->IsBoolean()) THROW("Argument must be boolean");
 
-#define ENFORCE_ARG_FUNC(n)                      \
+#define ENFORCE_ARG_FUNC(n)                                             \
   if (!args[n]->IsFunction()) THROW("Argument must be a function");
 
 #define ARG_STR(v,a) String::Utf8Value v(args[a]);
@@ -103,21 +103,21 @@ typedef enum {
 
 #define NODE_METHOD(n) static Handle<Value> n(const Arguments& args)
 
-#define EMIT(c, num, args) {                              \
-      Local<Value> emit_v = c->handle_->Get(emit_symbol); \
-      assert(emit_v->IsFunction()); \
-      Local<Function> emit = Local<Function>::Cast(emit_v); \
-      TryCatch tc; \
-      emit->Call(c->handle_, num, args); \
-      if (tc.HasCaught()) { \
-        FatalException(tc); \
-      }  \
+#define EMIT(c, num, args) {                                    \
+    Local<Value> emit_v = c->handle_->Get(emit_symbol);         \
+    assert(emit_v->IsFunction());                               \
+    Local<Function> emit = Local<Function>::Cast(emit_v);       \
+    TryCatch tc;                                                \
+    emit->Call(c->handle_, num, args);                          \
+    if (tc.HasCaught()) {                                       \
+      FatalException(tc);                                       \
+    }                                                           \
   }
 
-#define EMITDISCONNECT(c) { \
-    Handle<Value> args[1]; \
-    args[0] = symbol_disconnected; \
-    EMIT(c, 1, args); \
+#define EMITDISCONNECT(c) {                     \
+    Handle<Value> args[1];                      \
+    args[0] = symbol_disconnected;              \
+    EMIT(c, 1, args);                           \
   }
 
 class LDAPConnection : public ObjectWrap
@@ -138,10 +138,10 @@ public:
   {
     HandleScope scope;
 	
-	cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
+    cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
     cookie_template->SetInternalFieldCount(1);
    
-	// default the symbols used for emitting the events
+    // default the symbols used for emitting the events
     symbol_connected = NODE_PSYMBOL("connected");
     symbol_disconnected = NODE_PSYMBOL("disconnected");
     symbol_search = NODE_PSYMBOL("searchresult");
@@ -239,43 +239,33 @@ public:
   NODE_METHOD(Search) {
     HandleScope scope;
     GETOBJ(c);
-    int fd, msgid, rc;
+    int msgid, rc;
     char * attrs[255];
     char ** ap;
     LDAPControl* serverCtrls[2] = { NULL, NULL };
     int page_size = 0;
-    v8::Local<v8::Object> cookieObj;
+    Local<Object> cookieObj;
     struct berval* cookie = NULL;
-
-    //base scope filter attrs
-    ENFORCE_ARG_LENGTH(4, "Invalid number of arguments to Search()");
-    ENFORCE_ARG_STR(0);
-    ENFORCE_ARG_NUMBER(1);
-    ENFORCE_ARG_STR(2);
-    ENFORCE_ARG_STR(3);
 
     ARG_STR(base,         0);
     ARG_INT(searchscope,  1);
     ARG_STR(filter,       2);
     ARG_STR(attrs_str,    3);
 
-    if (args.Length() >= 5) {
-      // process optional arguments: [, pageSize [, cookie] ]
-      ENFORCE_ARG_NUMBER(4);
+    if (!(args[4]->IsUndefined())) {
+      // this is a paged search
       page_size = args[4]->Int32Value();
-      if (args.Length() >= 6 && !args[5]->IsUndefined()) {
-        // we have the cookie, too
+      if (!(args[5]->IsUndefined())) {
         if (!args[5]->IsObject()) {
-          THROW("invalid cookie object for paged search");
+          RETURN_INT(-1);
         }
         cookieObj = args[5]->ToObject();
         if (cookieObj->InternalFieldCount() != 1) {
-          THROW("invalid cookie object for paged search");
+          RETURN_INT(-1);
         }
-        cookie = static_cast<berval*>(
-            cookieObj->GetPointerFromInternalField(0));
+        cookie = static_cast<berval*>(cookieObj->GetPointerFromInternalField(0));
         if (cookie == NULL) {
-          THROW("invalid cookie object for paged search");
+          RETURN_INT(-1);
         }
         cookieObj->SetPointerInInternalField(0, NULL);
       }
@@ -300,8 +290,7 @@ public:
           break;
 
     if (page_size > 0) {
-      rc = ldap_create_page_control(c->ld, page_size, cookie, 'F',
-            &serverCtrls[0]);
+      rc = ldap_create_page_control(c->ld, page_size, cookie, 'F', &serverCtrls[0]);
 
       if (cookie) {
         ber_bvfree(cookie);
@@ -318,23 +307,14 @@ public:
     }
 
     rc = ldap_search_ext(c->ld, *base, searchscope, *filter, attrs, 0,
-        serverCtrls, NULL, NULL, 0, &msgid);
+                         serverCtrls, NULL, NULL, 0, &msgid);
 
     if (serverCtrls[0]) {
       ldap_control_free(serverCtrls[0]);
     }
     if (LDAP_API_ERROR(rc)) {
       msgid = -1;
-    } else {
-      ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-      if (c->read_watcher_.fd != fd) {
-        if (ev_is_active(&c->read_watcher_)) {
-          ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
-        }
-        ev_io_set(&(c->read_watcher_), fd, EV_READ);
-        ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
-      }
-    }
+    } 
 
     free(bufhead);
 
@@ -383,7 +363,7 @@ public:
 
     for (int i = 0; i < numOfMods; i++) {
       Local<Object> modHandle =
-          Local<Object>::Cast(modsHandle->Get(Integer::New(i)));
+        Local<Object>::Cast(modsHandle->Get(Integer::New(i)));
 
       ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
 
@@ -404,10 +384,10 @@ public:
 
       // Step 3: mod_vals
       Local<Array> modValsHandle =
-          Local<Array>::Cast(modHandle->Get(String::New("vals")));
+        Local<Array>::Cast(modHandle->Get(String::New("vals")));
       int modValsLength = modValsHandle->Length();
       ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
-          (modValsLength + 1));
+                                                 (modValsLength + 1));
       for (int j = 0; j < modValsLength; j++) {
         String::Utf8Value modValue(modValsHandle->Get(Integer::New(j)));
         ldapmods[i]->mod_values[j] = strdup(*modValue);
@@ -452,7 +432,7 @@ public:
 
     for (int i = 0; i < numOfAttrs; i++) {
       Local<Object> attrHandle =
-          Local<Object>::Cast(attrsHandle->Get(Integer::New(i)));
+        Local<Object>::Cast(attrsHandle->Get(Integer::New(i)));
 
       ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
 
@@ -465,10 +445,10 @@ public:
 
       // Step 3: mod_vals
       Local<Array> attrValsHandle =
-          Local<Array>::Cast(attrHandle->Get(String::New("vals")));
+        Local<Array>::Cast(attrHandle->Get(String::New("vals")));
       int attrValsLength = attrValsHandle->Length();
       ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
-          (attrValsLength + 1));
+                                                 (attrValsLength + 1));
       for (int j = 0; j < attrValsLength; j++) {
         String::Utf8Value modValue(attrValsHandle->Get(Integer::New(j)));
         ldapmods[i]->mod_values[j] = strdup(*modValue);
@@ -636,7 +616,7 @@ public:
           }
         }
 	if ( ctrls != NULL ) {
-		ldap_controls_free( ctrls );
+          ldap_controls_free( ctrls );
 	}
       }
       for (attrname = ldap_first_attribute(c->ld, entry, &berptr) ;
@@ -665,8 +645,10 @@ public:
     HandleScope scope;
     LDAPConnection *c = static_cast<LDAPConnection*>(w->data);
     LDAPMessage * res = NULL;
+    LDAPControl** srv_controls = NULL;
     Handle<Value> args[5];
     int msgid = 0;
+    int errp;
 
     // not sure if this is neccesary...
     if (!(revents & EV_READ)) {
@@ -694,6 +676,8 @@ public:
       EMITDISCONNECT(c);
       return;
     default:
+      ldap_parse_result(c->ld, res, &errp, 
+                        NULL, NULL, NULL, &srv_controls, 0);
       msgid = ldap_msgid(res);
 
       switch ( ldap_msgtype( res ) ) {
@@ -701,11 +685,30 @@ public:
         break;
       case LDAP_RES_SEARCH_ENTRY:
       case LDAP_RES_SEARCH_RESULT:
+        if (srv_controls) {
+          struct berval* cookie = NULL;
+
+          ldap_parse_page_control(c->ld, srv_controls, NULL, &cookie);
+          if (!cookie || cookie->bv_val == NULL || !*cookie->bv_val) {
+            if (cookie) {
+              ber_bvfree(cookie);
+            }
+            args[4] = Undefined();
+          } else {
+            Local<Object> cookieObj(cookie_template->NewInstance());
+            cookieObj->SetPointerInInternalField(0, cookie);
+            args[4] = cookieObj;
+          }
+        } else {
+          args[4] = Undefined();
+        }
+
         args[0] = symbol_search;
         args[1] = Integer::New(msgid);
         args[2] = Undefined(); // TODO: check for errors.
         args[3] = c->parseReply(c, res);
-        EMIT(c, 4, args);
+        // args[4] set above
+        EMIT(c, 5, args);
         break;
 
       case LDAP_RES_BIND:
@@ -713,10 +716,6 @@ public:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
         {
-          int errp;
-
-          ldap_parse_result(c->ld, res, &errp, NULL, NULL, NULL, NULL, 0);
-          
           args[0] = symbol_result; 
           args[1] = Integer::New(msgid);
           args[2] = errp?Integer::New(errp):Undefined();
@@ -748,64 +747,64 @@ public:
     HandleScope scope;
     GETOBJ(c);
     LDAPControl	ctrl = { 0 },
-               *ctrls[ 2 ];
-    BerElement	*ber = NULL;
-    int rc;
-    char * attrs[255];
-    char ** ap;
-    int msgid;
+      *ctrls[ 2 ];
+      BerElement	*ber = NULL;
+      int rc;
+      char * attrs[255];
+      char ** ap;
+      int msgid;
 
-    ARG_STR(base,         0);
-    ARG_INT(searchscope,  1);
-    ARG_STR(filter,       2);
-    ARG_STR(attrs_str,    3);
-    ARG_STR(cookie,       4);
+      ARG_STR(base,         0);
+      ARG_INT(searchscope,  1);
+      ARG_STR(filter,       2);
+      ARG_STR(attrs_str,    3);
+      ARG_STR(cookie,       4);
 
-    char *bufhead = strdup(*attrs_str);
-    char *buf = bufhead;
+      char *bufhead = strdup(*attrs_str);
+      char *buf = bufhead;
 
-    for (ap = attrs; (*ap = strsep(&buf, " \t,")) != NULL;)
-      if (**ap != '\0')
-        if (++ap >= &attrs[255])
-          break;
+      for (ap = attrs; (*ap = strsep(&buf, " \t,")) != NULL;)
+        if (**ap != '\0')
+          if (++ap >= &attrs[255])
+            break;
 
-    ctrls[ 0 ] = &ctrl;
-    ctrls[ 1 ] = NULL;
+      ctrls[ 0 ] = &ctrl;
+      ctrls[ 1 ] = NULL;
         
-    ber = ber_alloc_t( LBER_USE_DER );
+      ber = ber_alloc_t( LBER_USE_DER );
 
-    c->syncphase = LDAP_SYNC_REFRESH;
+      c->syncphase = LDAP_SYNC_REFRESH;
 
-    if ( args[4]->IsUndefined()) {
-      ber_printf( ber, "{eb}", LDAP_SYNC_REFRESH_AND_PERSIST, 0 );
-    } else {
-      ber_printf( ber, "{esb}", LDAP_SYNC_REFRESH_AND_PERSIST, *cookie, 0 );
-    }
+      if ( args[4]->IsUndefined()) {
+        ber_printf( ber, "{eb}", LDAP_SYNC_REFRESH_AND_PERSIST, 0 );
+      } else {
+        ber_printf( ber, "{esb}", LDAP_SYNC_REFRESH_AND_PERSIST, *cookie, 0 );
+      }
 
-    rc = ber_flatten2( ber, &ctrl.ldctl_value, 0 );
+      rc = ber_flatten2( ber, &ctrl.ldctl_value, 0 );
 
-    ctrl.ldctl_oid = (char *)LDAP_CONTROL_SYNC;
-    ctrl.ldctl_iscritical = 1;
+      ctrl.ldctl_oid = (char *)LDAP_CONTROL_SYNC;
+      ctrl.ldctl_iscritical = 1;
 
-    rc = ldap_search_ext( c->ld, *base, searchscope, *filter, attrs, 0, ctrls, NULL, NULL, 0, &msgid);
+      rc = ldap_search_ext( c->ld, *base, searchscope, *filter, attrs, 0, ctrls, NULL, NULL, 0, &msgid);
 
-    free(bufhead);
+      free(bufhead);
 
-    if ( rc != LDAP_SUCCESS ) {
-      // if (rc == LDAP_SYNC_REFRESH_REQUIRED) {
+      if ( rc != LDAP_SUCCESS ) {
+        // if (rc == LDAP_SYNC_REFRESH_REQUIRED) {
         
         // fprintf(stderr, "REFRESH REQUIRED!\n");
-      // }
-      msgid = -1;
-    }
+        // }
+        msgid = -1;
+      }
 
-    if ( ber != NULL ) {
-      ber_free( ber, 1 );
-    }
+      if ( ber != NULL ) {
+        ber_free( ber, 1 );
+      }
 
-    c->sync_id = msgid;
+      c->sync_id = msgid;
 
-    RETURN_INT(msgid);
+      RETURN_INT(msgid);
   }
 
   static void check_sync_results(LDAPConnection * c) {
@@ -1065,7 +1064,7 @@ public:
       /* lookup the sync state control */
       for ( i = 0; ctrls[ i ] != NULL; i++ ) {
         if ( strcmp( ctrls[ i ]->ldctl_oid, LDAP_CONTROL_SYNC_DONE ) == 0 )          {
-            break;
+          break;
         }
       }
 
