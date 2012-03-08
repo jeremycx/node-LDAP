@@ -1,8 +1,11 @@
 *.core
-*~
-*.swp
 *.swo
+*.swp
+*~
 .lock-wscript
+.project
+.settings
+/node_modules
 /sn.txt
 /test-inflight.js
 /test.js
@@ -10,5 +13,3 @@
 /v8.log
 build
 ldap.node
-.project
-.settings
