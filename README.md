@@ -274,8 +274,5 @@ notify the callback what should be done with the record.
 
 TODO:
 -----
-* Document Modify, Add and Rename
-* Re-add paged searches
-* Test cases for Modify, Add, Rename
 * Testing against Microsoft Active Directory is welcomed, as I don't
 have a server to test against.
