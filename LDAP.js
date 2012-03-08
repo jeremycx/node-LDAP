@@ -68,7 +68,7 @@ var LDAP = function(opts) {
     self.LDAP_SYNC_CAPI_DONE = 80;
 
     function setCallback(msgid, replay, args, fn) {
-        if (msgid >= 0) {
+        if (msgid >= 1) {
             if (typeof(fn) == 'function') {
                 callbacks[msgid] = 
                     {
@@ -82,7 +82,7 @@ var LDAP = function(opts) {
                     }
             }
         } else {
-            fn(new Error('LDAP Error', msgid));
+            fn(new Error('LDAP Error ' + binding.err2string(), msgid));
         }
         return msgid;
     }
@@ -164,9 +164,11 @@ var LDAP = function(opts) {
     }
 
     function findandbind(fbopts, fn) {
-        if (!fbopts || !fbopts.filter || !fbopts.scope || !fbopts.base ||!fbopts.password) {
+        if (!fbopts || !fbopts.filter || !fbopts.base ||!fbopts.password) {
             throw new Error('findandbind requires options: filter, scope, base and password');
         }
+        if (!fbopts.scope) fbopts.scope = self.SUBTREE;
+
         search(fbopts, function(err, data) {
             if (data.length != 1) {
                 fn(new Error('Search returned != 1 results'));
@@ -194,7 +196,7 @@ var LDAP = function(opts) {
             msgid = binding.simpleBind(opts.binddn, opts.password);
         }
         stats.binds++;
-        return setCallback(msgid, simpleBind, arguments, fn);
+        return setCallback(msgid, bind, arguments, fn);
     }
 
     function sync(s) {
@@ -249,24 +251,24 @@ var LDAP = function(opts) {
     }
 
     function modify(dn, mods, fn) {
-        if (!dn || typeof mods != 'array') {
+        if (!dn || typeof mods != 'object') {
             throw new Error('modify requires a dn and an array of modifications');
         }
-        return setCallback(binding.modify(dn, mods), arguments, fn);
+        return setCallback(binding.modify(dn, mods), modify, arguments, fn);
     }
 
     function add(dn, attrs, fn) {
-        if (!dn || typeof attrs != 'array') {
+        if (!dn || typeof attrs != 'object') {
             throw new Error('add requires a dn and an array of attributes');
         }
-        return setCallback(binding.add(dn. attrs), arguments, fn);
+        return setCallback(binding.add(dn, attrs), add, arguments, fn);
     }
 
     function rename(dn, newrdn, fn) {
         if (!dn || !newrdn) {
             throw new Error('rename requires a dn and newrdn');
         }
-        return setCallback(binding.rename(dn, newrdn), arguments, fn);
+        return setCallback(binding.rename(dn, newrdn), rename, arguments, fn);
     }
 
     binding.on('searchresult', function(msgid, errcode, data) {
