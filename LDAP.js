@@ -170,12 +170,12 @@ var LDAP = function(opts) {
         if (!fbopts.scope) fbopts.scope = self.SUBTREE;
 
         search(fbopts, function(err, data) {
-            if (data.length != 1) {
-                fn(new Error('Search returned != 1 results'));
-                return;
-            }
             if (err) {
                 fn(err);
+                return;
+            }
+            if (!data || data.length != 1) {
+                fn(new Error('Search returned != 1 results'));
                 return;
             }
             simpleBind({ binddn: data[0].dn, password: fbopts.password }, function(err) {
