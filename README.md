@@ -188,7 +188,8 @@ ldap.modify()
 
     ldap.modify(dn, [ changes ], function(err))
 
-Modifies the provided dn as per the changes array provided.
+Modifies the provided dn as per the changes array provided. Ops are
+one of "add", "delete" or "replace".
 
     var changes = [
         { op: 'add', 
