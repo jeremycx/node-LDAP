@@ -169,6 +169,28 @@ Options are exactly like the search options, with the addition of a
 
 Calls the callback with the record it authenticated against.
 
+Note: since findandbind leaves the connection in an authenticated
+state, you probably don't want to do a findandbind with a general
+purpose instance of this library, as you would be sending one user's
+queries on the authenticated connection of the last user to log
+in. Depending on your configuration, this may not even be an issue,
+but you should be aware.
+
+Did someone say that asyncronous programming wasn't perilous?
+
+There are three obvious solutions to this problem:
+* Use two instances of this library (and thus two TCP connections) -
+  one for authenication binds, and the other for general purpose use
+  (which may be pre-bound as admin or some other suitably priveleged
+  user). You are then completely in charge of authorization (can this
+  user edit that user?).
+* Create a new instance for each authenticated user, and reconnect
+  that user to their own instance with each page load. The advantage of
+  this strategy is you can then rely on LDAP's authorization systems
+  (slapd then decides what each user can and can't do).
+* Create, bind, and close a connection for each user's initial visit, and
+  use cookies and session trickery for subsequent visits.
+
 ldap.add()
 ----------
 
