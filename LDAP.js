@@ -32,6 +32,10 @@ var LDAP = function(opts) {
         searches: 0,
         binds: 0,
         errors: 0,
+        closes: 0,
+        modifies: 0,
+        adds: 0,
+        renames: 0,
         disconnects: 0,
         replays: 0,
         opens: 0,
@@ -150,6 +154,7 @@ var LDAP = function(opts) {
     }
 
     function close() {
+        stats.closes++;
         binding.close();
     }
 
@@ -255,6 +260,7 @@ var LDAP = function(opts) {
         if (!dn || typeof mods != 'object') {
             throw new Error('modify requires a dn and an array of modifications');
         }
+        stats.modifies++;
         return setCallback(binding.modify(dn, mods), modify, arguments, fn);
     }
 
@@ -262,6 +268,7 @@ var LDAP = function(opts) {
         if (!dn || typeof attrs != 'object') {
             throw new Error('add requires a dn and an array of attributes');
         }
+        stats.adds++;
         return setCallback(binding.add(dn, attrs), add, arguments, fn);
     }
 
@@ -269,6 +276,7 @@ var LDAP = function(opts) {
         if (!dn || !newrdn) {
             throw new Error('rename requires a dn and newrdn');
         }
+        stats.renames++;
         return setCallback(binding.rename(dn, newrdn), rename, arguments, fn);
     }
 
