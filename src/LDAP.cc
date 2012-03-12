@@ -656,7 +656,7 @@ public:
               !strcmp(attrname, "thumbnailLogo") ||
               !strcmp(attrname, "supportedAlgorithms") ||
               !strcmp(attrname, "protocolInformation") ||
-              !strstr(attrname, ";binary")) {
+              strstr(attrname, ";binary")) {
             js_attr_vals->Set(Integer::New(i), c->makeBuffer(vals[i]));
           } else {
             js_attr_vals->Set(Integer::New(i), String::New(vals[i]->bv_val));
