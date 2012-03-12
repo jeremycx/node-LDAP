@@ -565,6 +565,29 @@ public:
     return scope.Close(actualBuffer);
   }
 
+  static int isBinary(char * attrname) {
+    if (!strcmp(attrname, "jpegPhoto") ||
+        !strcmp(attrname, "photo") ||
+        !strcmp(attrname, "personalSignature") |
+        !strcmp(attrname, "userCertificate") ||
+        !strcmp(attrname, "cACertificate") ||
+        !strcmp(attrname, "authorityRevocationList") ||
+        !strcmp(attrname, "certificateRevocationList") ||
+        !strcmp(attrname, "deltaRevocationList") ||
+        !strcmp(attrname, "crossCertificatePair") ||
+        !strcmp(attrname, "x500UniqueIdentifier") ||
+        !strcmp(attrname, "audio") ||
+        !strcmp(attrname, "javaSerializedObject") ||
+        !strcmp(attrname, "thumbnailPhoto") ||
+        !strcmp(attrname, "thumbnailLogo") ||
+        !strcmp(attrname, "supportedAlgorithms") ||
+        !strcmp(attrname, "protocolInformation") ||
+        strstr(attrname, ";binary")) {
+      return 1;
+    }
+    return 0;
+  }
+
   
   Local<Value> parseReply(LDAPConnection * c, LDAPMessage * msg) 
   {
@@ -639,24 +662,10 @@ public:
         js_attr_vals = Array::New(num_vals);
         js_result->Set(String::New(attrname), js_attr_vals);
 
+        int bin = c->isBinary(attrname);
+
         for (int i = 0 ; i < num_vals && vals[i] ; i++) {
-          if (!strcmp(attrname, "jpegPhoto") ||
-              !strcmp(attrname, "photo") ||
-              !strcmp(attrname, "personalSignature") |
-              !strcmp(attrname, "userCertificate") ||
-              !strcmp(attrname, "cACertificate") ||
-              !strcmp(attrname, "authorityRevocationList") ||
-              !strcmp(attrname, "certificateRevocationList") ||
-              !strcmp(attrname, "deltaRevocationList") ||
-              !strcmp(attrname, "crossCertificatePair") ||
-              !strcmp(attrname, "x500UniqueIdentifier") ||
-              !strcmp(attrname, "audio") ||
-              !strcmp(attrname, "javaSerializedObject") ||
-              !strcmp(attrname, "thumbnailPhoto") ||
-              !strcmp(attrname, "thumbnailLogo") ||
-              !strcmp(attrname, "supportedAlgorithms") ||
-              !strcmp(attrname, "protocolInformation") ||
-              strstr(attrname, ";binary")) {
+          if (bin) {
             js_attr_vals->Set(Integer::New(i), c->makeBuffer(vals[i]));
           } else {
             js_attr_vals->Set(Integer::New(i), String::New(vals[i]->bv_val));
