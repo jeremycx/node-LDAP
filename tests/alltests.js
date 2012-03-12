@@ -4,7 +4,7 @@ var assert = require('assert');
 
 var tests = [
     {
-        name: 'PAGEDSEARCH',
+        name: 'BINARY',
         description: 'Paged Search',
         fn: function() {
             ldap.search({
@@ -71,6 +71,76 @@ var tests = [
                 assert(err, 'Should have failed');
                 next();
             });
+        }
+    },
+    {
+        name: 'MODIFY - DELETE SINGLE',
+        description: 'DELETE single attributes',
+        fn: function() {
+            ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
+                        [
+                            { op: 'delete', 
+                              attr: 'title', 
+                              vals: [ ] 
+                            }
+                        ], function(err, data) {
+                            assert(!err, err);
+                            ldap.search({base: 'cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
+                                         attrs: '*'
+                                        }, function(err, data) {
+                                            assert(!err);
+                                            assert(data[0]);
+                                            assert(!data[0].title);
+                                            next();
+                                        });
+                        });
+        }
+    },
+    {
+        name: 'MODIFY - DELETE',
+        description: 'DELETE attributes',
+        fn: function() {
+            ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
+                        [
+                            { op: 'delete', 
+                              attr: 'telephoneNumber', 
+                              vals: [ ] 
+                            }
+                        ], function(err, data) {
+                            assert(!err, err);
+                            ldap.search({base: 'cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
+                                         attrs: '*'
+                                        }, function(err, data) {
+                                            assert(!err);
+                                            assert(data[0]);
+                                            assert(!data[0].telephoneNumber);
+                                            next();
+                                        });
+                        });
+        }
+    },
+    {
+        name: 'MODIFY - ADD',
+        description: 'Add attributes',
+        fn: function() {
+            ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
+                        [
+                            { op: 'replace', 
+                              attr: 'telephoneNumber', 
+                              vals: [ '18005551212', '19005552222' ] 
+                            }
+                        ], function(err, data) {
+                            ldap.search({base: 'cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
+                                         attrs: 'telephoneNumber'
+                                        }, function(err, data) {
+                                            assert(!err, 'Error in readback');
+                                            assert(data[0], 'No data returned');
+                                            assert(data.length == 1, 'Too many results returned, expected 1, got ' + data.length);
+                                            assert(data[0].telephoneNumber[0] == '18005551212', 'Data readback incorrent');
+                                            assert(data[0].telephoneNumber[1] == '19005552222', 'Data readback incorrect');
+                                            next();
+                                        });
+                        });
         }
     },
     {
