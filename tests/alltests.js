@@ -8,6 +8,21 @@ var tests = [
         description: 'Paged Search',
         fn: function() {
             ldap.search({
+                base: 'cn=Babs,dc=sample,dc=com',
+                attrs: 'jpegPhoto cn sn',
+                scope: ldap.BASE
+            }, function(err, data) {
+                assert(!err, err);
+                assert(Buffer.isBuffer(data[0].jpegPhoto[0]), 'Binery result is not a buffer');
+                next();
+            });
+        }
+    },
+    {
+        name: 'PAGEDSEARCH',
+        description: 'Paged Search',
+        fn: function() {
+            ldap.search({
                 base: 'dc=sample,dc=com',
                 filter: '(objectClass=*)',
                 attrs: 'dn',
