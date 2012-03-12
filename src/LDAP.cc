@@ -3,6 +3,7 @@
 
 #include <v8.h>
 #include <node.h>
+#include <node_buffer.h>
 #include <node_object_wrap.h>
 #include <unistd.h>
 #include <errno.h>
@@ -552,6 +553,18 @@ public:
     }
   }
 
+  static Local<Object> makeBuffer(berval * val) {
+    HandleScope scope;
+
+    node::Buffer *slowBuffer = node::Buffer::New(val->bv_len);
+    memcpy(node::Buffer::Data(slowBuffer), val->bv_val, val->bv_len);
+    v8::Local<v8::Object> globalObj = v8::Context::GetCurrent()->Global();
+    v8::Local<v8::Function> bufferConstructor = v8::Local<v8::Function>::Cast(globalObj->Get(v8::String::New("Buffer")));
+    v8::Handle<v8::Value> constructorArgs[3] = { slowBuffer->handle_, v8::Integer::New(val->bv_len), v8::Integer::New(0) };
+    v8::Local<v8::Object> actualBuffer = bufferConstructor->NewInstance(3, constructorArgs);
+    return scope.Close(actualBuffer);
+  }
+
   
   Local<Value> parseReply(LDAPConnection * c, LDAPMessage * msg) 
   {
@@ -559,7 +572,7 @@ public:
     LDAPMessage * entry = NULL; 
     BerElement * berptr = NULL;
     char * attrname     = NULL;
-    char ** vals;
+    berval ** vals;
     Local<Array>  js_result_list;
     Local<Object> js_result;
     Local<Array>  js_attr_vals;
@@ -621,14 +634,35 @@ public:
       }
       for (attrname = ldap_first_attribute(c->ld, entry, &berptr) ;
            attrname ; attrname = ldap_next_attribute(c->ld, entry, berptr)) {
-        vals = ldap_get_values(c->ld, entry, attrname);
-        int num_vals = ldap_count_values(vals);
+        vals = ldap_get_values_len(c->ld, entry, attrname);
+        int num_vals = ldap_count_values_len(vals);
         js_attr_vals = Array::New(num_vals);
         js_result->Set(String::New(attrname), js_attr_vals);
+
         for (int i = 0 ; i < num_vals && vals[i] ; i++) {
-          js_attr_vals->Set(Integer::New(i), String::New(vals[i]));
+          if (!strcmp(attrname, "jpegPhoto") ||
+              !strcmp(attrname, "photo") ||
+              !strcmp(attrname, "personalSignature") |
+              !strcmp(attrname, "userCertificate") ||
+              !strcmp(attrname, "cACertificate") ||
+              !strcmp(attrname, "authorityRevocationList") ||
+              !strcmp(attrname, "certificateRevocationList") ||
+              !strcmp(attrname, "deltaRevocationList") ||
+              !strcmp(attrname, "crossCertificatePair") ||
+              !strcmp(attrname, "x500UniqueIdentifier") ||
+              !strcmp(attrname, "audio") ||
+              !strcmp(attrname, "javaSerializedObject") ||
+              !strcmp(attrname, "thumbnailPhoto") ||
+              !strcmp(attrname, "thumbnailLogo") ||
+              !strcmp(attrname, "supportedAlgorithms") ||
+              !strcmp(attrname, "protocolInformation") ||
+              !strstr(attrname, ";binary")) {
+            js_attr_vals->Set(Integer::New(i), c->makeBuffer(vals[i]));
+          } else {
+            js_attr_vals->Set(Integer::New(i), String::New(vals[i]->bv_val));
+          }
         } // all values for this attr added.
-        ldap_value_free(vals);
+        ldap_value_free_len(vals);
         ldap_memfree(attrname);
       } // attrs for this entry added. Next entry.
       js_result->Set(String::New("dn"), String::New(dn));
