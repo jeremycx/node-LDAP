@@ -202,7 +202,7 @@ ldap.add()
 dn is the full DN of the record you want to add, attrs to be provided
 as follows:
 
-   var attrs = [
+    var attrs = [
         { attr: 'objectClass',  vals: [ 'organizationalPerson', 'person', 'top' ] },
         { attr: 'sn',           vals: [ 'Smith' ] },
         { attr: 'badattr',      vals: [ 'Fried' ] }
@@ -234,12 +234,12 @@ Example:
 
     ldap.rename('cn=name,dc=example,dc=com', 'cn=newname')
 
-SCHEMA
+Schema
 ======
 
 The schema module is largely independent of the LDAP module itself,
 and contains a JSON transcription of all the default openLDAP
-schema files. This is a work in progress, and dditional schema data 
+schema files. This is a work in progress, and additional schema data 
 is most welcomed via pull requests.
 
 To instantiate:
@@ -251,11 +251,11 @@ To instantiate:
         init_obj: function(obj)
     })
 
-Where customschema is an array of custom schema files you may want to
+Where customschema is an array of custom JSON schema files you may want to
 load, init_attr is called as each attribute is added so you can
 augment the attributes as they are loaded (add friendly labels, for
 instance). Similarly, init_obj is called as each objectClass is loaded
-so you can add your own properties.
+so you can add your own properties to objectClasses.
 
 Once the schema files are loaded, you can get an objectClass like
 this:
