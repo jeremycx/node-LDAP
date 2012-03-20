@@ -74,6 +74,8 @@ module.exports = function(opt) {
         customschema = [ opt.customschema ];
     } else if (typeof opt.customschema == 'object') {
         customschema = opt.customschema;
+    } else {
+        customschema = [];
     }
 
     customschema.forEach(function(file) {
