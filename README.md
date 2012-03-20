@@ -234,6 +234,43 @@ Example:
 
     ldap.rename('cn=name,dc=example,dc=com', 'cn=newname')
 
+SCHEMA
+======
+
+The schema module is largely independent of the LDAP module itself,
+and contains a JSON transcription of all the default openLDAP
+schema files. This is a work in progress, and dditional schema data 
+is most welcomed via pull requests.
+
+To instantiate:
+
+    var Schema = require('schema');
+    var schema = new Schema({
+        customschema: [ 'file1', 'file2' ],
+        init_attr: function(attr),
+        init_obj: function(obj)
+    })
+
+Where customschema is an array of custom schema files you may want to
+load, init_attr is called as each attribute is added so you can
+augment the attributes as they are loaded (add friendly labels, for
+instance). Similarly, init_obj is called as each objectClass is loaded
+so you can add your own properties.
+
+Once the schema files are loaded, you can get an objectClass like
+this:
+
+    schema.getObjectClass('person')
+
+Get a specific attribute:
+
+    schema.getAttribute('cn');
+
+Given a LDAP search, result, get all the possible attributes associated with it:
+
+    schema.getAttributesForRec(searchres);
+
+
 SYNCREPL API
 ============
 
