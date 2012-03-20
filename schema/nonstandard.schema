@@ -1,6 +1,22 @@
 [
 {
   "type":"ATTRIBUTE",
+  "oid":"2.5.4.3",
+  "single":"no",
+  "syntax":"1.3.6.1.4.1.1466.115.121.1.15",
+  "description":"RFC2256: common name(s) for which the entity is known by",
+  "name": [ "cn", "commonName" ]
+},
+{
+  "type":"ATTRIBUTE",
+  "oid":"2.5.4.34",
+  "single":"no",
+  "syntax":"1.3.6.1.4.1.1466.115.121.1.15",
+  "description":"RFC2256: DN of related object",
+  "name": [ "seeAlso" ]
+},
+{
+  "type":"ATTRIBUTE",
   "oid":"1.3.6.1.4.1.250.1.57",
   "single":"no",
   "syntax":"1.3.6.1.4.1.1466.115.121.1.15",
@@ -15,7 +31,7 @@
   "syntax":"1.3.6.1.4.1.1466.115.121.1.15{256}",
   "description":"RFC1274: user identifier",
   "equality": [ "caseIgnoreMatch" ],
-  "name": [ "uid" ]
+  "name": [ "uid", "userid" ]
 },
 {
   "type":"ATTRIBUTE",
