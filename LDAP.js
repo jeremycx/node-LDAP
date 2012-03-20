@@ -45,7 +45,7 @@ var LDAP = function(opts) {
     };
         
 
-    if (!opts.uri) {
+    if (!opts || !opts.uri) {
         throw new LDAPError('You must provide a URI');
     }
 
@@ -333,3 +333,4 @@ var LDAP = function(opts) {
 util.inherits(LDAP, events.EventEmitter);
 
 module.exports = LDAP;
+module.exports.Schema = require('./schema');
