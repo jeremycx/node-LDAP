@@ -132,17 +132,6 @@ module.exports = function(opt) {
         return res;
     }
 
-    function mergeHelper(helper) {
-        for (var i in helper.attrs) {
-            var attr = getAttribute(i);
-            if (attr) {
-                for (var j in helper.attrs[i]) {
-                    attr[j] = helper.attrs[i][j];
-                }
-            }
-        }
-    }
-
     function getObjectClass(name) {
         if (schema.objectclasses[name]) {
             return schema.objectclasses[name];
