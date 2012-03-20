@@ -249,7 +249,7 @@ var LDAP = function(opts) {
         }
 
         return setCallback(binding.search(s_opts.base, 
-                                          s_opts.scope?s_opts.scope:self.SUBTREE, 
+                                          (typeof s_opts.scope == 'number')?s_opts.scope:self.SUBTREE, 
                                           s_opts.filter?s_opts.filter:'(objectClass=*)',
                                           s_opts.attrs?s_opts.attrs:'*', s_opts.pagesize, 
                                           s_opts.cookie),
