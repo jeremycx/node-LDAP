@@ -1,8 +1,50 @@
 var LDAP = require('../LDAP');
-var ldap = new LDAP({ uri: 'ldap://localhost:1234', version: 3 });
+var ldap;
 var assert = require('assert');
+var Schema = require('../schema');
+var schema = new Schema({
+    customschema: './custom.schema',
+    init_attr: function(attr) {
+        // just a demo.. add the .sv property to single-
+        // valued attributes.
+        if (attr.single = 'yes') {
+            attr.sv = 1;
+        }
+        attr.friendly = 'A friendly name';
+    },
+    init_obj: function(obj) {
+        if (obj.name[0] == 'person') {
+            obj.newprop = 'A very special property';
+        }
+    }
+});
 
 var tests = [
+    {
+        name: 'SCHEMA',
+        description: 'Schema Load',
+        fn: function() {
+            assert(schema, 'Schema not loaded');
+            assert(schema.getObjectClass('person'), 'Objectclass "person" not present');
+            assert(schema.getObjectClass('person').name[0] == 'person', 'Objectclass name not quite right');
+            assert(typeof schema.getObjectClass('person').must.cn == 'object', 'Objectclass "must" property not quite right');
+            assert(schema.getAttribute('title').friendly == 'A friendly name', 'Helpers not working: ' + 
+                  schema.getAttribute('title').friendly );
+            assert(schema.getObjectClass('person').newprop, 'Could not attach custom property to OC');
+            assert(typeof schema.getObjectClass('customObj').must.aGreatNewAttribute == 'object', 'Custom schema load failed');
+            // custom schema gets the init_attr callback, too!
+            assert(schema.getObjectClass('customObj').must.aGreatNewAttribute.sv == 1, 'Custom schema load callback failed');
+
+            ldap.search({
+                base: 'cn=Babs,dc=sample,dc=com',
+                attrs: '*',
+                scope: ldap.BASE
+            }, function(err, data) {
+                assert(schema.getAttributesForRec(data[0]), 'Error getting attribute details for record');
+                next();
+            });
+        }
+    },
     {
         name: 'BINARY',
         description: 'Paged Search',
@@ -13,7 +55,7 @@ var tests = [
                 scope: ldap.BASE
             }, function(err, data) {
                 assert(!err, err);
-                assert(Buffer.isBuffer(data[0].jpegPhoto[0]), 'Binery result is not a buffer');
+                assert(Buffer.isBuffer(data[0].jpegPhoto[0]), 'Binary result is not a buffer');
                 next();
             });
         }
@@ -401,7 +443,6 @@ var tests = [
     },
     {
         name: 'BIND (FAIL)',
-        success: false,
         fn: function() {
             ldap.simpleBind({
                 binddn: 'cn=Manager,dc=sample,dc=com', 
@@ -414,12 +455,34 @@ var tests = [
     },
     {
         name: 'OPEN',
-        success: true,
         fn: function() {
             ldap.open(function(err) {
                 assert(!err);
                 next();
             });
+        }
+    },
+    {
+        name: 'INST',
+        fn: function() {
+            try {
+                ldap = new LDAP({ uri: 'ldap://localhost:1234', version: 3 });
+            } catch (e) {
+                assert(false, 'Error in instantiation');
+            }
+            next();
+        }
+    },
+    {
+        name: 'INST - FAIL',
+        fn: function() {
+            try {
+                ldap = new LDAP();
+            } catch (e) {
+                next(); // should fail
+                return;
+            }
+            assert(false, 'Instantiate hould have failed');
         }
     }
 ]
