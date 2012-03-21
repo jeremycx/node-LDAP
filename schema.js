@@ -1,117 +1,117 @@
-var fs = require('fs');
+var attributes = {};
+var objectclasses = {};
 
-var schema_raw = [];
+var re_main = /(?:[^\(]*\( *)(.+)(?: \))/;
+var re_tokenize = /[\w\.-:]+|'(?:\\'|[^'])+'/g;
+var re_quotedstring = /(?:')([^'\\]*(?:\\.[^'\\]*)*)/;
+var is_oid = /[0-9\.]+/;
+var is_keyword = /(NAME|DESC|X-ORDERED|EQUALITY|OBSOLETE|SUP|ABSTRACT|STRUCTURAL|AUXILIARY|MUST|MAY|SINGLE-VALUE|NO-USER-MODIFICATION|SYNTAX|ORDERING|SUBSTR|COLLECTIVE)/;
 
-schema_raw = schema_raw.concat(JSON.parse(fs.readFileSync(__dirname + '/schema/default.schema')));
-schema_raw = schema_raw.concat(JSON.parse(fs.readFileSync(__dirname + '/schema/nonstandard.schema')));
+function parse(result, entry) {
+    var x;
+    var keyword;
 
-var ObjectClass = function(obj, lookup_fn) {
+    try {
+        var items = entry.match(re_main)[1].match(re_tokenize);
+        items.forEach(function(item) {
+            if ((x = item.match(is_keyword)) && x[0]) {
+                keyword = x[0].toLowerCase().replace(/-/, '');
+                result[keyword] = true;
+            } else if ((x = item.match(is_oid)) && !keyword) {
+                result.oid = item;
+            } else {
+                // we're a value.. let's clean it up.
+                if (item[0] == '\'') {
+                    item = item.match(re_quotedstring)[1];
+                } else if (item[0] == '(') {
+                    item = item.split(/ /);
+                }
+
+                switch(typeof result[keyword]) {
+                case 'boolean':
+                    result[keyword] = item;
+                    break;
+                case 'string':
+                    result[keyword] = [ result[keyword] ];
+                    // nobreak - fall through
+                case 'object':
+                    result[keyword].push(item);
+                    break;
+                case 'undefined':
+                    break;
+                default:
+                    result[keyword] = item;
+                    break;
+                }
+            }
+        });
+        
+    } catch (e) {
+        console.log(e);
+    }
+    if (result.name && typeof result.name != 'object') {
+        result.name = [ result.name ];
+    }
+    if (result.may && typeof result.may != 'object') {
+        result.may = [ result.may ];
+    }
+    if (result.must && typeof result.must != 'object') {
+        result.must = [ result.must ];
+    }
+
+    return;
+}
+
+function ObjectClass(str) {
     var must = {};
     var may = {};
-    var all = {};
-    var attr;
 
-    for (var i in obj) {
-        if (obj.hasOwnProperty(i)) {
-            this[i] = obj[i];
+    parse(this, str);
+    
+    for (var i in this.must) {
+        var attrname = this.must[i];
+        if (attributes[attrname]) {
+            must[attrname] = attributes[attrname];
         }
     }
-
-    if (obj.must) {
-        obj.must.forEach(function(attrname) {
-            attr = lookup_fn(attrname);
-            must[attrname] = attr;
-            all[attrname] = attr;
-        });
-    }
-    if (obj.may) {
-           obj.may.forEach(function(attrname) {
-            attr = lookup_fn(attrname);
-            may[attrname] = attr;
-            all[attrname] = attr;
-           });
-    }
-
-
-    // adds attributes that aren't already in the accum
-    function mergeAttributes(accum) {
-        for (var i in this.all) {
-            accum[i] = this.all[i];
+    for (var i in this.may) {
+        var attrname = this.may[i];
+        if (attributes[attrname]) {
+            may[attrname] = attributes[attrname];
         }
     }
-
-    this.all = all;
+    
+    this.muststr = this.must; // used for looping - so we know what name this oc uses for a given attr
+    this.maystr = this.may;
     this.must = must;
     this.may = may;
-    this.mergeAttributes = mergeAttributes;
+
+    return this;
 }
 
-var Attribute = function(obj) {
-    for (var i in obj) {
-        if (obj.hasOwnProperty(i)) {
-            this[i] = obj[i];
-        }
-    }
+function Attribute(str) {
+    parse(this, str);
+    return this;
 }
 
-module.exports = function(opt) {
-    var schema;
-    var customschema = undefined;
-
+module.exports = function(ldap, opt) {
     // dummy for init_attr;
     var init_attr = function() {
         return;
     }
 
-    // dummy for init_ibj
+    // dummy for init_obj
+    // which is cheaper: calling a dummy func, or  "if (func) func();" ?
     var init_obj = function() {
         return;
     }
-    
-    if (!opt) opt = {};
 
-    if (typeof opt.customschema == 'string') {
-        customschema = [ opt.customschema ];
-    } else if (typeof opt.customschema == 'object') {
-        customschema = opt.customschema;
-    } else {
-        customschema = [];
+    function getAllAttributes() {
+        return attributes;
     }
 
-    customschema.forEach(function(file) {
-        schema_raw = schema_raw.concat(JSON.parse(fs.readFileSync(file)));
-    });
-
-    if (typeof opt.init_attr == 'function') {
-        init_attr = opt.init_attr;
-    }
-    if (typeof opt.init_obj == 'function') {
-        init_obj = opt.init_obj;
-    }
-
-    initSchema();
-
-    function initSchema() {
-        schema = {
-            objectclasses: {},
-            attributes: {}
-        }
-        schema_raw.forEach(function(item) {
-            if (item.type == 'ATTRIBUTE') {
-                item.name.forEach(function(name) {
-                    schema.attributes[name] = new Attribute(item);
-                    init_attr(schema.attributes[name]);
-                });
-            }
-        });
-        // attrs loaded. Second pass for ObjClass
-        schema_raw.forEach(function(item) {
-            var tmp;
-            if (item.type == 'OBJECTCLASS') {
-                schema.objectclasses[item.name] = new ObjectClass(item, getAttribute);
-                init_obj(schema.objectclasses[item.name]);
-            }
-        });
+    function getAllObjectClasses() {
+        return objectclasses;
     }
 
     function getAttributesForRec(data) {
@@ -134,40 +134,78 @@ module.exports = function(opt) {
         return res;
     }
 
-    function getObjectClass(name) {
-        if (schema.objectclasses[name]) {
-            return schema.objectclasses[name];
-        }
-        return undefined;
-    }
-
-    function getAttribute(name) {
-        if (schema.attributes[name]) {
-            return schema.attributes[name];
-        }
-        return undefined;
-    }
-
     function getUniqueAttributes(rec) {
         var res = {};
 
         if (!rec) return undefined;
         
         for (var i in rec.objectClass) {
-            var oc = getObjectClass(rec.objectClass[i]);
-            if (oc) oc.mergeAttributes(res);
+            var oc = objectclasses[rec.objectClass[i]];
+            if (oc.muststr) {
+                oc.muststr.forEach(function(attr) {
+                    res[attr] = attributes[attr];
+                });
+            }
+            if (oc.maystr) {
+                oc.maystr.forEach(function(attr) {
+                    res[attr] = attributes[attr];
+                });
+            }
         }
         return res;
     }
 
-    function getAllAttributes() {
-        return schema.attributes;
+    function getObjectClass(name) {
+        return objectclasses[name];
     }
 
-    function getAllObjectClasses() {
-        return schema.objectclasses;
+    function getAttribute(name) {
+        return attributes[name];
     }
 
+    if (!opt) opt = {};
+
+    if (typeof opt.init_attr == 'function') {
+        init_attr = opt.init_attr;
+    }
+    if (typeof opt.init_obj == 'function') {
+        init_obj = opt.init_obj;
+    }
+
+    ldap.search({
+        base: 'cn=subSchema',
+        filter: '(objectClass=subschema)',
+        attrs: 'attributeTypes objectClasses',
+        scope: ldap.BASE
+    }, function(err, data) {
+        if (err) {
+            throw err;
+        }
+        data.forEach(function(schemaentry) {
+            schemaentry.attributeTypes.forEach(function (attr) {
+                var a = new Attribute(attr);
+                a.name.forEach(function(n) {
+                    attributes[n] = a;
+                });
+                init_attr(a);
+            });
+        });
+
+        // now all the attributes have been collected.
+        data.forEach(function(schemaentry) {
+           schemaentry.objectClasses.forEach(function (oc) {
+                var a = new ObjectClass(oc);
+                a.name.forEach(function(n) {
+                    objectclasses[n] = a;
+                });
+               init_obj(a);
+            });
+        });
+        // call the callback
+        if (typeof opt.ready == 'function') {
+            opt.ready();
+        };
+    });
 
     this.getObjectClass = getObjectClass;
     this.getAttribute = getAttribute;
