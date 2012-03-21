@@ -10,7 +10,7 @@ try {
 //have the LDAPConnection class inherit properties like 'emit' from the EventEmitter class
 LDAPConnection.prototype.__proto__ = events.EventEmitter.prototype;
 
-function LDAPError(message, msgid) {  
+function LDAPError(message, msgid) {
     this.name = 'LDAPError';  
     this.message = message || 'Default Message';  
     this.msgid = msgid;
