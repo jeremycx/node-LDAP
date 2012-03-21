@@ -238,6 +238,7 @@ Schema
 ======
 
 To instantiate:
+
     var LDAP = require('LDAP');
     var schema = new LDAP.Schema({
         init_attr: function(attr),
