@@ -237,28 +237,22 @@ Example:
 Schema
 ======
 
-The schema module is largely independent of the LDAP module itself,
-and contains a JSON transcription of all the default openLDAP
-schema files. This is a work in progress, and additional schema data 
-is most welcomed via pull requests.
-
 To instantiate:
-
-    var Schema = require('schema');
-    var schema = new Schema({
-        customschema: [ 'file1', 'file2' ],
+    var LDAP = require('LDAP');
+    var schema = new LDAP.Schema({
         init_attr: function(attr),
-        init_obj: function(obj)
+        init_obj: function(obj),
+        ready: function()
     })
 
-Where customschema is an array of custom JSON schema files you may want to
-load, init_attr is called as each attribute is added so you can
+init_attr is called as each attribute is added so you can
 augment the attributes as they are loaded (add friendly labels, for
 instance). Similarly, init_obj is called as each objectClass is loaded
 so you can add your own properties to objectClasses.
 
-Once the schema files are loaded, you can get an objectClass like
-this:
+ready is called when the schema has been completely loaded from the server.
+
+Once the schema are loaded, you can get an objectClass like this:
 
     schema.getObjectClass('person')
 
