@@ -1,23 +1,7 @@
 var LDAP = require('../LDAP');
 var ldap;
 var assert = require('assert');
-var Schema = require('../schema');
-var schema = new Schema({
-    customschema: './custom.schema',
-    init_attr: function(attr) {
-        // just a demo.. add the .sv property to single-
-        // valued attributes.
-        if (attr.single = 'yes') {
-            attr.sv = 1;
-        }
-        attr.friendly = 'A friendly name';
-    },
-    init_obj: function(obj) {
-        if (obj.name[0] == 'person') {
-            obj.newprop = 'A very special property';
-        }
-    }
-});
+var schema;
 
 var tests = [
     {
@@ -31,10 +15,6 @@ var tests = [
             assert(schema.getAttribute('title').friendly == 'A friendly name', 'Helpers not working: ' + 
                   schema.getAttribute('title').friendly );
             assert(schema.getObjectClass('person').newprop, 'Could not attach custom property to OC');
-            assert(typeof schema.getObjectClass('customObj').must.aGreatNewAttribute == 'object', 'Custom schema load failed');
-            // custom schema gets the init_attr callback, too!
-            assert(schema.getObjectClass('customObj').must.aGreatNewAttribute.sv == 1, 'Custom schema load callback failed');
-
             ldap.search({
                 base: 'cn=Babs,dc=sample,dc=com',
                 attrs: '*',
@@ -458,7 +438,24 @@ var tests = [
         fn: function() {
             ldap.open(function(err) {
                 assert(!err);
-                next();
+                schema = new LDAP.Schema(ldap, {
+                    init_attr: function(attr) {
+                        // just a demo.. add the .sv property to single-
+                        // valued attributes.
+                        if (attr.single = 'yes') {
+                            attr.sv = 1;
+                        }
+                        attr.friendly = 'A friendly name';
+                    },
+                    init_obj: function(obj) {
+                        if (obj.name[0] == 'person') {
+                            obj.newprop = 'A very special property';
+                        }
+                    },
+                    ready: function() {
+                        next();
+                    }
+                });
             });
         }
     },
