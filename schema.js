@@ -2,23 +2,23 @@ var attributes = {};
 var objectclasses = {};
 
 var re_main = /(?:[^\(]*\( *)(.+)(?: \))/;
-var re_tokenize = /[\w\.-:]+|'(?:\\'|[^'])+'/g;
+var re_tokenize = /[\w\.\-:\{\}]+|'(?:\\'|[^'])+'/g;
 var re_quotedstring = /(?:')([^'\\]*(?:\\.[^'\\]*)*)/;
 var is_oid = /[0-9\.]+/;
-var is_keyword = /(NAME|DESC|X-ORDERED|EQUALITY|OBSOLETE|SUP|ABSTRACT|STRUCTURAL|AUXILIARY|MUST|MAY|SINGLE-VALUE|NO-USER-MODIFICATION|SYNTAX|ORDERING|SUBSTR|COLLECTIVE)/;
+var is_keyword = /(NAME|DESC|X\-ORDERED|USAGE|EQUALITY|OBSOLETE|SUP|ABSTRACT|STRUCTURAL|AUXILIARY|MUST|MAY|SINGLE\-VALUE|NO\-USER\-MODIFICATION|SYNTAX|ORDERING|SUBSTR|COLLECTIVE|X\-ORDERED\-VALUES)/;
 
-function parse(result, entry) {
+function parseSchema(entry) {
+    var self = this;
     var x;
     var keyword;
-
     try {
         var items = entry.match(re_main)[1].match(re_tokenize);
         items.forEach(function(item) {
             if ((x = item.match(is_keyword)) && x[0]) {
                 keyword = x[0].toLowerCase().replace(/-/, '');
-                result[keyword] = true;
+                self[keyword] = true;
             } else if ((x = item.match(is_oid)) && !keyword) {
-                result.oid = item;
+                self.oid = item;
             } else {
                 // we're a value.. let's clean it up.
                 if (item[0] == '\'') {
@@ -27,20 +27,20 @@ function parse(result, entry) {
                     item = item.split(/ /);
                 }
 
-                switch(typeof result[keyword]) {
+                switch(typeof self[keyword]) {
                 case 'boolean':
-                    result[keyword] = item;
+                    self[keyword] = item;
                     break;
                 case 'string':
-                    result[keyword] = [ result[keyword] ];
+                    self[keyword] = [ self[keyword] ];
                     // nobreak - fall through
                 case 'object':
-                    result[keyword].push(item);
+                    self[keyword].push(item);
                     break;
                 case 'undefined':
                     break;
                 default:
-                    result[keyword] = item;
+                    self[keyword] = item;
                     break;
                 }
             }
@@ -49,50 +49,56 @@ function parse(result, entry) {
     } catch (e) {
         console.log(e);
     }
-    if (result.name && typeof result.name != 'object') {
-        result.name = [ result.name ];
-    }
-    if (result.may && typeof result.may != 'object') {
-        result.may = [ result.may ];
-    }
-    if (result.must && typeof result.must != 'object') {
-        result.must = [ result.must ];
-    }
 
     return;
 }
 
 function ObjectClass(str) {
-    var must = {};
-    var may = {};
+    this.attributes = {};
+    this.parse(str);
 
-    parse(this, str);
-    
+    if (!this.must) {
+        this.must = [];
+    } else if (typeof this.must != 'object') {
+        this.must = [ this.must ];
+    }
+    if (!this.may) {
+        this.may = [];
+    } else if (typeof this.may != 'object') {
+        this.may = [ this.may ];
+    }
+    if (!this.name) {
+        this.name = [];
+    } else if (typeof this.name != 'object') {
+        this.name = [ this.name ];
+    }
+
     for (var i in this.must) {
         var attrname = this.must[i];
         if (attributes[attrname]) {
-            must[attrname] = attributes[attrname];
+            this.attributes[attrname] = attributes[attrname];
         }
     }
     for (var i in this.may) {
         var attrname = this.may[i];
         if (attributes[attrname]) {
-            may[attrname] = attributes[attrname];
+            this.attributes[attrname] = attributes[attrname];
         }
     }
-    
-    this.muststr = this.must; // used for looping - so we know what name this oc uses for a given attr
-    this.maystr = this.may;
-    this.must = must;
-    this.may = may;
-
     return this;
 }
+ObjectClass.prototype.parse = parseSchema;
 
 function Attribute(str) {
-    parse(this, str);
+    this.parse(str);
+    if (!this.name) {
+        this.name = [];
+    } else if (typeof this.name != 'object') {
+        this.name = [ this.name ];
+    }
     return this;
 }
+Attribute.prototype.parse = parseSchema;
 
 module.exports = function(ldap, opt) {
     // dummy for init_attr;
