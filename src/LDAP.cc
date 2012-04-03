@@ -856,7 +856,7 @@ public:
     int refreshDone;
 
     for ( ; ; )
-      switch(ldap_result(c->ld, c->sync_id, LDAP_MSG_RECEIVED, &ldap_tv, &res)) {
+      switch(ldap_result(c->ld, c->sync_id, 0, &ldap_tv, &res)) {
       case 0:
         goto done;
         break;
