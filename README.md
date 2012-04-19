@@ -43,6 +43,9 @@ To install the 1.0.0 release from npm:
 
     npm install node-LDAP
 
+If this fails, please ensure you have uuid.h available (on Ubuntu,
+install the uuid-dev package).
+
 
 API
 ===
