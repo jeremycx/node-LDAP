@@ -319,7 +319,8 @@ var LDAP = function(opts) {
 
     // public functions
     this.open = open;
-    this.simpleBind = simpleBind;
+    this.simpleBind = simpleBind; //left for back compat.
+    this.simplebind = simpleBind;
     this.search = search;
     this.findandbind = findandbind;
     this.getStats = getStats;
