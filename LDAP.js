@@ -7,9 +7,6 @@ try {
     LDAPConnection = require('./build/Release/LDAP').LDAPConnection;
 }
 
-//have the LDAPConnection class inherit properties like 'emit' from the EventEmitter class
-LDAPConnection.prototype.__proto__ = events.EventEmitter.prototype;
-
 function LDAPError(message, msgid) {
     this.name = 'LDAPError';  
     this.message = message || 'Default Message';  
@@ -43,7 +40,6 @@ var LDAP = function(opts) {
         results: 0,
         searchresults: 0
     };
-        
 
     if (!opts || !opts.uri) {
         throw new LDAPError('You must provide a URI');
@@ -205,18 +201,9 @@ var LDAP = function(opts) {
     }
 
     function sync(s) {
-        if (typeof s.syncentry == 'function') {
-            binding.on('syncentry', s.syncentry);
-        }
-        if (typeof s.syncrefresh == 'function') {
-            binding.on('syncrefresh', s.syncrefresh);
-        }
-        if (typeof s.syncrefreshdone == 'function') {
-            binding.on('syncrefreshdone', s.syncrefreshdone);
-        }
-        if (typeof s.newcookie == 'function') {
-            self.on('newcookie', s.newcookie);
-        }
+        //if  { s.newcookie
+        //self.on('newcookie', s.newcookie);
+        //}
 
         if (!s) {
             throw new Error('Options Required');
@@ -228,6 +215,15 @@ var LDAP = function(opts) {
 
         if (!s.rid) {
             throw new Error('3-digit RID Required. Make one up.');
+        }
+
+        binding.setsynccallbacks(
+            (typeof s.syncentry == 'function'?s.syncentry:function(){}),
+            (typeof s.syncrefresh == 'function'?s.syncrefresh:function(){}),
+            (typeof s.syncrefreshdone == 'function'?s.syncrefreshdone:function(){}));
+
+        if (s.newcookie) {
+            self.on('newcookie', s.newcookie);
         }
 
         binding.sync(s.base, 
@@ -280,37 +276,35 @@ var LDAP = function(opts) {
         return setCallback(binding.rename(dn, newrdn), rename, arguments, fn);
     }
 
-    binding.on('searchresult', function(msgid, errcode, data, cookie) {
-        stats.searchresults++;
-        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data, cookie);
-    });
-
-    binding.on('result', function(msgid, errcode, data) {
-        stats.results++;
-        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data);
-    });
-
-    binding.on('newcookie', function(newcookie) {
-        // this way a reconnect always starts from the last known cookie.
-        if (newcookie && (newcookie != cookie)) {
-            cookie = newcookie;
-            if (syncopts) syncopts.cookie = newcookie;
-            self.emit('newcookie', cookie);
-        }
-    });
-
-    binding.on('error', function(err) {
-        stats.errors++;
-        process.exit();
-    });
-
-    binding.on('disconnected', function(err) {
+    binding.setcallbacks(function() {
+        // connected callback
+    }, function(err) {
+        // disconnected callback
         stats.disconnects++;
         if (!reconnecting) {
             stats.reconnects++;
             reconnect();
         } else {
             stats.ignored_reconnnects++;
+        }        
+    },function(msgid, errcode, data, cookie) {
+        //searchresult callback
+        stats.searchresults++;
+        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data, cookie);
+    }, function(msgid, errcode, data) {
+        //result callback
+        stats.results++;
+        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data);
+    }, function() {
+        //error callback
+        stats.errors++;
+        process.exit();
+    }, function(newcookie) {
+        //newcookie callback
+        if (newcookie && (newcookie != cookie)) {
+            cookie = newcookie;
+            if (syncopts) syncopts.cookie = newcookie;
+            self.emit('newcookie', cookie);
         }
     });
 

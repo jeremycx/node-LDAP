@@ -37,19 +37,6 @@
 using namespace node;
 using namespace v8;
 
-static Persistent<String> symbol_connected; 
-static Persistent<String> symbol_disconnected; 
-static Persistent<String> symbol_search;
-static Persistent<String> symbol_search_paged;
-static Persistent<String> symbol_error;
-static Persistent<String> symbol_result;
-static Persistent<String> symbol_syncentry;
-static Persistent<String> symbol_syncrefresh;
-static Persistent<String> symbol_syncrefreshdone;
-static Persistent<String> symbol_syncnewcookie;
-static Persistent<String> symbol_unknown;
-static Persistent<String> emit_symbol;
-
 static Persistent<ObjectTemplate> cookie_template;
 
 static Persistent<Function> ldapConstructor;
@@ -115,11 +102,71 @@ typedef enum {
     }                                                           \
   }
 
-#define EMITDISCONNECT(c) {                     \
-    Handle<Value> args[1];                      \
-    args[0] = symbol_disconnected;              \
-    EMIT(c, 1, args);                           \
-  }
+#define EMITDISCONNECT(c) {                                             \
+    Local<Value> argv[1] = {                                            \
+      Local<Value>::New(Null())                                         \
+    };                                                                  \
+    c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); \
+  }                                                                     \
+
+#define EMITSEARCHRESULT(c, argv) {                                     \
+  TryCatch tc;                                                          \
+  c->searchresult_cb->Call(Context::GetCurrent()->Global(), 4, argv);   \
+    if (tc.HasCaught()) {                                               \
+      FatalException(tc);                                               \
+    }                                                                   \
+  }                                                                     \
+
+#define EMITRESULT(c, argv) {                                           \
+  TryCatch tc;                                                          \
+  c->result_cb->Call(Context::GetCurrent()->Global(), 3, argv);         \
+    if (tc.HasCaught()) {                                               \
+      FatalException(tc);                                               \
+    }                                                                   \
+  }                                                                     \
+
+#define EMITERROR(c, argv) {                                            \
+  TryCatch tc;                                                          \
+  c->error_cb->Call(Context::GetCurrent()->Global(), 1, argv);          \
+    if (tc.HasCaught()) {                                               \
+      FatalException(tc);                                               \
+    }                                                                   \
+  }                                                                     \
+
+#define EMITNEWCOOKIE(c, argv) {                                        \
+  TryCatch tc;                                                          \
+  c->newcookie_cb->Call(Context::GetCurrent()->Global(), 1, argv);      \
+    if (tc.HasCaught()) {                                               \
+      FatalException(tc);                                               \
+    }                                                                   \
+  }                                                                     \
+
+#define EMITSYNCENTRY(c, argv) {                                        \
+  TryCatch tc;                                                          \
+  c->syncentry_cb->Call(Context::GetCurrent()->Global(), 1, argv);      \
+    if (tc.HasCaught()) {                                               \
+      FatalException(tc);                                               \
+    }                                                                   \
+  }                                                                     \
+
+#define EMITSYNCREFRESHDONE(c, argv) {                                   \
+  TryCatch tc;                                                           \
+  c->syncrefreshdone_cb->Call(Context::GetCurrent()->Global(), 1, argv); \
+    if (tc.HasCaught()) {                                                \
+      FatalException(tc);                                                \
+    }                                                                    \
+  }                                                                      \
+
+#define EMITSYNCREFRESH(c, argv) {                                       \
+  TryCatch tc;                                                           \
+  c->syncrefresh_cb->Call(Context::GetCurrent()->Global(), 2, argv);     \
+    if (tc.HasCaught()) {                                                \
+      FatalException(tc);                                                \
+    }                                                                    \
+  }                                                                      \
+
+
+
 
 class LDAPConnection : public ObjectWrap
 {
@@ -130,9 +177,17 @@ private:
   ldap_sync_refresh_t refreshPhase;
   ev_io read_watcher_;
   ev_io write_watcher_;
+  Persistent<Function> connected_cb;
+  Persistent<Function> disconnected_cb;
+  Persistent<Function> searchresult_cb;
+  Persistent<Function> result_cb;
+  Persistent<Function> error_cb;
+  Persistent<Function> newcookie_cb;
+  Persistent<Function> syncentry_cb;
+  Persistent<Function> syncrefresh_cb;
+  Persistent<Function> syncrefreshdone_cb;
 
-public:
-  
+public:  
   LDAPConnection() : ObjectWrap(){ }
 
   static void Initialize(Handle<Object> target)
@@ -142,20 +197,6 @@ public:
     cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
     cookie_template->SetInternalFieldCount(1);
    
-    // default the symbols used for emitting the events
-    symbol_connected = NODE_PSYMBOL("connected");
-    symbol_disconnected = NODE_PSYMBOL("disconnected");
-    symbol_search = NODE_PSYMBOL("searchresult");
-    symbol_search_paged = NODE_PSYMBOL("searchresultpaged");
-    symbol_error = NODE_PSYMBOL("error");
-    symbol_result = NODE_PSYMBOL("result");
-    symbol_syncentry = NODE_PSYMBOL("syncentry");
-    symbol_syncrefresh = NODE_PSYMBOL("syncrefresh");
-    symbol_syncrefreshdone = NODE_PSYMBOL("syncrefreshdone");
-    symbol_syncnewcookie = NODE_PSYMBOL("newcookie");
-    symbol_unknown = NODE_PSYMBOL("unknown");
-    emit_symbol = NODE_PSYMBOL("emit");//define the event symbol
-
     Local<FunctionTemplate> t = FunctionTemplate::New(New);//constructor template
     t->InstanceTemplate()->SetInternalFieldCount(1);
     t->SetClassName(String::NewSymbol("LDAPConnection"));
@@ -169,6 +210,8 @@ public:
     NODE_SET_PROTOTYPE_METHOD(t, "simpleBind", SimpleBind);
     NODE_SET_PROTOTYPE_METHOD(t, "rename", Rename);
     NODE_SET_PROTOTYPE_METHOD(t, "add", Add);
+    NODE_SET_PROTOTYPE_METHOD(t, "setcallbacks", SetCallbacks);
+    NODE_SET_PROTOTYPE_METHOD(t, "setsynccallbacks", SetSyncCallbacks);
     ldapConstructor = Persistent<Function>::New(t->GetFunction());
     target->Set(String::NewSymbol("LDAPConnection"), ldapConstructor);
   }
@@ -234,6 +277,36 @@ public:
     // TODO: clear and free the sync parts
 
     RETURN_INT(res);
+  }
+
+  NODE_METHOD(SetCallbacks) {
+    HandleScope scope;
+    GETOBJ(c);
+
+    // I'm going to eschew error checking here, this should only be called from LDAP.js
+
+    c->connected_cb    = Persistent<Function>::New(Local<Function>::Cast(args[0]));
+    c->disconnected_cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
+    c->searchresult_cb = Persistent<Function>::New(Local<Function>::Cast(args[2]));
+    c->result_cb       = Persistent<Function>::New(Local<Function>::Cast(args[3]));
+    c->error_cb        = Persistent<Function>::New(Local<Function>::Cast(args[4]));
+    c->newcookie_cb    = Persistent<Function>::New(Local<Function>::Cast(args[5]));
+
+
+
+
+    RETURN_INT(0);
+  }
+
+  NODE_METHOD(SetSyncCallbacks) {
+    HandleScope scope;
+    GETOBJ(c);
+
+    c->syncentry_cb       = Persistent<Function>::New(Local<Function>::Cast(args[0]));
+    c->syncrefresh_cb     = Persistent<Function>::New(Local<Function>::Cast(args[1]));
+    c->syncrefreshdone_cb = Persistent<Function>::New(Local<Function>::Cast(args[2]));
+
+    RETURN_INT(0);
   }
 
 
@@ -645,6 +718,7 @@ public:
               // There may also be a cookie in here...
               if (ber_peek_tag(ber, &len) == LDAP_TAG_SYNC_COOKIE) {
                 if (ber_scanf(ber, "m", &cookie) != LBER_ERROR) { 
+                  // FINDME
                   emitcookie(c, cookie);
                 }
               }
@@ -736,22 +810,22 @@ public:
             if (cookie) {
               ber_bvfree(cookie);
             }
-            args[4] = Undefined();
+            args[3] = Undefined();
           } else {
             Local<Object> cookieObj(cookie_template->NewInstance());
             cookieObj->SetPointerInInternalField(0, cookie);
-            args[4] = cookieObj;
+            args[3] = cookieObj;
           }
         } else {
-          args[4] = Undefined();
+          args[3] = Undefined();
         }
 
-        args[0] = symbol_search;
-        args[1] = Integer::New(msgid);
-        args[2] = Undefined(); // TODO: check for errors.
-        args[3] = c->parseReply(c, res);
+        args[0] = Integer::New(msgid);
+        args[1] = Undefined(); // TODO: check for errors.
+        args[2] = c->parseReply(c, res);
         // args[4] set above
-        EMIT(c, 5, args);
+
+        EMITSEARCHRESULT(c, args);
         break;
 
       case LDAP_RES_BIND:
@@ -759,17 +833,16 @@ public:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
         {
-          args[0] = symbol_result; 
-          args[1] = Integer::New(msgid);
-          args[2] = errp?Integer::New(errp):Undefined();
-          args[3] = Undefined(); // Any data goes here
-          EMIT(c, 4, args);
+          args[0] = Integer::New(msgid);
+          args[1] = errp?Integer::New(errp):Undefined();
+          args[2] = Undefined(); // Any data goes here
+
+          EMITRESULT(c, args);
         }
         break;
       default:
-        args[0] = symbol_unknown;
-        args[1] = Integer::New(msgid);
-        EMIT(c, 2, args);
+        args[0] = Integer::New(msgid);
+        EMITERROR(c, args);
         break;
       }
       ldap_msgfree(res);
@@ -897,12 +970,12 @@ public:
   }
 
   static void emitcookie(LDAPConnection * c, struct berval cookie) {
-    Handle<Value> args[3];
 
     if (cookie.bv_len != 0) {
-      args[0] = symbol_syncnewcookie;
-      args[1] = String::New(cookie.bv_val);
-      EMIT(c, 2, args);
+      Handle<Value> args[1] = {
+        String::New(cookie.bv_val)
+      };
+      EMITNEWCOOKIE(c, args);
     }
   }
 
@@ -928,13 +1001,11 @@ public:
 
 
   static int sync_search_entry( LDAPConnection * c, LDAPMessage * res ) {
-    Handle<Value> args[2];
-
-    // parseReply will pull the UUID and state out for us.
-
-    args[0] = symbol_syncentry;
-    args[1] = c->parseReply(c, res);
-    EMIT(c, 2, args);
+    Handle<Value> args[1] = {
+      c->parseReply(c, res)
+      // parseReply will pull the UUID and state out for us.
+    };
+    EMITSYNCENTRY(c, args);
 
     return 0;
   }
@@ -1002,9 +1073,10 @@ public:
       }
 
       if (RD) {
-        Handle<Value> args[2];
-        args[0] = symbol_syncrefreshdone;
-        EMIT(c, 1, args);
+        Handle<Value> args[1] = {
+          Local<Value>::New(Null())
+        };
+        EMITSYNCREFRESHDONE(c, args);
       }
       break;
 
@@ -1035,12 +1107,11 @@ public:
 
       refreshDeletes = refreshDeletes?1:0;
       {
-        Handle<Value> args[3];
-
-        args[0] = symbol_syncrefresh;
-        args[1] = c->uuid2array(syncUUIDs);
-        args[2] = Integer::New(refreshDeletes);
-        EMIT(c, 3, args);
+        Handle<Value> args[2] = {
+          c->uuid2array(syncUUIDs),
+          Integer::New(refreshDeletes)
+        };
+        EMITSYNCREFRESH(c, args);
       }
 
       ber_bvarray_free( syncUUIDs );
