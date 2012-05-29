@@ -2,7 +2,7 @@
   "author": "Jeremy Childs <jeremyc@ssimicro.com>",
   "name": "LDAP",
   "description": "LDAP Binding for node.js",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "homepage": "https://github.com/jeremycx/node-LDAP",
   "repository": {
     "type": "git",
