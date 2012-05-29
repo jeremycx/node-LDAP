@@ -10,10 +10,10 @@ var tests = [
         fn: function() {
             assert(schema, 'Schema not loaded');
             assert(schema.getObjectClass('person'), 'Objectclass "person" not present');
-            assert(schema.getObjectClass('person').name[0] == 'person', 'Objectclass name not quite right');
-            assert(typeof schema.getObjectClass('person').must.cn == 'object', 'Objectclass "must" property not quite right');
-            assert(schema.getAttribute('title').friendly == 'A friendly name', 'Helpers not working: ' + 
-                  schema.getAttribute('title').friendly );
+            assert(schema.getObjectClass('person').name[0] == 'person', 'Objectclass name not quite right (should be "person"): '+
+                   schema.getObjectClass('person').name[0]);
+            assert(typeof schema.getObjectClass('person').must == 'object', 'Objectclass "must" property not quite right (should be "object"): '+
+                   typeof schema.getObjectClass('person').must);
             assert(schema.getObjectClass('person').newprop, 'Could not attach custom property to OC');
             ldap.search({
                 base: 'cn=Babs,dc=sample,dc=com',
@@ -465,7 +465,7 @@ var tests = [
             try {
                 ldap = new LDAP({ uri: 'ldap://localhost:1234', version: 3 });
             } catch (e) {
-                assert(false, 'Error in instantiation');
+                assert(false, 'Error in instantiation: ' + e.toString());
             }
             next();
         }
