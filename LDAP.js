@@ -46,8 +46,8 @@ var LDAP = function(opts) {
     }
 
     opts.timeout = opts.timeout || 5000;
-    opts.backoff = -1;
-    opts.backoffmax = opts.backoffmax || 30000;
+    opts.backoff = 1; //sec
+    opts.backoffmax = opts.backoffmax || 32; //sec
 
     self.BASE = 0;
     self.ONELEVEL = 1;
@@ -117,7 +117,7 @@ var LDAP = function(opts) {
 
     function backoff() {
         stats.backoffs++;
-        opts.backoff++;
+        opts.backoff *= 2;
         if (opts.backoff > opts.backoffmax) 
             opts.backoff = opts.backoffmax;
         return opts.backoff * 1000;
@@ -132,7 +132,7 @@ var LDAP = function(opts) {
                     reconnect();
                 } else {
                     stats.reconnects++;
-                    opts.backoff = -1;
+                    opts.backoff = 1;
                     replayCallbacks();
                     reconnecting = false;
                     
