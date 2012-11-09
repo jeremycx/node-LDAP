@@ -1,2 +1,2 @@
 all:
-	cd .. && node-waf build
+	cd .. && node-gyp configure build
