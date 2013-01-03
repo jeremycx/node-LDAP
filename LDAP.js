@@ -214,11 +214,14 @@ var LDAP = function(opts) {
         binding.syncpoll();
     }
 
-    function sync(s) {
-        //if  { s.newcookie
-        //self.on('newcookie', s.newcookie);
-        //}
+    function getcookie() {
+        if (!syncopts) {
+            throw new Error('Must start sync before getting cookie');
+        }
+        return binding.getcookie();
+    }
 
+    function sync(s) {
         if (!s) {
             throw new Error('Options Required');
         }
@@ -235,10 +238,6 @@ var LDAP = function(opts) {
             (typeof s.syncentry        == 'function'?s.syncentry:function(){}),
             (typeof s.syncintermediate == 'function'?s.syncintermediate:function(){}),
             (typeof s.syncresult       == 'function'?s.syncresult:function(){}));
-
-        if (s.newcookie) {
-            self.on('newcookie', s.newcookie);
-        }
 
         binding.sync(s.base, 
                      s.scope?parseInt(s.scope):self.SUBTREE,
@@ -325,20 +324,10 @@ var LDAP = function(opts) {
             //error callback
             stats.errors++;
             process.exit();
-        }, function(newcookie) {
-            //newcookie callback
-            if (newcookie && (newcookie != cookie)) {
-                cookie = newcookie;
-                if (syncopts) syncopts.cookie = newcookie;
-                self.emit('newcookie', cookie);
-            }
         });
     }
 
     setcallbacks();
-
-    // public properties
-    this.cookie = cookie;
 
     // public functions
     this.open = open;
@@ -353,6 +342,7 @@ var LDAP = function(opts) {
     this.modify = modify;
     this.add = add;
     this.rename = rename;
+    this.getcookie = getcookie;
 };
 
 util.inherits(LDAP, events.EventEmitter);

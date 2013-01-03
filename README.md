@@ -287,7 +287,6 @@ The options are as follows:
         attrs: '* +',
         rid: '000',
         cookie: '',
-        newcookie: function(cookie),
         syncentry: function(data),
         syncintermediate: function(data),
         syncresult: function(data)
@@ -302,15 +301,11 @@ the server you are syncing to.
 The function callbacks are called upon initial refresh, and as new
 data is available.
 
-newcookie(cookie)
------------------
-
-This callback fires whenever the server sends a new cookie. You should
-store this cookie somewhere for use in later reconnects.
-
 syncentry(data)
 --------------------------------
-TBD.
+When this callback fires, you should call ldap.getcookie() to record the
+current cookie and save it somewhere. You can provide this cookie to the
+ldap.sync() call when your process restarts.
 
 
 syncintermediate()
@@ -320,6 +315,12 @@ TBD.
 syncresult(data)
 ---------------
 TBD.
+
+getcookie()
+----------
+This function returns the current cookie from the sync session. You can
+provide this cookie on the next run to pick up where you left off syncing.
+
 
 TODO:
 -----

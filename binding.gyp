@@ -9,7 +9,8 @@
         '/usr/local/include'
       ],
       'defines': [
-        'LDAP_DEPRECATED'
+        'LDAP_DEPRECATED',      
+        'LJSDEBUG'
       ],
       'cflags': [
         '-Wall',

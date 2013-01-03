@@ -18,6 +18,15 @@ var tests = [
         }
     },
     {
+        name: 'COOKIECHECK',
+        description: 'Pull cookie from binding',
+        fn: function() {
+            assert(ldap.getcookie(), 'No sync cookie found');
+            assert(ldap.getcookie().indexOf('rid=') > -1, 'Cookie looks wonky');
+            next();
+        }
+    },
+    {
         name: 'SEARCH AFTER RECONN',
         description: 'Searching after a reconnect',
         fn: function() {
@@ -68,7 +77,6 @@ var tests = [
                 filter: '(objectClass=*)',
                 attrs: '*',
                 rid: '767',
-                cookie: '',
                 syncentry: function(data) {
                     console.log('--------------------------');
                     console.log(data);
@@ -79,21 +87,16 @@ var tests = [
                     }
                     if (data[0] && data[0].cn && data[0].cn[0] == 'Ian') {
                         // this one will get SYNCREPL RESTART to continue.
-                        console.log('Next for Ian');
-                        next();
+                        printOK('External ADD');
                     }
                 },
                 syncresult: function(data) {
                     console.log('Syncresult: ' + data);
 
                 },
-                syncintermediate: function(data) {
-                    console.log('Intermediate: ' + data);
-                },
-                newcookie: function(cookie) {
-                    console.log('--------------------------');
-                    console.log('newcookie: ' + cookie);
-                    console.log('--------------------------');
+                syncintermediate: function(cookie, phase) {
+                    console.log('Cookie: ' + cookie);
+                    console.log('Phase: ' + phase);
                 }
             });
         }
@@ -208,12 +211,14 @@ function restartserver() {
     assert(oldpid !== slapd.pid, 'Server did not restart');
 }
 
+function printOK(name) {
+    console.log(name + 
+                "                                  ".substr(0, 32 - name.length)  + 
+                ' [OK]');
+}
 
 function next() {
-    console.log(currenttest.name + 
-                "                                  ".substr(0, 32 - currenttest.name.length)  + 
-                ' [OK]');
-
+    printOK(currenttest.name);
     currenttest = tests.pop();
     if (currenttest) {
         process.nextTick(currenttest.fn);

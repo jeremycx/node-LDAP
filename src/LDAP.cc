@@ -132,14 +132,6 @@ typedef enum {
     }                                                                   \
   }                                                                     \
 
-#define EMITNEWCOOKIE(c, argv) {                                        \
-  TryCatch tc;                                                          \
-  c->newcookie_cb->Call(Context::GetCurrent()->Global(), 1, argv);      \
-    if (tc.HasCaught()) {                                               \
-      FatalException(tc);                                               \
-    }                                                                   \
-  }                                                                     \
-
 #define EMITSYNCREFRESHDONE(c, argv) {                                   \
   TryCatch tc;                                                           \
   c->syncrefreshdone_cb->Call(Context::GetCurrent()->Global(), 1, argv); \
@@ -170,7 +162,6 @@ private:
   Persistent<Function> searchresult_cb;
   Persistent<Function> result_cb;
   Persistent<Function> error_cb;
-  Persistent<Function> newcookie_cb;
   Persistent<Function> syncentry_cb;
   Persistent<Function> syncintermediate_cb;
   Persistent<Function> syncresult_cb;
@@ -196,6 +187,7 @@ public:
     NODE_SET_PROTOTYPE_METHOD(t, "err2string", err2string);
     NODE_SET_PROTOTYPE_METHOD(t, "sync", Sync);
     NODE_SET_PROTOTYPE_METHOD(t, "syncpoll", SyncPoll);
+    NODE_SET_PROTOTYPE_METHOD(t, "getcookie", GetCookie);
     NODE_SET_PROTOTYPE_METHOD(t, "modify", Modify);
     NODE_SET_PROTOTYPE_METHOD(t, "simpleBind", SimpleBind);
     NODE_SET_PROTOTYPE_METHOD(t, "rename", Rename);
@@ -325,7 +317,6 @@ public:
     c->searchresult_cb = Persistent<Function>::New(Local<Function>::Cast(args[2]));
     c->result_cb       = Persistent<Function>::New(Local<Function>::Cast(args[3]));
     c->error_cb        = Persistent<Function>::New(Local<Function>::Cast(args[4]));
-    c->newcookie_cb    = Persistent<Function>::New(Local<Function>::Cast(args[5]));
 
     RETURN_INT(0);
   }
@@ -734,21 +725,11 @@ public:
             /* scan entryUUID in-place ("m") */
             if ( ber_scanf( ber, "{em" /*"}"*/, &state, &entryUUID ) == LBER_ERROR || entryUUID.bv_len != 0 ) {
               char * uuid;
-              struct berval cookie;
-              ber_len_t		len;
 
               uuid_to_string((const uuid_t *)entryUUID.bv_val, uuid);
               js_result->Set(String::New("_syncUUID"), String::New(uuid));
               js_result->Set(String::New("_syncState"), Integer::New(state));
               free(uuid);
-
-              // There may also be a cookie in here...
-              if (ber_peek_tag(ber, &len) == LDAP_TAG_SYNC_COOKIE) {
-                if (ber_scanf(ber, "m", &cookie) != LBER_ERROR) { 
-                  // FINDME
-                  emitcookie(c, cookie);
-                }
-              }
             }
           }
         }
@@ -928,11 +909,6 @@ public:
       RETURN_INT(-1);
     }
 
-    struct berval *bcookie;
-    bcookie = (struct berval *)malloc(sizeof(struct berval));
-
-    bcookie->bv_val = strdup(*cookie);
-
     ls = (ldap_sync_t *)malloc(sizeof(ldap_sync_t));
     ldap_sync_initialize(ls);
     char ** attrs = (char **)ldap_memalloc(sizeof(char *)*2);
@@ -952,13 +928,19 @@ public:
     ls->ls_search_result = c->SyncResult;
     ls->ls_private = c;
     ls->ls_ld = c->ld;
-    //ls->ls_cookie = *bcookie;
+    ls->ls_cookie = *(ber_bvstrdup(*cookie));
 
     ldap_sync_init(ls, LDAP_SYNC_REFRESH_AND_PERSIST);
 
     c->ls = ls;
 
     RETURN_INT(0);
+  }
+
+  NODE_METHOD(GetCookie) {
+    HandleScope Scope;
+    GETOBJ(c);
+    return Scope.Close(String::New(c->ls->ls_cookie.bv_val));
   }
   
   static int SyncSearchEntry(ldap_sync_t * ls, LDAPMessage * msg, 
@@ -982,11 +964,13 @@ public:
                        ldap_sync_refresh_t phase) {
     LJSDEB("Search Intermediate! %s:%u\n");
     LDAPConnection *c = (LDAPConnection *)ls->ls_private;
-    Handle<Value> args[1] = {
-      c->parseReply(c, msg)
+    Handle<Value> args[2] = {
+      String::New(ls->ls_cookie.bv_val),
+      Integer::New(ls->ls_refreshPhase)
     };
+
     TryCatch tc;
-    c->syncintermediate_cb->Call(Context::GetCurrent()->Global(), 1, args);
+    c->syncintermediate_cb->Call(Context::GetCurrent()->Global(), 2, args);
     if (tc.HasCaught()) {
       FatalException(tc);
     }
@@ -1006,16 +990,6 @@ public:
       FatalException(tc);
     }
     return 0;
-  }
-
-  static void emitcookie(LDAPConnection * c, struct berval cookie) {
-
-    if (cookie.bv_len != 0) {
-      Handle<Value> args[1] = {
-        String::New(cookie.bv_val)
-      };
-      EMITNEWCOOKIE(c, args);
-    }
   }
 
   Local<Value> uuid2array (BerVarray syncUUIDs) {
