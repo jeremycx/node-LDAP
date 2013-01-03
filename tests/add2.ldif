@@ -1,0 +1,7 @@
+dn: cn=Ian,ou=Accounting,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Ian
+sn: Root
+userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9

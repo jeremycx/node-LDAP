@@ -1,0 +1,31 @@
+dn: cn=Edward,ou=Accounting,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Edward
+sn: Root
+userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
+
+dn: cn=Fred,ou=Accounting,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Fred
+sn: Root
+userPassword: ajsh
+
+dn: cn=Gary,ou=Accounting,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Gary
+sn: Root
+userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
+
+dn: cn=Hank,ou=Accounting,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: Hank
+sn: Root
+userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
