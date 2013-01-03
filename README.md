@@ -288,9 +288,9 @@ The options are as follows:
         rid: '000',
         cookie: '',
         newcookie: function(cookie),
-        syncrefresh: function(entryUUIDs, deletes),
-        syncrefreshdone: function(),
-        syncentry: function(data)
+        syncentry: function(data),
+        syncintermediate: function(data),
+        syncresult: function(data)
     }
 
 The cookie attribute is used to send a cookie to the server to ensure
@@ -308,30 +308,18 @@ newcookie(cookie)
 This callback fires whenever the server sends a new cookie. You should
 store this cookie somewhere for use in later reconnects.
 
-syncrefresh(entryUUIDs, deletes)
---------------------------------
-
-This callback fires during the initial sync. It will include an array
-of UUIDs that are either to be deleted from the local DB, or a list of
-UUIDs that are to be kept in the local DB (whichever list is shorter).
-
-NOTE: this may be handled incorrectly, but I haven't seen OpenLDAP
-2.4.29 do anything but pass entryUUIDs back during the inital refresh stage.
-
-syncrefreshdone()
------------------
-
-This callback is fired when the refresh phase is done. This is where
-you take the UUIDs provided by syncrefresh and add/delete the entries
-from the local DB.
-
 syncentry(data)
----------------
-As records are added/modified/removed from LDAP, the records are
-passed to this callback. The entries have two additional single-valued
-attributes attached: _syncUUID and _syncState. These two attributes
-notify the callback what should be done with the record.
+--------------------------------
+TBD.
 
+
+syncintermediate()
+-----------------
+TBD.
+
+syncresult(data)
+---------------
+TBD.
 
 TODO:
 -----
