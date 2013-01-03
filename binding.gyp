@@ -13,12 +13,12 @@
       ],
       'cflags': [
         '-Wall',
-        '--verbose'
+        '--verbose',
+        '-g'
       ],
       'ldflags': [
         '-L/usr/local/lib',
-        '-lldap',
-        '--verbose'
+        '-lldap'
       ],
     }
   ]
