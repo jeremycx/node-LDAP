@@ -1,4 +1,4 @@
-node-LDAP 1.0.4
+node-LDAP 1.1.0
 ===============
 
 OpenLDAP client bindings for Node.js. Requires libraries from
