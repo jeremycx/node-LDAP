@@ -34,6 +34,12 @@
   }
 #endif
 
+#ifdef LJSDEBUG
+#define LJSDEB(msg, ...) fprintf(stderr, msg, __FILE__, __LINE__, ##__VA_ARGS__);
+#else
+#define LJSDEB(msg, ...)
+#endif
+
 using namespace node;
 using namespace v8;
 
@@ -102,13 +108,6 @@ typedef enum {
     }                                                           \
   }
 
-#define EMITDISCONNECT(c) {                                             \
-    Local<Value> argv[1] = {                                            \
-      Local<Value>::New(Null())                                         \
-    };                                                                  \
-    c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); \
-  }                                                                     \
-
 #define EMITSEARCHRESULT(c, argv) {                                     \
   TryCatch tc;                                                          \
   c->searchresult_cb->Call(Context::GetCurrent()->Global(), 4, argv);   \
@@ -141,14 +140,6 @@ typedef enum {
     }                                                                   \
   }                                                                     \
 
-#define EMITSYNCENTRY(c, argv) {                                        \
-  TryCatch tc;                                                          \
-  c->syncentry_cb->Call(Context::GetCurrent()->Global(), 1, argv);      \
-    if (tc.HasCaught()) {                                               \
-      FatalException(tc);                                               \
-    }                                                                   \
-  }                                                                     \
-
 #define EMITSYNCREFRESHDONE(c, argv) {                                   \
   TryCatch tc;                                                           \
   c->syncrefreshdone_cb->Call(Context::GetCurrent()->Global(), 1, argv); \
@@ -172,11 +163,8 @@ class LDAPConnection : public ObjectWrap
 {
 private:
   LDAP  *ld;
-  unsigned int sync_id;
-  ldap_syncphase syncphase;
-  ldap_sync_refresh_t refreshPhase;
-  ev_io read_watcher_;
-  ev_io write_watcher_;
+  ldap_sync_t * ls;
+  uv_poll_t * uv_handle;
   Persistent<Function> connected_cb;
   Persistent<Function> disconnected_cb;
   Persistent<Function> searchresult_cb;
@@ -184,8 +172,9 @@ private:
   Persistent<Function> error_cb;
   Persistent<Function> newcookie_cb;
   Persistent<Function> syncentry_cb;
-  Persistent<Function> syncrefresh_cb;
-  Persistent<Function> syncrefreshdone_cb;
+  Persistent<Function> syncintermediate_cb;
+  Persistent<Function> syncresult_cb;
+  int connected;
 
 public:  
   LDAPConnection() : ObjectWrap(){ }
@@ -193,7 +182,7 @@ public:
   static void Initialize(Handle<Object> target)
   {
     HandleScope scope;
-	
+
     cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
     cookie_template->SetInternalFieldCount(1);
    
@@ -206,6 +195,7 @@ public:
     NODE_SET_PROTOTYPE_METHOD(t, "search", Search);
     NODE_SET_PROTOTYPE_METHOD(t, "err2string", err2string);
     NODE_SET_PROTOTYPE_METHOD(t, "sync", Sync);
+    NODE_SET_PROTOTYPE_METHOD(t, "syncpoll", SyncPoll);
     NODE_SET_PROTOTYPE_METHOD(t, "modify", Modify);
     NODE_SET_PROTOTYPE_METHOD(t, "simpleBind", SimpleBind);
     NODE_SET_PROTOTYPE_METHOD(t, "rename", Rename);
@@ -214,6 +204,8 @@ public:
     NODE_SET_PROTOTYPE_METHOD(t, "setsynccallbacks", SetSyncCallbacks);
     ldapConstructor = Persistent<Function>::New(t->GetFunction());
     target->Set(String::NewSymbol("LDAPConnection"), ldapConstructor);
+
+    LJSDEB("Init Done %s:%u\n");
   }
 
   NODE_METHOD(New)
@@ -221,13 +213,15 @@ public:
     HandleScope scope;
     LDAPConnection * c = new LDAPConnection();
     c->Wrap(args.This());
-
-    ev_init(&(c->read_watcher_), LDAPConnection::io_event);
-    c->read_watcher_.data = c;
-    c->read_watcher_.fd = -1;
     
+    LJSDEB("NEW %s:%u\n");
+
     c->ld = NULL;
-    c->sync_id = 0;
+    c->ls = NULL;
+    c->connected = false;
+    c->uv_handle = NULL;
+
+    LJSDEB("NEW DONE %s:%u %p %p\n", c, c->ld);
 
     return args.This();
   }
@@ -240,6 +234,8 @@ public:
 
     ARG_STR(uri, 0);
     ARG_INT(ver, 1);
+
+    LJSDEB("OPEN1 %s:%u %p %p\n", c, c->ld);
 
     if (c->ld != NULL) {
       c->Close(args);
@@ -256,27 +252,66 @@ public:
     ldap_set_option(c->ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
     ldap_set_option(c->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
 
-    return scope.Close(Integer::New(0));
+    LJSDEB("OPEN: %s:%u %p %p\n", c, c->ld);
+
+    c->connected = true;
+
+    RETURN_INT(0);
+  }
+
+  static void on_handle_close(uv_handle_t * handle) {
+    LDAPConnection *c = (LDAPConnection *)handle->data;
+    int res;
+    LJSDEB("CLOSE CB %s:%u lsld: %p %p\n", c->ls->ls_ld, c->ld);
+    delete handle;
+
+    if (c->ls) {
+      c->ls->ls_ld = NULL; // this prevents sync_destroy from unbinding
+      ldap_sync_destroy(c->ls, 1);
+    }
+
+    if (c->ld) {
+      res = ldap_unbind(c->ld);
+      LJSDEB("UNBIND %s:%u res: %i\n", res);
+    }
+    c->ld = NULL;
+
+    Local<Value> argv[1] = {                                            
+      Local<Value>::New(Null())                                         
+    };                                                                  
+    c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); 
+    
+  }
+
+  static void close(LDAPConnection *c) {
+    if (c->connected == false) {
+      return;
+    }
+
+    LJSDEB("CLOSE: %s:%u %p %p\n", c, c->ld);
+
+    if (c->uv_handle) {
+      // this doesn't seem to stop immediately... wtf?
+      uv_poll_stop(c->uv_handle);
+      // and close poll handle
+      uv_close((uv_handle_t *)c->uv_handle, on_handle_close);
+    } else {
+      Local<Value> argv[1] = {                                            
+        Local<Value>::New(Null())                                         
+      };                                                                  
+      c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); 
+    }
+
+    LJSDEB("CLOSE2: %s:%u %p %p\n", c, c->ld);
+
+    c->connected = false;
   }
 
   NODE_METHOD(Close) {
     HandleScope scope;
     GETOBJ(c);
-    int res = 0;
-
-    if (ev_is_active(&c->read_watcher_)) {
-      ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
-    }
-
-    if (c->ld) {
-      res = ldap_unbind(c->ld);
-    }
-    c->ld = NULL;
-    c->read_watcher_.fd = 0;
-
-    // TODO: clear and free the sync parts
-
-    RETURN_INT(res);
+    c->close(c);
+    RETURN_INT(0);
   }
 
   NODE_METHOD(SetCallbacks) {
@@ -292,9 +327,6 @@ public:
     c->error_cb        = Persistent<Function>::New(Local<Function>::Cast(args[4]));
     c->newcookie_cb    = Persistent<Function>::New(Local<Function>::Cast(args[5]));
 
-
-
-
     RETURN_INT(0);
   }
 
@@ -302,9 +334,9 @@ public:
     HandleScope scope;
     GETOBJ(c);
 
-    c->syncentry_cb       = Persistent<Function>::New(Local<Function>::Cast(args[0]));
-    c->syncrefresh_cb     = Persistent<Function>::New(Local<Function>::Cast(args[1]));
-    c->syncrefreshdone_cb = Persistent<Function>::New(Local<Function>::Cast(args[2]));
+    c->syncentry_cb        = Persistent<Function>::New(Local<Function>::Cast(args[0]));
+    c->syncintermediate_cb = Persistent<Function>::New(Local<Function>::Cast(args[1]));
+    c->syncresult_cb       = Persistent<Function>::New(Local<Function>::Cast(args[2]));
 
     RETURN_INT(0);
   }
@@ -346,12 +378,11 @@ public:
     }
 
     if (c->ld == NULL) {
-      EMITDISCONNECT(c);
-
       if (cookie) {
         ber_bvfree(cookie);
         cookie = NULL;
       }
+      close(c);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
@@ -420,8 +451,8 @@ public:
     ARG_ARRAY(modsHandle, 1);
    
     if (c->ld == NULL) {
-      EMITDISCONNECT(c);
-      RETURN_INT(-1);
+      close(c);
+      RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     int numOfMods = modsHandle->Length();
@@ -474,8 +505,8 @@ public:
     msgid = ldap_modify(c->ld, *dn, ldapmods);
 
     if (msgid == LDAP_SERVER_DOWN) {
-      EMITDISCONNECT(c);
-      RETURN_INT(-1);
+      close(c);
+      RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     RETURN_INT(msgid);
@@ -534,16 +565,9 @@ public:
 
     msgid = ldap_add(c->ld, *dn, ldapmods);
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-    if (c->read_watcher_.fd != fd) {
-      if (ev_is_active(&c->read_watcher_)) {
-        ev_io_stop(EV_DEFAULT_UC_ &(c->read_watcher_) );
-      }
-      ev_io_set(&(c->read_watcher_), fd, EV_READ);
-      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
-    }
 
     if (msgid == LDAP_SERVER_DOWN) {
-      EMITDISCONNECT(c);
+      close(c);
     }
 
     ldap_mods_free(ldapmods, 1);
@@ -565,12 +589,12 @@ public:
     ARG_STR(newrdn, 1);
 
     if (c->ld == NULL) {
-      EMITDISCONNECT(c);
+      close(c);
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
     if (((msgid = ldap_modrdn(c->ld, *dn, *newrdn)) == LDAP_SERVER_DOWN)) {
-      EMITDISCONNECT(c);
+      close(c);
     }
 
     RETURN_INT(msgid);
@@ -583,6 +607,8 @@ public:
     int msgid;
     char * binddn = NULL;
     char * password = NULL;
+
+    LJSDEB("BIND: %s:%u %p %p\n", c, c->ld);
 
     if (c->ld == NULL) {
       RETURN_INT(LDAP_SERVER_DOWN);
@@ -601,7 +627,8 @@ public:
     }
     
     if ((msgid = ldap_simple_bind(c->ld, binddn, password)) == LDAP_SERVER_DOWN) {
-      EMITDISCONNECT(c);
+      LJSDEB("BINDFAIL %s:%u %p %p\n", c, c->ld);
+      close(c);
     } else {
       LDAPConnection::SetIO(c);
     }
@@ -614,16 +641,16 @@ public:
 
   static void SetIO(LDAPConnection *c) {
     int fd;
+    uv_poll_t * handle = new uv_poll_t;
+    handle->data = c;
 
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
+    
+    LJSDEB("FD: %s:%u %u\n", fd);
 
-    if ((fd > 0) && (c->read_watcher_.fd != fd)) {
-      if (ev_is_active(&c->read_watcher_)) {
-        ev_io_stop(EV_DEFAULT_UC_(&c->read_watcher_));
-      }
-      ev_io_set(&(c->read_watcher_), fd, EV_READ);
-      ev_io_start(EV_DEFAULT_ &(c->read_watcher_));
-    }
+    uv_poll_init(uv_default_loop(), handle, fd);
+    uv_poll_start(handle, UV_READABLE, io_event);
+    c->uv_handle = handle;
   }
 
   static Local<Object> makeBuffer(berval * val) {
@@ -756,41 +783,49 @@ public:
     return scope.Close(js_result_list);
   }
 
-  static void
-  io_event (EV_P_ ev_io *w, int revents)
-  {
+  static void io_event (uv_poll_t* handle, int status, int events) {
     HandleScope scope;
-    LDAPConnection *c = static_cast<LDAPConnection*>(w->data);
+    LDAPConnection *c = (LDAPConnection *)handle->data;
     LDAPMessage * res = NULL;
     LDAPControl** srv_controls = NULL;
     Handle<Value> args[5];
     int msgid = 0;
     int errp;
+    LJSDEB("LDi: %s:%u %p %p\n", c, c->ld);
+
+    if (c->connected == false) {
+      LJSDEB("ACTIVITY ON CLOSED DESCRIPTOR %s:%u %p\n", c);
+      return;
+    }
+
 
     // not sure if this is neccesary...
-    if (!(revents & EV_READ)) {
+    if (!(events & EV_READ)) {
+      LJSDEB("EV_READ %s:%u\n");
       return;
     }
 
     if (c->ld == NULL) {
       // disconnect event, or something arriving after
       // close(). Either way, ignore it.
+      LJSDEB("NULL %s:%u %p %p\n", c, c->ld);
       return;
     }
 
-    // is sync is active, check the sync msgid first.
-    // this ldap_result call should deplete all the sync messages waiting.
-    // we can then fall through to checking for regular results.
-    if (c->sync_id) { 
-      c->check_sync_results(c);
+    if (c->ls) {
+      // there is a weird timing problem where a sync entry gets
+      // missed. Calling poll twice seems to make it work.
+      // rc = ldap_sync_poll(c->ls);
     }
 
     // now check for any other pending messages....
-    switch(ldap_result(c->ld, LDAP_RES_ANY, 1, &ldap_tv, &res)) {
+    switch(ldap_result(c->ld, LDAP_RES_ANY, LDAP_MSG_ALL, &ldap_tv, &res)) {
     case 0:
+      LJSDEB("LDi4: %s:%u %p %p\n", c, c->ld);
       return;
     case -1:
-      EMITDISCONNECT(c);
+      LJSDEB("LDi3: %s:%u %p %p\n", c, c->ld);
+      close(c);
       return;
     default:
       ldap_parse_result(c->ld, res, &errp, 
@@ -847,7 +882,26 @@ public:
       }
       ldap_msgfree(res);
     }
+    LJSDEB("LDi2: %s:%u %p %p\n", c, c->ld);
   }
+
+  NODE_METHOD(SyncPoll) {
+    HandleScope scope;
+    int rc;
+    GETOBJ(c);
+    LJSDEB("LDp: %s:%u %p %p\n", c, c->ld);
+
+    if (c->ls == NULL) {
+      RETURN_INT(0);
+    }
+
+    if (c->ls->ls_ld) {
+      rc = ldap_sync_poll(c->ls);
+    }
+    LJSDEB("LDp2: %s:%u %p %p\n", c, c->ld);
+    RETURN_INT(0);
+  }
+
 
   /* *************************************************************************************
    * Sync Routines
@@ -862,111 +916,96 @@ public:
   NODE_METHOD(Sync) {
     HandleScope scope;
     GETOBJ(c);
-    LDAPControl	ctrl = { 0 },
-      *ctrls[ 2 ];
-      BerElement	*ber = NULL;
-      int rc;
-      char * attrs[255];
-      char ** ap;
-      int msgid;
+    ldap_sync_t *ls;
 
-      ARG_STR(base,         0);
-      ARG_INT(searchscope,  1);
-      ARG_STR(filter,       2);
-      ARG_STR(attrs_str,    3);
-      ARG_STR(cookie,       4);
+    ARG_STR(base,         0);
+    ARG_INT(searchscope,  1);
+    ARG_STR(filter,       2);
+    ARG_STR(attrs_str,    3);
+    ARG_STR(cookie,       4);
 
-      char *bufhead = strdup(*attrs_str);
-      char *buf = bufhead;
+    if (c->ld == NULL) {
+      RETURN_INT(-1);
+    }
 
-      for (ap = attrs; (*ap = strsep(&buf, " \t,")) != NULL;)
-        if (**ap != '\0')
-          if (++ap >= &attrs[255])
-            break;
+    struct berval *bcookie;
+    bcookie = (struct berval *)malloc(sizeof(struct berval));
 
-      ctrls[ 0 ] = &ctrl;
-      ctrls[ 1 ] = NULL;
-        
-      ber = ber_alloc_t( LBER_USE_DER );
+    bcookie->bv_val = strdup(*cookie);
 
-      c->syncphase = LDAP_SYNC_REFRESH;
+    ls = (ldap_sync_t *)malloc(sizeof(ldap_sync_t));
+    ldap_sync_initialize(ls);
+    char ** attrs = (char **)ldap_memalloc(sizeof(char *)*2);
 
-      if ( args[4]->IsUndefined()) {
-        ber_printf( ber, "{eb}", LDAP_SYNC_REFRESH_AND_PERSIST, 0 );
-      } else {
-        ber_printf( ber, "{esb}", LDAP_SYNC_REFRESH_AND_PERSIST, *cookie, 0 );
-      }
+    attrs[0] = ldap_strdup("*");
+    attrs[1] = NULL;
 
-      rc = ber_flatten2( ber, &ctrl.ldctl_value, 0 );
+    ls->ls_base = ldap_strdup(*base);
+    ls->ls_scope = searchscope;
+    ls->ls_filter = ldap_strdup(*filter);
+    ls->ls_attrs = attrs;
+    ls->ls_timelimit = 0;
+    ls->ls_sizelimit = 0;
+    ls->ls_timeout = 0;
+    ls->ls_search_entry = c->SyncSearchEntry;
+    ls->ls_intermediate = c->SyncIntermediate;
+    ls->ls_search_result = c->SyncResult;
+    ls->ls_private = c;
+    ls->ls_ld = c->ld;
+    //ls->ls_cookie = *bcookie;
 
-      ctrl.ldctl_oid = (char *)LDAP_CONTROL_SYNC;
-      ctrl.ldctl_iscritical = 1;
+    ldap_sync_init(ls, LDAP_SYNC_REFRESH_AND_PERSIST);
 
-      rc = ldap_search_ext( c->ld, *base, searchscope, *filter, attrs, 0, ctrls, NULL, NULL, 0, &msgid);
+    c->ls = ls;
 
-      free(bufhead);
-
-      if ( rc != LDAP_SUCCESS ) {
-        // if (rc == LDAP_SYNC_REFRESH_REQUIRED) {
-        
-        // fprintf(stderr, "REFRESH REQUIRED!\n");
-        // }
-        msgid = -1;
-      }
-
-      if ( ber != NULL ) {
-        ber_free( ber, 1 );
-      }
-
-      c->sync_id = msgid;
-
-      RETURN_INT(msgid);
+    RETURN_INT(0);
+  }
+  
+  static int SyncSearchEntry(ldap_sync_t * ls, LDAPMessage * msg, 
+                      struct berval *entryUUID,
+                      ldap_sync_refresh_t phase) {
+    LDAPConnection *c = (LDAPConnection *)ls->ls_private;
+    Handle<Value> args[1] = {
+      c->parseReply(c, msg)
+      // parseReply will pull the UUID and state out for us.
+    };
+    TryCatch tc;
+    c->syncentry_cb->Call(Context::GetCurrent()->Global(), 1, args);
+    if (tc.HasCaught()) {
+      FatalException(tc);
+    }
+    return 0;
   }
 
-  static void check_sync_results(LDAPConnection * c) {
-    LDAPMessage * res = NULL;
-    LDAPMessage * msg = NULL;
-    int refreshDone;
-
-    for ( ; ; )
-      switch(ldap_result(c->ld, c->sync_id, 0, &ldap_tv, &res)) {
-      case 0:
-        goto done;
-        break;
-
-      case -1:
-        break;
-
-      default:
-        for ( msg = ldap_first_message( c->ld, res );
-              msg != NULL;
-              msg = ldap_next_message( c->ld, msg ) ) {
-
-          switch(ldap_msgtype(msg)) {
-          case LDAP_RES_SEARCH_ENTRY:
-            sync_search_entry(c, msg);
-            break;
-
-          case LDAP_RES_SEARCH_RESULT:
-            sync_search_result(c, msg);
-            break;
-
-          case LDAP_RES_INTERMEDIATE:
-            sync_search_intermediate(c, msg, &refreshDone);
-            break;
-
-          default:
-            break;
-            // ?? error or shaddup?
-          }
-        }
-        ldap_msgfree(res);
-      }
-
-  done:;
-
-    
-    return;
+  static int SyncIntermediate(ldap_sync_t *ls,
+                       LDAPMessage *msg, BerVarray syncUUIDs,
+                       ldap_sync_refresh_t phase) {
+    LJSDEB("Search Intermediate! %s:%u\n");
+    LDAPConnection *c = (LDAPConnection *)ls->ls_private;
+    Handle<Value> args[1] = {
+      c->parseReply(c, msg)
+    };
+    TryCatch tc;
+    c->syncintermediate_cb->Call(Context::GetCurrent()->Global(), 1, args);
+    if (tc.HasCaught()) {
+      FatalException(tc);
+    }
+    return 0;
+  }
+  static int SyncResult(ldap_sync_t *ls,
+                 LDAPMessage *msg, int refreshDeletes) {
+    LJSDEB("SyncResult! %s:%u\n");
+    LDAPConnection *c = (LDAPConnection *)ls->ls_private;
+    Handle<Value> args[1] = {
+      c->parseReply(c, msg)
+      // parseReply will pull the UUID and state out for us.
+    };
+    TryCatch tc;
+    c->syncresult_cb->Call(Context::GetCurrent()->Global(), 1, args);
+    if (tc.HasCaught()) {
+      FatalException(tc);
+    }
+    return 0;
   }
 
   static void emitcookie(LDAPConnection * c, struct berval cookie) {
@@ -998,272 +1037,6 @@ public:
 
     return scope.Close(js_result_list);
   }
-
-
-  static int sync_search_entry( LDAPConnection * c, LDAPMessage * res ) {
-    Handle<Value> args[1] = {
-      c->parseReply(c, res)
-      // parseReply will pull the UUID and state out for us.
-    };
-    EMITSYNCENTRY(c, args);
-
-    return 0;
-  }
-
-  static int sync_search_intermediate( LDAPConnection * c, LDAPMessage * res, int * refreshDone ) {
-    int			rc;
-    char			*retoid = NULL;
-    struct berval		*retdata = NULL;
-    BerElement		*ber = NULL;
-    ber_len_t		len;
-    ber_tag_t		syncinfo_tag;
-    int			refreshDeletes = 0;
-    BerVarray		syncUUIDs = NULL;
-
-    struct berval cookie = { 0 };
-    ber_int_t RD;
-
-    *refreshDone = 0;
-
-    rc = ldap_parse_intermediate( c->ld, res, &retoid, &retdata, NULL, 0 );
-    /* parsing must be successful, and yield the OID
-     * of the sync info intermediate response */
-    if ( rc != LDAP_SUCCESS ) {
-      goto done;
-    }
-
-    rc = LDAP_OTHER;
-
-    if ( retoid == NULL || strcmp( retoid, LDAP_SYNC_INFO ) != 0 ) {
-      goto done;
-    }
-
-    /* init ber using the value in the response */
-    ber = ber_init( retdata );
-    if ( ber == NULL ) {
-      goto done;
-    }
-
-    syncinfo_tag = ber_peek_tag( ber, &len );
-
-    switch (syncinfo_tag) {
-    case LDAP_TAG_SYNC_NEW_COOKIE:
-      if ( ber_scanf( ber, /*"{"*/ "m}", &cookie ) == LBER_ERROR ) {
-        goto done;
-      }
-      emitcookie(c, cookie);
-      break;
-    case LDAP_TAG_SYNC_REFRESH_DELETE:
-    case LDAP_TAG_SYNC_REFRESH_PRESENT:
-      if ( ber_scanf( ber, "{" ) == LBER_ERROR ) {
-        goto done;
-      }
-      if (ber_peek_tag(ber, &len) == LDAP_TAG_SYNC_COOKIE) {
-        if (ber_scanf(ber, "m", &cookie) == LBER_ERROR) {
-          goto done;
-        }
-        emitcookie(c, cookie);
-      } 
-      if (ber_peek_tag(ber, &len) == LDAP_TAG_REFRESHDONE) {
-        if ( ber_scanf( ber, "b", &RD ) == LBER_ERROR ) {
-          goto done;
-        }
-      } else {
-        RD = 1;
-      }
-
-      if (RD) {
-        Handle<Value> args[1] = {
-          Local<Value>::New(Null())
-        };
-        EMITSYNCREFRESHDONE(c, args);
-      }
-      break;
-
-    case LDAP_TAG_SYNC_ID_SET:
-      // this is a IDSET message
-      if ( ber_scanf( ber, "{" /*"}"*/ ) == LBER_ERROR ) {
-        goto done;
-      }
-
-      if (ber_peek_tag(ber, &len) == LDAP_TAG_SYNC_COOKIE) {
-        if (ber_scanf(ber, "m", &cookie) == LBER_ERROR) {
-          goto done;
-        }
-        emitcookie(c, cookie);
-      }
-
-      if ( ber_peek_tag( ber, &len ) == LDAP_TAG_REFRESHDELETES ) {
-        if ( ber_scanf( ber, "b", &refreshDeletes ) == LBER_ERROR ) {
-          goto done;
-        }
-      } else {
-        refreshDeletes = 0;
-      }
-
-      if ( ber_scanf( ber, /*"{"*/ "[W]}", &syncUUIDs ) == LBER_ERROR || syncUUIDs == NULL ) {
-        goto done;
-      }
-
-      refreshDeletes = refreshDeletes?1:0;
-      {
-        Handle<Value> args[2] = {
-          c->uuid2array(syncUUIDs),
-          Integer::New(refreshDeletes)
-        };
-        EMITSYNCREFRESH(c, args);
-      }
-
-      ber_bvarray_free( syncUUIDs );
-      break;
-
-    default:
-      goto done;
-
-    } // switch( syncinfo_tag)
-
-
-
-    rc = LDAP_SUCCESS;
-
-  done:;
-    if ( ber != NULL ) {
-      ber_free( ber, 1 );
-    }
-
-    if ( retoid != NULL ) {
-      ldap_memfree( retoid );
-    }
-
-    if ( retdata != NULL ) {
-      ber_bvfree( retdata );
-    }
-
-    return rc;
-  }
-
-  static int sync_search_result( LDAPConnection * c, LDAPMessage *res ) {
-    int	err;
-    char *matched = NULL, *msg = NULL;
-    LDAPControl	**ctrls = NULL;
-    int	rc;
-    int	refreshDeletes = -1;
-
-
-    // since we're not (yet) implementing refreshOnly, I don't think this will
-    // happen... I'm going to assert this and see what happens...
-    assert(0);
-
-    /* should not happen in refreshAndPersist... */
-    rc = ldap_parse_result( c->ld, res, &err, &matched, &msg, NULL, &ctrls, 0 );
-    if ( rc == LDAP_SUCCESS ) {
-      rc = err;
-    }
-
-    c->refreshPhase = LDAP_SYNC_CAPI_DONE;
-
-    switch ( rc ) {
-    case LDAP_SUCCESS: {
-      int		i;
-      BerElement	*ber = NULL;
-      ber_len_t	len;
-
-      rc = LDAP_OTHER;
-
-      /* deal with control; then fallthru to handler */
-      if ( ctrls == NULL ) {
-        goto done;
-      }
-
-      /* lookup the sync state control */
-      for ( i = 0; ctrls[ i ] != NULL; i++ ) {
-        if ( strcmp( ctrls[ i ]->ldctl_oid, LDAP_CONTROL_SYNC_DONE ) == 0 )          {
-          break;
-        }
-      }
-
-      /* control must be present; there might be other... */
-      if ( ctrls[ i ] == NULL ) {
-        goto done;
-      }
-
-      /* extract data */
-      ber = ber_init( &ctrls[ i ]->ldctl_value );
-      if ( ber == NULL ) {
-        goto done;
-      }
-
-      if ( ber_scanf( ber, "{" /*"}"*/) == LBER_ERROR ) {
-        goto ber_done;
-      }
-
-      refreshDeletes = 0;
-      if ( ber_peek_tag( ber, &len ) == LDAP_TAG_REFRESHDELETES ) {
-        if ( ber_scanf( ber, "b", &refreshDeletes ) == LBER_ERROR ) {
-          goto ber_done;
-        }
-        if ( refreshDeletes ) {
-          refreshDeletes = 1;
-        }
-      }
-
-      if ( ber_scanf( ber, /*"{"*/ "}" ) != LBER_ERROR ) {
-        rc = LDAP_SUCCESS;
-      }
-
-      ber_done:;
-      ber_free( ber, 1 );
-      if ( rc != LDAP_SUCCESS ) {
-        break;
-      }
-
-      /* FIXME: what should we do with the refreshDelete? */
-      switch ( refreshDeletes ) {
-      case 0:
-        c->refreshPhase = LDAP_SYNC_CAPI_PRESENTS;
-        break;
-
-      default:
-        c->refreshPhase = LDAP_SYNC_CAPI_DELETES;
-        break;
-      }
-
-    } /* fallthru */
-
-    case LDAP_SYNC_REFRESH_REQUIRED:
-      /* TODO: check for Sync Done Control */
-      /* FIXME: perhaps the handler should be called
-       * also in case of failure; we'll deal with this 
-       * later when implementing refreshOnly */
-      {
-        //        Handle<Value> args[3];
-
-        //        args[0] = symbol_syncresult;
-        //        args[1] = c->parseReply(c, res);
-        //        args[2] = Integer::New(c->refreshPhase);
-        //        EMIT(c, 3, args);
-      }
-      break;
-    }
-
-  done:;
-    if ( matched != NULL ) {
-      ldap_memfree( matched );
-    }
-
-    if ( msg != NULL ) {
-      ldap_memfree( msg );
-    }
-
-    if ( ctrls != NULL ) {
-      ldap_controls_free( ctrls );
-    }
-
-    c->refreshPhase = LDAP_SYNC_CAPI_DONE;
-
-    return rc;
-  }
-
 };
 
 extern "C" void init(Handle<Object> target) {
