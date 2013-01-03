@@ -22,6 +22,7 @@ var LDAP = function(opts) {
     var reconnecting = false;
     var syncopts = undefined;
     var cookie = undefined;
+    var syncpolltimer = undefined;
     var stats = {
         lateresponses: 0,
         reconnects: 0,
@@ -40,6 +41,7 @@ var LDAP = function(opts) {
         results: 0,
         searchresults: 0
     };
+    var b = [];
 
     if (!opts || !opts.uri) {
         throw new LDAPError('You must provide a URI');
@@ -125,20 +127,25 @@ var LDAP = function(opts) {
 
     function reconnect() {
         reconnecting = true;
-        binding.close();
+        // binding.close();
+        setcallbacks();
         setTimeout(function() {
             var res = open(function(err) {
                 if (err) {
                     reconnect();
                 } else {
+                    reconnecting = false;
                     stats.reconnects++;
                     opts.backoff = 1;
-                    replayCallbacks();
-                    reconnecting = false;
-                    
-                    if (syncopts) {
-                        sync(syncopts);
-                    }
+                    setcallbacks();
+                    bind(function() {
+                        replayCallbacks();
+                        if (syncopts) {
+                            console.log('Resetting syncopts:');
+                            console.log(syncopts);
+                            sync(syncopts);
+                        }
+                    });
                 }
             });
         }, (backoff()));
@@ -151,7 +158,10 @@ var LDAP = function(opts) {
 
     function close() {
         stats.closes++;
-        binding.close();
+        // close() is buggy and leaks like crazy.
+        // TODO: FIX THIS.
+        //        binding.close();
+        //        binding = null;
     }
 
 
@@ -200,6 +210,10 @@ var LDAP = function(opts) {
         return setCallback(msgid, bind, arguments, fn);
     }
 
+    function syncpoll() {
+        binding.syncpoll();
+    }
+
     function sync(s) {
         //if  { s.newcookie
         //self.on('newcookie', s.newcookie);
@@ -218,9 +232,9 @@ var LDAP = function(opts) {
         }
 
         binding.setsynccallbacks(
-            (typeof s.syncentry == 'function'?s.syncentry:function(){}),
-            (typeof s.syncrefresh == 'function'?s.syncrefresh:function(){}),
-            (typeof s.syncrefreshdone == 'function'?s.syncrefreshdone:function(){}));
+            (typeof s.syncentry        == 'function'?s.syncentry:function(){}),
+            (typeof s.syncintermediate == 'function'?s.syncintermediate:function(){}),
+            (typeof s.syncresult       == 'function'?s.syncresult:function(){}));
 
         if (s.newcookie) {
             self.on('newcookie', s.newcookie);
@@ -232,6 +246,11 @@ var LDAP = function(opts) {
                      s.attrs?s.attrs:'*', 
                      s.cookie?s.cookie:"rid="+s.rid);
         syncopts = s;
+
+        // this is DUMB, but I can't seem to get the sync routines
+        // to deliver the last message in the queue (sometimes). So, 
+        // we'll poll periodically. It's fairly cheap.
+        syncpolltimer = setInterval(self.syncpoll, 1000);
     }
 
     function search(s_opts, fn) {
@@ -247,7 +266,7 @@ var LDAP = function(opts) {
         return setCallback(binding.search(s_opts.base, 
                                           (typeof s_opts.scope == 'number')?s_opts.scope:self.SUBTREE, 
                                           s_opts.filter?s_opts.filter:'(objectClass=*)',
-                                          s_opts.attrs?s_opts.attrs:'*', s_opts.pagesize, 
+                                          s_opts.attrs?s_opts.attrs:'*', s_opts.pagesize,
                                           s_opts.cookie),
                                           search, arguments, fn);
     }
@@ -276,37 +295,47 @@ var LDAP = function(opts) {
         return setCallback(binding.rename(dn, newrdn), rename, arguments, fn);
     }
 
-    binding.setcallbacks(function() {
-        // connected callback
-    }, function(err) {
-        // disconnected callback
-        stats.disconnects++;
-        if (!reconnecting) {
-            stats.reconnects++;
-            reconnect();
-        } else {
-            stats.ignored_reconnnects++;
-        }        
-    },function(msgid, errcode, data, cookie) {
-        //searchresult callback
-        stats.searchresults++;
-        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data, cookie);
-    }, function(msgid, errcode, data) {
-        //result callback
-        stats.results++;
-        handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data);
-    }, function() {
-        //error callback
-        stats.errors++;
-        process.exit();
-    }, function(newcookie) {
-        //newcookie callback
-        if (newcookie && (newcookie != cookie)) {
-            cookie = newcookie;
-            if (syncopts) syncopts.cookie = newcookie;
-            self.emit('newcookie', cookie);
-        }
-    });
+    function setcallbacks() {
+        binding.setcallbacks(function() {
+            // connected callback
+            self.emit('connected');
+        }, function(err) {
+            // disconnected callback
+            stats.disconnects++;
+            self.emit('disconnect');
+            clearInterval(syncpolltimer);
+            if (!reconnecting) {
+                stats.reconnects++;
+                // binding.close();
+                // b.push(binding); // TODO: remove this
+                binding = new LDAPConnection();
+                reconnect();
+            } else {
+                stats.ignored_reconnnects++;
+            }        
+        },function(msgid, errcode, data, cookie) {
+            //searchresult callback
+            stats.searchresults++;
+            handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data, cookie);
+        }, function(msgid, errcode, data) {
+            //result callback
+            stats.results++;
+            handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data);
+        }, function() {
+            //error callback
+            stats.errors++;
+            process.exit();
+        }, function(newcookie) {
+            //newcookie callback
+            if (newcookie && (newcookie != cookie)) {
+                cookie = newcookie;
+                if (syncopts) syncopts.cookie = newcookie;
+                self.emit('newcookie', cookie);
+            }
+        });
+    }
+
+    setcallbacks();
 
     // public properties
     this.cookie = cookie;
@@ -319,6 +348,7 @@ var LDAP = function(opts) {
     this.findandbind = findandbind;
     this.getStats = getStats;
     this.sync = sync;
+    this.syncpoll = syncpoll;
     this.close = close;
     this.modify = modify;
     this.add = add;
