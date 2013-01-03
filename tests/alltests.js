@@ -1,9 +1,39 @@
+/*jshint globalstrict: true, node: true, trailing:true, unused:true, es5:true */
+
+"use strict";
+
 var LDAP = require('../LDAP');
 var ldap;
 var assert = require('assert');
 var schema;
 
 var tests = [
+    {
+        name: 'RECONNECT_SYNCREPL',
+        description: 'Disconnect while syncrepl running',
+        fn: function() {
+            ldap.sync({
+                base: 'dc=com',
+                scope: ldap.SUBTREE,
+                filter: '(objectClass=*)',
+                attrs: '*',
+                rid: '234',
+                cookie: '',
+                syncentry: function(data) {
+                    console.log('------');
+                    console.log(data);
+                },
+                newcookie: function(cookie) {
+                    console.log('newcookie' + cookie);
+                }
+            });
+            console.log('Sync configured.');
+            setTimeout(function() {
+                console.log('Proceeding');
+                next();
+            }, 20000);
+        }
+    },
     {
         name: 'SCHEMA',
         description: 'Schema Load',
@@ -219,7 +249,8 @@ var tests = [
         fn: function() {
             ldap.search({
                 base: 'dc=sample,dc=com',
-                filter: '(cn=Oooo*)'
+                filter: '(cn=Oooo*)',
+                attrs: '+',
             }, function(err, data) {
                 assert(!err);
                 assert(data.length == 1);
@@ -501,6 +532,8 @@ function next() {
         ldap.close();
     }
 }
+
+var slapd_pid = process.argv[2];
 
 console.log('');
 next();
