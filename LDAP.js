@@ -141,8 +141,6 @@ var LDAP = function(opts) {
                     bind(function() {
                         replayCallbacks();
                         if (syncopts) {
-                            console.log('Resetting syncopts:');
-                            console.log(syncopts);
                             sync(syncopts);
                         }
                     });
@@ -158,10 +156,7 @@ var LDAP = function(opts) {
 
     function close() {
         stats.closes++;
-        // close() is buggy and leaks like crazy.
-        // TODO: FIX THIS.
-        //        binding.close();
-        //        binding = null;
+        binding.close();
     }
 
 
@@ -215,9 +210,6 @@ var LDAP = function(opts) {
     }
 
     function getcookie() {
-        if (!syncopts) {
-            throw new Error('Must start sync before getting cookie');
-        }
         return binding.getcookie();
     }
 

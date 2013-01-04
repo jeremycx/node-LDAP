@@ -940,7 +940,10 @@ public:
   NODE_METHOD(GetCookie) {
     HandleScope Scope;
     GETOBJ(c);
-    return Scope.Close(String::New(c->ls->ls_cookie.bv_val));
+    if (c->ls) {
+      return Scope.Close(String::New(c->ls->ls_cookie.bv_val));
+    }
+    return Undefined();
   }
   
   static int SyncSearchEntry(ldap_sync_t * ls, LDAPMessage * msg, 
