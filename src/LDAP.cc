@@ -226,6 +226,7 @@ public:
 
     ARG_STR(uri, 0);
     ARG_INT(ver, 1);
+    ARG_INT(timeout, 2);
 
     LJSDEB("OPEN1 %s:%u %p %p\n", c, c->ld);
 
@@ -240,6 +241,13 @@ public:
     if (c->ld == NULL) {
       THROW("Error init LDAP");
     }
+
+    if (timeout != -1) {
+      ntimeout.tv_sec = timeout;
+    }
+
+    struct timeval ntimeout = { timeout, 0 };
+    ldap_set_option(c->ld, LDAP_OPT_NETWORK_TIMEOUT, &ntimeout);
 
     ldap_set_option(c->ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
     ldap_set_option(c->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
