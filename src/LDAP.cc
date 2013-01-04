@@ -242,11 +242,12 @@ public:
       THROW("Error init LDAP");
     }
 
+    struct timeval ntimeout = { timeout, 0 };
+
     if (timeout != -1) {
       ntimeout.tv_sec = timeout;
     }
 
-    struct timeval ntimeout = { timeout, 0 };
     ldap_set_option(c->ld, LDAP_OPT_NETWORK_TIMEOUT, &ntimeout);
 
     ldap_set_option(c->ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
