@@ -1,4 +1,4 @@
-node-LDAP 1.1.1
+node-LDAP 1.1.2
 ===============
 
 OpenLDAP client bindings for Node.js. Requires libraries from
@@ -56,8 +56,9 @@ Creating an instance:
 
 
     var LDAP = require('LDAP');
-    var ldap = new LDAP({ uri: 'ldap://my.ldap.server', version: 3});
-
+    var ldap = new LDAP({ uri: 'ldap://my.ldap.server', 
+                          version: 3,
+                          connecttimeout: 1});
 
 ldap.open()
 -----------
