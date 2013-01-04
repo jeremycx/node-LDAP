@@ -20,6 +20,20 @@
         '-L/usr/local/lib',
         '-lldap'
       ],
+      'conditions': [
+        ['OS=="linux"', {
+            'ldflags': [
+              '-luuid'
+            ]
+          }
+        ],
+        ['OS=="OSX"', {
+            'ldflags': [
+              '-luuid'
+            ]
+          }
+        ],
+      ]     
     }
   ]
 }
