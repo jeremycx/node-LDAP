@@ -29,9 +29,7 @@ Thanks to:
 Dependencies
 ------------
 
-Node >= 0.6
-
-For < 0.6 compaibility, check out v0.4
+Node >= 0.8
 
 Install
 =======
@@ -39,7 +37,7 @@ Install
 You must ensure you lave the latest OpenLDAP client libraries
 installed from http:///www.openldap.org
 
-To install the 1.1.1 release from npm:
+To install the 1.1.2 release from npm:
 
     npm install node-LDAP
 
