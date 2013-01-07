@@ -593,7 +593,7 @@ public:
       RETURN_INT(LDAP_SERVER_DOWN);
     }
 
-    if (((msgid = ldap_modrdn(c->ld, *dn, *newrdn)) == LDAP_SERVER_DOWN)) {
+    if ((msgid = ldap_modrdn(c->ld, *dn, *newrdn)) == LDAP_SERVER_DOWN) {
       close(c);
     }
 
@@ -718,7 +718,7 @@ public:
       // get sync controls, if present...
       ldap_get_entry_controls( c->ld, entry, &ctrls );
       if ( ctrls != NULL ) {
-        struct berval entryUUID = { 0 };
+        struct berval entryUUID = { 0, NULL };
         int state, i;
         BerElement *ber = NULL;
         
