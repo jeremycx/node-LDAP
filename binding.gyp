@@ -13,12 +13,12 @@
       ],
       'cflags': [
         '-Wall',
-        '--verbose',
         '-g'
       ],
       'ldflags': [
         '-L/usr/local/lib',
-        '-lldap'
+        '-lldap',
+        '-lber'
       ],
       'conditions': [
         ['OS=="linux"', {
@@ -27,13 +27,15 @@
             ]
           }
         ],
-        ['OS=="OSX"', {
-            'ldflags': [
-              '-luuid'
+        ['OS=="mac"', {
+          "link_settings": {
+            "libraries": [
+              "-lldap"
             ]
           }
-        ],
-      ]     
+         }
+        ]
+      ]   
     }
   ]
 }
