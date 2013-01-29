@@ -781,6 +781,7 @@ public:
     Handle<Value> args[5];
     int msgid = 0;
     int errp;
+    int rc = 0;
     LJSDEB("LDi: %s:%u %p %p\n", c, c->ld);
 
     if (c->connected == false) {
@@ -805,7 +806,7 @@ public:
     if (c->ls) {
       // there is a weird timing problem where a sync entry gets
       // missed. Calling poll twice seems to make it work.
-      int rc = ldap_sync_poll(c->ls);
+      rc = ldap_sync_poll(c->ls);
     }
 
     // now check for any other pending messages....
