@@ -17,8 +17,7 @@
       ],
       'ldflags': [
         '-L/usr/local/lib',
-        '-lldap',
-        '-lber'
+        '-lldap'
       ],
       'conditions': [
         ['OS=="linux"', {
