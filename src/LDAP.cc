@@ -805,7 +805,7 @@ public:
     if (c->ls) {
       // there is a weird timing problem where a sync entry gets
       // missed. Calling poll twice seems to make it work.
-      // rc = ldap_sync_poll(c->ls);
+      int rc = ldap_sync_poll(c->ls);
     }
 
     // now check for any other pending messages....
@@ -939,9 +939,9 @@ public:
     ls->ls_ld = c->ld;
     ls->ls_cookie = *(ber_bvstrdup(*cookie));
 
-    ldap_sync_init(ls, LDAP_SYNC_REFRESH_AND_PERSIST);
-
     c->ls = ls;
+
+    ldap_sync_init(ls, LDAP_SYNC_REFRESH_AND_PERSIST);
 
     RETURN_INT(0);
   }
