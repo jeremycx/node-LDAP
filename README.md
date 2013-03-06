@@ -39,7 +39,7 @@ installed from http:///www.openldap.org
 
 To install the 1.1.3 release from npm:
 
-    npm install node-LDAP
+    npm install LDAP
 
 If this fails, please ensure you have uuid.h available (on Ubuntu,
 install the uuid-dev package).
