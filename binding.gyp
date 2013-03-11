@@ -15,9 +15,11 @@
         '-Wall',
         '-g'
       ],
+      'libraries': [
+        '-llber -lldap'
+      ],
       'ldflags': [
-        '-L/usr/local/lib',
-        '-lldap'
+        '-L/usr/local/lib'
       ],
       'conditions': [
         ['OS=="linux"', {
