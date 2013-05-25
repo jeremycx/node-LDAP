@@ -23,7 +23,7 @@
       ],
       'conditions': [
         ['OS=="linux"', {
-            'ldflags': [
+            'libraries': [
               '-luuid'
             ]
           }
