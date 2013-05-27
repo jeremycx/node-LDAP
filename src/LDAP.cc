@@ -165,7 +165,7 @@ private:
   Persistent<Function> syncentry_cb;
   Persistent<Function> syncintermediate_cb;
   Persistent<Function> syncresult_cb;
-  int connected;
+  int connected, iowatching;
 
 public:  
   LDAPConnection() : ObjectWrap(){ }
@@ -211,6 +211,7 @@ public:
     c->ld = NULL;
     c->ls = NULL;
     c->connected = false;
+    c->iowatching = false;
     c->uv_handle = NULL;
 
     LJSDEB("NEW DONE %s:%u %p %p\n", c, c->ld);
@@ -263,7 +264,7 @@ public:
   static void on_handle_close(uv_handle_t * handle) {
     LDAPConnection *c = (LDAPConnection *)handle->data;
     int res;
-    LJSDEB("CLOSE CB %s:%u lsld: %p %p\n", c->ls->ls_ld, c->ld);
+    LJSDEB("CLOSE CB %s:%u lsld: %p\n", c->ld);
     delete handle;
 
     if (c->ls) {
@@ -280,8 +281,11 @@ public:
     Local<Value> argv[1] = {                                            
       Local<Value>::New(Null())                                         
     };                                                                  
-    c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); 
-    
+    //c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); 
+    if (c->ld) ldap_unbind(c->ld);
+    c->ld = NULL;
+    c->iowatching = false;
+    c->connected = false;
   }
 
   static void close(LDAPConnection *c) {
@@ -296,17 +300,9 @@ public:
       uv_poll_stop(c->uv_handle);
       // and close poll handle
       uv_close((uv_handle_t *)c->uv_handle, on_handle_close);
-    } else {
-      Local<Value> argv[1] = {                                            
-        Local<Value>::New(Null())                                         
-      };                                                                  
-      c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); 
     }
 
     LJSDEB("CLOSE2: %s:%u %p %p\n", c, c->ld);
-    ldap_unbind(c->ld);
-
-    c->connected = false;
   }
 
   NODE_METHOD(Close) {
@@ -645,12 +641,17 @@ public:
     uv_poll_t * handle = new uv_poll_t;
     handle->data = c;
 
+    if (c->iowatching) {
+      return;
+    }
+
     ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
-    
+
     LJSDEB("FD: %s:%u %u\n", fd);
 
     uv_poll_init(uv_default_loop(), handle, fd);
     uv_poll_start(handle, UV_READABLE, io_event);
+    c->iowatching = true;
     c->uv_handle = handle;
   }
 

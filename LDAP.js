@@ -17,7 +17,7 @@ LDAPError.prototype.constructor = LDAPError;
 
 var LDAP = function(opts) {
     var self = this;
-    var binding = new LDAPConnection();
+    var binding;
     var callbacks = {};
     var reconnecting = false;
     var syncopts = undefined;
@@ -113,6 +113,8 @@ var LDAP = function(opts) {
 
     function open(fn) {
         stats.opens++;
+        binding = new LDAPConnection();
+        setcallbacks();
         binding.open(opts.uri || 'ldap://localhost', (opts.version || 3), (opts.connecttimeout || -1));
         return bind(fn); // do an anon bind to get it all ready.
     }
@@ -318,8 +320,6 @@ var LDAP = function(opts) {
             process.exit();
         });
     }
-
-    setcallbacks();
 
     // public functions
     this.open = open;
