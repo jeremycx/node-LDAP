@@ -789,12 +789,11 @@ public:
       return;
     }
 
-
-    // not sure if this is neccesary...
-    if (!(events & EV_READ)) {
-      LJSDEB("EV_READ %s:%u\n");
-      return;
-    }
+//    not sure if this is neccesary...$
+//    if (!(events & EV_READ)) {$
+//      LJSDEB("EV_READ %s:%u\n");$
+//      return;$
+//    }$
 
     if (c->ld == NULL) {
       // disconnect event, or something arriving after
@@ -1029,3 +1028,5 @@ public:
 extern "C" void init(Handle<Object> target) {
   LDAPConnection::Initialize(target);
 }
+
+NODE_MODULE(LDAP, init);
