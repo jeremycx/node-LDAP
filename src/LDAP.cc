@@ -304,6 +304,7 @@ public:
     }
 
     LJSDEB("CLOSE2: %s:%u %p %p\n", c, c->ld);
+    ldap_unbind(c->ld);
 
     c->connected = false;
   }
