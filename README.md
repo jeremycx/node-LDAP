@@ -1,4 +1,4 @@
-node-LDAP 1.1.5
+node-LDAP 1.1.6
 ===============
 
 OpenLDAP client bindings for Node.js. Requires libraries from
@@ -37,7 +37,7 @@ Install
 You must ensure you lave the latest OpenLDAP client libraries
 installed from http:///www.openldap.org
 
-To install the 1.1.5 release from npm:
+To install the 1.1.6 release from npm:
 
     npm install LDAP
 
