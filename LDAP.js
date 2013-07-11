@@ -85,6 +85,7 @@ var LDAP = function(opts) {
             }
         } else {
             fn(new Error('LDAP Error ' + binding.err2string(), msgid));
+            reconnect();
         }
         return msgid;
     }
