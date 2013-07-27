@@ -670,7 +670,7 @@ public:
   static int isBinary(char * attrname) {
     if (!strcmp(attrname, "jpegPhoto") ||
         !strcmp(attrname, "photo") ||
-        !strcmp(attrname, "personalSignature") |
+        !strcmp(attrname, "personalSignature") ||
         !strcmp(attrname, "userCertificate") ||
         !strcmp(attrname, "cACertificate") ||
         !strcmp(attrname, "authorityRevocationList") ||
