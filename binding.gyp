@@ -33,6 +33,11 @@
             "libraries": [
               "-lldap"
             ]
+          },
+          'xcode_settings': {
+            'OTHER_LDFLAGS': [
+              '-L/usr/local/lib'
+            ]
           }
          }
         ]
