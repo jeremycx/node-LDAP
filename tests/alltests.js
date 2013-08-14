@@ -9,6 +9,30 @@ var schema;
 
 var tests = [
     {
+        name: 'FINDREMOVED - Notfound',
+        description: 'Find a recently removed record',
+        fn: function() {
+            ldap.search({
+                base: 'dc=sample,dc=com',
+                filter: '(cn=Darren)'
+            }, function(err, data) {
+                assert(!err, 'Finding a removed record');
+                assert(data.length == 0);
+                next();
+            });
+        }
+    },
+    {
+        name: 'REMOVE',
+        description: 'Remove a record',
+        fn: function() {
+            ldap.remove('cn=Darren,ou=accounting,dc=sample,dc=com', function(err, data) {
+                assert(!err, 'Remove failed');
+                next();
+             });
+        }
+    },
+    {
         name: 'RECONNECT_SYNCREPL',
         description: 'Disconnect while syncrepl running',
         fn: function() {
