@@ -192,6 +192,7 @@ public:
     NODE_SET_PROTOTYPE_METHOD(t, "simpleBind", SimpleBind);
     NODE_SET_PROTOTYPE_METHOD(t, "rename", Rename);
     NODE_SET_PROTOTYPE_METHOD(t, "add", Add);
+    NODE_SET_PROTOTYPE_METHOD(t, "remove", Delete);
     NODE_SET_PROTOTYPE_METHOD(t, "setcallbacks", SetCallbacks);
     NODE_SET_PROTOTYPE_METHOD(t, "setsynccallbacks", SetSyncCallbacks);
     ldapConstructor = Persistent<Function>::New(t->GetFunction());
@@ -571,6 +572,27 @@ public:
     RETURN_INT(msgid);
   }
 
+  NODE_METHOD(Delete)
+  {
+    HandleScope scope;
+    GETOBJ(c);
+    int msgid;
+    int fd;
+
+    ARG_STR(dn, 0);
+
+    if (c->ld == NULL) RETURN_INT(LDAP_SERVER_DOWN);
+
+    msgid = ldap_delete(c->ld, *dn);
+    ldap_get_option(c->ld, LDAP_OPT_DESC, &fd);
+
+    if (msgid == LDAP_SERVER_DOWN) {
+      close(c);
+    }
+
+    RETURN_INT(msgid);
+  }
+
   NODE_METHOD(Rename)
   {
     HandleScope scope;
@@ -857,6 +879,7 @@ public:
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
+      case LDAP_RES_DELETE:
         {
           args[0] = Integer::New(msgid);
           args[1] = errp?Integer::New(errp):Undefined();
