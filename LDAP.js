@@ -33,6 +33,7 @@ var LDAP = function(opts) {
         closes: 0,
         modifies: 0,
         adds: 0,
+        removes: 0,
         renames: 0,
         disconnects: 0,
         replays: 0,
@@ -281,6 +282,14 @@ var LDAP = function(opts) {
         return setCallback(binding.add(dn, attrs), add, arguments, fn);
     }
 
+    function remove(dn, fn) {
+        if (!dn) {
+            throw new Error('remove requires a dn');
+        }
+        stats.removes++;
+        return setCallback(binding.remove(dn), remove, arguments, fn);
+    }
+
     function rename(dn, newrdn, fn) {
         if (!dn || !newrdn) {
             throw new Error('rename requires a dn and newrdn');
@@ -334,6 +343,7 @@ var LDAP = function(opts) {
     this.close = close;
     this.modify = modify;
     this.add = add;
+    this.remove = remove;
     this.rename = rename;
     this.getcookie = getcookie;
 };
