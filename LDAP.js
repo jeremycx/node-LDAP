@@ -86,7 +86,7 @@ var LDAP = function(opts) {
             }
         } else {
             fn(new Error('LDAP Error ' + binding.err2string(), msgid));
-            reconnect();
+            if (!opts.noreconnect) reconnect();
         }
         return msgid;
     }
@@ -312,7 +312,7 @@ var LDAP = function(opts) {
                 // binding.close();
                 // b.push(binding); // TODO: remove this
                 binding = new LDAPConnection();
-                reconnect();
+                if (!opts.noreconnect) reconnect();
             } else {
                 stats.ignored_reconnnects++;
             }        
