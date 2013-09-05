@@ -144,12 +144,10 @@ var LDAP = function(opts) {
                     stats.reconnects++;
                     opts.backoff = 1;
                     setcallbacks();
-                    bind(function() {
-                        replayCallbacks();
-                        if (syncopts) {
-                            sync(syncopts);
-                        }
-                    });
+                    replayCallbacks();
+                    if (syncopts) {
+                        sync(syncopts);
+                    }
                 }
             });
         }, (backoff()));
