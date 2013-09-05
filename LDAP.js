@@ -130,24 +130,24 @@ var LDAP = function(opts) {
     }
 
     function reconnect() {
-        reconnecting = true;
+        if (reconnecting) {
+            return;
+        }
         // binding.close();
         setcallbacks();
-        setTimeout(function() {
+        reconnecting = setTimeout(function() {
             var res = open(function(err) {
+                reconnecting = false;
                 if (err) {
                     reconnect();
                 } else {
-                    reconnecting = false;
                     stats.reconnects++;
                     opts.backoff = 1;
                     setcallbacks();
-                    bind(function() {
-                        replayCallbacks();
-                        if (syncopts) {
-                            sync(syncopts);
-                        }
-                    });
+                    replayCallbacks();
+                    if (syncopts) {
+                        sync(syncopts);
+                    }
                 }
             });
         }, (backoff()));
@@ -160,6 +160,9 @@ var LDAP = function(opts) {
 
     function close() {
         stats.closes++;
+        if (reconnecting) {
+            clearTimeout(reconnecting);
+        }
         binding.close();
     }
 
