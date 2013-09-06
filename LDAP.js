@@ -7,10 +7,11 @@ try {
     LDAPConnection = require('./build/Release/LDAP').LDAPConnection;
 }
 
-function LDAPError(message, msgid) {
+function LDAPError(message, msgid, errcode) {
     this.name = 'LDAPError';  
     this.message = message || 'Default Message';  
     this.msgid = msgid;
+    this.code = errcode;
 }  
 LDAPError.prototype = new Error();
 LDAPError.prototype.constructor = LDAPError;  
@@ -80,12 +81,12 @@ var LDAP = function(opts) {
                         args: args,
                         tm: setTimeout(function() {
                             delete callbacks[msgid];
-                            fn(new LDAPError('Timeout', msgid));
+                            fn(new LDAPError('Timeout', msgid, -2));
                         }, opts.timeout)
                     }
             }
         } else {
-            fn(new Error('LDAP Error ' + binding.err2string(), msgid));
+            fn(new LDAPError('LDAP Error ' + binding.err2string(), msgid, msgid));
             reconnect();
         }
         return msgid;
@@ -319,11 +320,11 @@ var LDAP = function(opts) {
         },function(msgid, errcode, data, cookie) {
             //searchresult callback
             stats.searchresults++;
-            handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data, cookie);
+            handleCallback(msgid, (errcode?new LDAPError(binding.err2string(errcode), msgid, errcode):undefined), data, cookie);
         }, function(msgid, errcode, data) {
             //result callback
             stats.results++;
-            handleCallback(msgid, (errcode?new Error(binding.err2string(errcode)):undefined), data);
+            handleCallback(msgid, (errcode?new LDAPError(binding.err2string(errcode), msgid, errcode):undefined), data);
         }, function() {
             //error callback
             stats.errors++;
