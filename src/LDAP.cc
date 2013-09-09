@@ -271,6 +271,7 @@ public:
       c->ls->ls_ld = NULL; // this prevents sync_destroy from unbinding
       ldap_sync_destroy(c->ls, 1);
     }
+    c->ls = NULL;
 
     if (c->ld) {
       res = ldap_unbind(c->ld);
@@ -282,13 +283,12 @@ public:
       Local<Value>::New(Null())                                         
     };*/
     //c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); 
-    if (c->ld) ldap_unbind(c->ld);
-    c->ld = NULL;
     c->iowatching = false;
     c->connected = false;
   }
 
   static void close(LDAPConnection *c) {
+    int res;
     if (c->connected == false) {
       return;
     }
@@ -300,6 +300,12 @@ public:
       uv_poll_stop(c->uv_handle);
       // and close poll handle
       uv_close((uv_handle_t *)c->uv_handle, on_handle_close);
+      c->uv_handle = NULL;
+    } else if (c->ld) {
+      // ensure ldap instance gets freed
+      res = ldap_unbind(c->ld);
+      LJSDEB("UNBIND %s:%u res: %i\n", res);
+      c->ld = NULL;
     }
 
     LJSDEB("CLOSE2: %s:%u %p %p\n", c, c->ld);
