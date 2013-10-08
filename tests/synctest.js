@@ -50,7 +50,7 @@ var tests = [
                          { attr: 'objectClass',  vals: [ 'organizationalPerson', 'person', 'top' ] },
                          { attr: 'sn',           vals: [ 'Jones' ] },
                          { attr: 'cn',           vals: [ 'Jason' ] },
-                         { attr: 'userPassword', vals: [ 'foobarbaz' ] } 
+                         { attr: 'userPassword', vals: [ 'foobarbaz' ] }
                      ], function(err) {
                          if (err) {
                              assert(!err, err.toString());
@@ -106,7 +106,7 @@ var tests = [
         description: 'Bind in prep for ADD',
         fn: function() {
             ldap.simpleBind({
-                binddn: 'cn=Manager,dc=sample,dc=com', 
+                binddn: 'cn=Manager,dc=sample,dc=com',
                 password: 'secret'
             }, function(err) {
                 assert(!err);
@@ -144,7 +144,7 @@ var tests = [
                 .on('connect', function() {
                     console.log('Got connected event');
                 });
-           
+
         }
     },
     {
@@ -212,8 +212,8 @@ function restartserver() {
 }
 
 function printOK(name) {
-    console.log(name + 
-                "                                  ".substr(0, 32 - name.length)  + 
+    console.log(name +
+                "                                  ".substr(0, 32 - name.length)  +
                 ' [OK]');
 }
 

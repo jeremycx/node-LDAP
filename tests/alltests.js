@@ -155,9 +155,9 @@ var tests = [
         fn: function() {
             ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
                         [
-                            { op: 'delete', 
-                              attr: 'title', 
-                              vals: [ ] 
+                            { op: 'delete',
+                              attr: 'title',
+                              vals: [ ]
                             }
                         ], function(err, data) {
                             assert(!err, err);
@@ -178,9 +178,9 @@ var tests = [
         fn: function() {
             ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
                         [
-                            { op: 'delete', 
-                              attr: 'telephoneNumber', 
-                              vals: [ ] 
+                            { op: 'delete',
+                              attr: 'telephoneNumber',
+                              vals: [ ]
                             }
                         ], function(err, data) {
                             assert(!err, err);
@@ -201,9 +201,9 @@ var tests = [
         fn: function() {
             ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
                         [
-                            { op: 'replace', 
-                              attr: 'telephoneNumber', 
-                              vals: [ '18005551212', '19005552222' ] 
+                            { op: 'replace',
+                              attr: 'telephoneNumber',
+                              vals: [ '18005551212', '19005552222' ]
                             }
                         ], function(err, data) {
                             ldap.search({base: 'cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
@@ -225,9 +225,9 @@ var tests = [
         fn: function() {
             ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
                         [
-                            { op: 'add', 
-                              attr: 'title', 
-                              vals: [ 'King of Callbacks' ] 
+                            { op: 'add',
+                              attr: 'title',
+                              vals: [ 'King of Callbacks' ]
                             }
                         ], function(err, data) {
                             assert(!err, err);
@@ -241,9 +241,9 @@ var tests = [
         fn: function() {
             ldap.modify('cn=Oooooh Alberto,ou=Accounting,dc=sample,dc=com',
                         [
-                            { op: 'add', 
-                              attr: 'nosuchattr', 
-                              vals: [ 'King of Callbacks' ] 
+                            { op: 'add',
+                              attr: 'nosuchattr',
+                              vals: [ 'King of Callbacks' ]
                             }
                         ], function(err, data) {
                             assert(err, 'Should have failed');
@@ -257,9 +257,9 @@ var tests = [
         fn: function() {
             ldap.modify('cn=Oooooh Alberto,ou=Beancounters,dc=sample,dc=com',
                         [
-                            { op: 'add', 
-                              attr: 'title', 
-                              vals: [ 'King of Callbacks' ] 
+                            { op: 'add',
+                              attr: 'title',
+                              vals: [ 'King of Callbacks' ]
                             }
                         ], function(err, data) {
                             assert(err, 'Should have failed');
@@ -468,7 +468,7 @@ var tests = [
         name: 'BIND',
         fn: function() {
             ldap.simpleBind({
-                binddn: 'cn=Manager,dc=sample,dc=com', 
+                binddn: 'cn=Manager,dc=sample,dc=com',
                 password: 'secret'
             }, function(err) {
                 assert(!err);
@@ -480,7 +480,7 @@ var tests = [
         name: 'BIND (FAIL)',
         fn: function() {
             ldap.simpleBind({
-                binddn: 'cn=Manager,dc=sample,dc=com', 
+                binddn: 'cn=Manager,dc=sample,dc=com',
                 password: 'WRONGsecret'
             }, function(err) {
                 assert(err);
@@ -545,8 +545,8 @@ var currenttest = {
 }
 
 function next() {
-    console.log(currenttest.name + 
-                "                                  ".substr(0, 32 - currenttest.name.length)  + 
+    console.log(currenttest.name +
+                "                                  ".substr(0, 32 - currenttest.name.length)  +
                 ' [OK]');
 
     currenttest = tests.pop();
