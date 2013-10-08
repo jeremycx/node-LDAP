@@ -1,11 +1,11 @@
 {
   "targets": [
-    {  
+    {
       'target_name': 'LDAP',
-      'sources': [ 
-        'src/LDAP.cc' 
+      'sources': [
+        'src/LDAP.cc'
       ],
-      'include_dirs': [ 
+      'include_dirs': [
         '/usr/local/include'
       ],
       'defines': [
@@ -41,7 +41,7 @@
           }
          }
         ]
-      ]   
+      ]
     }
   ]
 }

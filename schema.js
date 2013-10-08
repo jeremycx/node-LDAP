@@ -45,7 +45,7 @@ function parseSchema(entry) {
                 }
             }
         });
-        
+
     } catch (e) {
         console.log(e);
     }
@@ -144,7 +144,7 @@ module.exports = function(ldap, opt) {
         var res = {};
 
         if (!rec) return undefined;
-        
+
         for (var i in rec.objectClass) {
             var oc = objectclasses[rec.objectClass[i]];
             if (oc.muststr) {

@@ -8,13 +8,13 @@ try {
 }
 
 function LDAPError(message, msgid, errcode) {
-    this.name = 'LDAPError';  
-    this.message = message || 'Default Message';  
+    this.name = 'LDAPError';
+    this.message = message || 'Default Message';
     this.msgid = msgid;
     this.code = errcode;
-}  
+}
 LDAPError.prototype = new Error();
-LDAPError.prototype.constructor = LDAPError;  
+LDAPError.prototype.constructor = LDAPError;
 
 var LDAP = function(opts) {
     var self = this;
@@ -74,7 +74,7 @@ var LDAP = function(opts) {
     function setCallback(msgid, replay, args, fn) {
         if (msgid >= 1) {
             if (typeof(fn) == 'function') {
-                callbacks[msgid] = 
+                callbacks[msgid] =
                     {
                         fn: fn,
                         replay: replay,
@@ -125,7 +125,7 @@ var LDAP = function(opts) {
     function backoff() {
         stats.backoffs++;
         opts.backoff *= 2;
-        if (opts.backoff > opts.backoffmax) 
+        if (opts.backoff > opts.backoffmax)
             opts.backoff = opts.backoffmax;
         return opts.backoff * 1000;
     }
@@ -239,22 +239,22 @@ var LDAP = function(opts) {
             (typeof s.syncintermediate == 'function'?s.syncintermediate:function(){}),
             (typeof s.syncresult       == 'function'?s.syncresult:function(){}));
 
-        binding.sync(s.base, 
+        binding.sync(s.base,
                      s.scope?parseInt(s.scope):self.SUBTREE,
-                     s.filter?s.filter:'(objectClass=*)', 
-                     s.attrs?s.attrs:'*', 
+                     s.filter?s.filter:'(objectClass=*)',
+                     s.attrs?s.attrs:'*',
                      s.cookie?s.cookie:"rid="+s.rid);
         syncopts = s;
 
         // this is DUMB, but I can't seem to get the sync routines
-        // to deliver the last message in the queue (sometimes). So, 
+        // to deliver the last message in the queue (sometimes). So,
         // we'll poll periodically. It's fairly cheap.
         syncpolltimer = setInterval(self.syncpoll, 1000);
     }
 
     function search(s_opts, fn) {
         stats.searches++;
-        
+
         if (!s_opts) {
             throw new Error("Opts required");
         }
@@ -262,8 +262,8 @@ var LDAP = function(opts) {
             throw new Error("Base required");
         }
 
-        return setCallback(binding.search(s_opts.base, 
-                                          (typeof s_opts.scope == 'number')?s_opts.scope:self.SUBTREE, 
+        return setCallback(binding.search(s_opts.base,
+                                          (typeof s_opts.scope == 'number')?s_opts.scope:self.SUBTREE,
                                           s_opts.filter?s_opts.filter:'(objectClass=*)',
                                           s_opts.attrs?s_opts.attrs:'*', s_opts.pagesize,
                                           s_opts.cookie),
@@ -319,7 +319,7 @@ var LDAP = function(opts) {
                 if (!opts.noreconnect) reconnect();
             } else {
                 stats.ignored_reconnnects++;
-            }        
+            }
         },function(msgid, errcode, data, cookie) {
             //searchresult callback
             stats.searchresults++;

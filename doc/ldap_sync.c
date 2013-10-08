@@ -390,7 +390,7 @@ ldap_sync_search_result( ldap_sync_t *ls, LDAPMessage *res )
 	case LDAP_SYNC_REFRESH_REQUIRED:
 		/* TODO: check for Sync Done Control */
 		/* FIXME: perhaps the handler should be called
-		 * also in case of failure; we'll deal with this 
+		 * also in case of failure; we'll deal with this
 		 * later when implementing refreshOnly */
 		if ( ls->ls_search_result ) {
 			err = ls->ls_search_result( ls, res, refreshDeletes );
@@ -648,7 +648,7 @@ ldap_sync_init( ldap_sync_t *ls, int mode )
 	fprintf( stderr, "ldap_sync_init(%s)...\n",
 		mode == LDAP_SYNC_REFRESH_AND_PERSIST ?
 			"LDAP_SYNC_REFRESH_AND_PERSIST" :
-			( mode == LDAP_SYNC_REFRESH_ONLY ? 
+			( mode == LDAP_SYNC_REFRESH_ONLY ?
 				"LDAP_SYNC_REFRESH_ONLY" : "unknown" ) );
 #endif /* LDAP_SYNC_TRACE */
 

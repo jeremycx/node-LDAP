@@ -18,7 +18,7 @@
   }
 #endif
 
-#ifdef __linux__ 
+#ifdef __linux__
 #include <uuid/uuid.h>
 #define uuid_to_string(uu, uuid) {              \
     uuid = (char *)malloc(33);                  \
@@ -26,7 +26,7 @@
   }
 #endif
 
-#ifdef __APPLE__ 
+#ifdef __APPLE__
 #include <uuid/uuid.h>
 #define uuid_to_string(uu, uuid) {              \
     uuid = (char *)malloc(33);                  \
@@ -69,7 +69,7 @@ typedef enum {
 
 #define ENFORCE_ARG_LENGTH(n, m)                \
   if (args.Length() < n) THROW(m);
-  
+
 #define ENFORCE_ARG_STR(n)                                      \
   if (!args[n]->IsString()) THROW("Argument must be string");
 
@@ -92,7 +92,7 @@ typedef enum {
 #define ARG_BOOL(v,a) int v = args[a]->BooleanValue();
 
 #define ARG_ARRAY(v, a) Local<Array> v = Local<Array>::Cast(args[a]);
-    
+
 #define RETURN_INT(i) return scope.Close(Integer::New(i));
 
 #define NODE_METHOD(n) static Handle<Value> n(const Arguments& args)
@@ -167,7 +167,7 @@ private:
   Persistent<Function> syncresult_cb;
   int connected, iowatching;
 
-public:  
+public:
   LDAPConnection() : ObjectWrap(){ }
 
   static void Initialize(Handle<Object> target)
@@ -176,7 +176,7 @@ public:
 
     cookie_template = Persistent<ObjectTemplate>::New( ObjectTemplate::New() );
     cookie_template->SetInternalFieldCount(1);
-   
+
     Local<FunctionTemplate> t = FunctionTemplate::New(New);//constructor template
     t->InstanceTemplate()->SetInternalFieldCount(1);
     t->SetClassName(String::NewSymbol("LDAPConnection"));
@@ -206,7 +206,7 @@ public:
     HandleScope scope;
     LDAPConnection * c = new LDAPConnection();
     c->Wrap(args.This());
-    
+
     LJSDEB("NEW %s:%u\n");
 
     c->ld = NULL;
@@ -279,10 +279,10 @@ public:
     }
     c->ld = NULL;
 
-    /*Local<Value> argv[1] = {                                            
-      Local<Value>::New(Null())                                         
+    /*Local<Value> argv[1] = {
+      Local<Value>::New(Null())
     };*/
-    //c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv); 
+    //c->disconnected_cb->Call(Context::GetCurrent()->Global(), 1, argv);
     c->iowatching = false;
     c->connected = false;
   }
@@ -422,7 +422,7 @@ public:
     }
     if (LDAP_API_ERROR(rc)) {
       msgid = -1;
-    } 
+    }
 
     free(bufhead);
 
@@ -440,10 +440,10 @@ public:
     }
 
     ARG_INT(code, 0);
-    
+
     return scope.Close(String::New(ldap_err2string(code)));
   }
-  
+
 
   NODE_METHOD(Modify) {
     HandleScope scope;
@@ -452,7 +452,7 @@ public:
 
     ARG_STR(dn, 0);
     ARG_ARRAY(modsHandle, 1);
-   
+
     if (c->ld == NULL) {
       close(c);
       RETURN_INT(LDAP_SERVER_DOWN);
@@ -526,7 +526,7 @@ public:
     ARG_ARRAY(attrsHandle, 1);
 
     if (c->ld == NULL) RETURN_INT(LDAP_SERVER_DOWN);
-    
+
     int numOfAttrs = attrsHandle->Length();
     for (int i = 0; i < numOfAttrs; i++) {
       // Hey this is still so cumbersome.
@@ -645,18 +645,18 @@ public:
       ENFORCE_ARG_STR(1);
       ARG_STR(j_binddn, 0);
       ARG_STR(j_password, 1);
-      
+
       binddn = strdup(*j_binddn);
       password = strdup(*j_password);
     }
-    
+
     if ((msgid = ldap_simple_bind(c->ld, binddn, password)) == LDAP_SERVER_DOWN) {
       LJSDEB("BINDFAIL %s:%u %p %p\n", c, c->ld);
       close(c);
     } else {
       LDAPConnection::SetIO(c);
     }
-  
+
     free(binddn);
     free(password);
 
@@ -717,11 +717,11 @@ public:
     return 0;
   }
 
-  
-  Local<Value> parseReply(LDAPConnection * c, LDAPMessage * msg) 
+
+  Local<Value> parseReply(LDAPConnection * c, LDAPMessage * msg)
   {
     HandleScope scope;
-    LDAPMessage * entry = NULL; 
+    LDAPMessage * entry = NULL;
     BerElement * berptr = NULL;
     char * attrname     = NULL;
     berval ** vals;
@@ -741,7 +741,7 @@ public:
 
       js_result = Object::New();
       js_result_list->Set(Integer::New(j), js_result);
-      
+
       dn = ldap_get_dn(c->ld, entry);
 
       // get sync controls, if present...
@@ -750,7 +750,7 @@ public:
         struct berval entryUUID = { 0, NULL };
         int state, i;
         BerElement *ber = NULL;
-        
+
         for ( i = 0; ctrls[ i ] != NULL; i++ ) {
           if ( strcmp( ctrls[ i ]->ldctl_oid, LDAP_CONTROL_SYNC_STATE ) == 0 ) {
             break;
@@ -846,7 +846,7 @@ public:
       close(c);
       return;
     default:
-      ldap_parse_result(c->ld, res, &errp, 
+      ldap_parse_result(c->ld, res, &errp,
                         NULL, NULL, NULL, &srv_controls, 0);
       msgid = ldap_msgid(res);
 
@@ -982,8 +982,8 @@ public:
     }
     return Undefined();
   }
-  
-  static int SyncSearchEntry(ldap_sync_t * ls, LDAPMessage * msg, 
+
+  static int SyncSearchEntry(ldap_sync_t * ls, LDAPMessage * msg,
                       struct berval *entryUUID,
                       ldap_sync_refresh_t phase) {
     LDAPConnection *c = (LDAPConnection *)ls->ls_private;
@@ -1038,7 +1038,7 @@ public:
     Local<Array>  js_result_list;
 
     // is there a better way to count this?
-    for ( i = 0; syncUUIDs[ i ].bv_val != NULL; i++ ); 
+    for ( i = 0; syncUUIDs[ i ].bv_val != NULL; i++ );
 
     js_result_list = Array::New(i);
 
