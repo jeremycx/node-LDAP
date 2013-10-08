@@ -258,7 +258,7 @@ var LDAP = function(opts) {
         if (!s_opts) {
             throw new Error("Opts required");
         }
-        if (!s_opts.base) {
+        if (typeof s_opts.base != 'string') {
             throw new Error("Base required");
         }
 
