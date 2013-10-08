@@ -54,7 +54,7 @@ Creating an instance:
 
 
     var LDAP = require('LDAP');
-    var ldap = new LDAP({ uri: 'ldap://my.ldap.server', 
+    var ldap = new LDAP({ uri: 'ldap://my.ldap.server',
                           version: 3,
                           connecttimeout: 1});
 
@@ -136,7 +136,7 @@ a paged search, add the following attributes to your search request:
         scope: '',
         filter: '',
         attrs: '',
-        pagesize: n        
+        pagesize: n
     }
 
 The callback will be called with a new parameter: cookie. Pass this
@@ -219,9 +219,9 @@ Modifies the provided dn as per the changes array provided. Ops are
 one of "add", "delete" or "replace".
 
     var changes = [
-        { op: 'add', 
-          attr: 'title', 
-          vals: [ 'King of Callbacks' ] 
+        { op: 'add',
+          attr: 'title',
+          vals: [ 'King of Callbacks' ]
         }
     ]
 
