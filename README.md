@@ -52,11 +52,12 @@ API
 
 Creating an instance:
 
-
-    var LDAP = require('LDAP');
-    var ldap = new LDAP({ uri: 'ldap://my.ldap.server',
-                          version: 3,
-                          connecttimeout: 1});
+```js
+var LDAP = require('LDAP');
+var ldap = new LDAP({ uri: 'ldap://my.ldap.server',
+                      version: 3,
+                      connecttimeout: 1});
+```
 
 ldap.open()
 -----------
@@ -66,13 +67,15 @@ ldap.open()
 Now that you have an instance, you can open a connection. This will
 automatically reconnect until you close():
 
-    ldap.open(function(err) {
-        if (err) {
-           throw new Error('Cannot connect');
-        }
-        // connection is ready.
+```js
+ldap.open(function(err) {
+    if (err) {
+       throw new Error('Can not connect');
+    }
+    // connection is ready.
 
-    });
+});
+```
 
 ldap.simplebind()
 -----------------
@@ -84,10 +87,12 @@ will upgrade the existing anonymous bind.
 
 Options are binddn and password:
 
-    bind_options = {
-        binddn: '',
-        password: ''
-    }
+```js
+bind_options = {
+    binddn: '',
+    password: ''
+}
+```
 
 ldap.search()
 -------------
@@ -95,12 +100,14 @@ ldap.search()
 
 Options are provided as a JS object:
 
-    search_options = {
-        base: '',
-        scope: '',
-        filter: '',
-        attrs: ''
-    }
+```js
+search_options = {
+    base: '',
+    scope: '',
+    filter: '',
+    attrs: ''
+}
+```
 
 Scopes are specified as one of the following integers:
 
@@ -118,38 +125,44 @@ before you can act on /anything/ is a pet peeve of
 mine). The exception to this rule is the 'dn' attribute - this is
 always a single-valued string.
 
-      [ { gidNumber: [ '2000' ],
-        objectClass: [ 'posixAccount', 'top', 'account' ],
-        uidNumber: [ '3214' ],
-        uid: [ 'fred' ],
-        homeDirectory: [ '/home/fred' ],
-        cn: [ 'fred' ],
-        dn: 'cn=fred,dc=ssimicro,dc=com' } ]
+```js
+[ { gidNumber: [ '2000' ],
+  objectClass: [ 'posixAccount', 'top', 'account' ],
+  uidNumber: [ '3214' ],
+  uid: [ 'fred' ],
+  homeDirectory: [ '/home/fred' ],
+  cn: [ 'fred' ],
+  dn: 'cn=fred,dc=ssimicro,dc=com' } ]
+```
 
 LDAP servers are usually limited in how many items they are willing to return -
 1024 or 4096 are some typical values. For larger LDAP directories, you need to
 either partition your results with filter, or use paged search. To get
 a paged search, add the following attributes to your search request:
 
-    search_options = {
-        base: '',
-        scope: '',
-        filter: '',
-        attrs: '',
-        pagesize: n
-    }
+```js
+search_options = {
+    base: '',
+    scope: '',
+    filter: '',
+    attrs: '',
+    pagesize: n
+}
+```
 
 The callback will be called with a new parameter: cookie. Pass this
 cookie back in subsequent searches to get the next page of results:
 
-    search_options = {
-        base: '',
-        scope: '',
-        filter: '',
-        attrs: '',
-        pagesize: n,
-        cookie: cookie
-    }
+```js
+search_options = {
+    base: '',
+    scope: '',
+    filter: '',
+    attrs: '',
+    pagesize: n,
+    cookie: cookie
+}
+```
 
 ldap.findandbind()
 ------------------
@@ -161,13 +174,15 @@ do LDAP authentication "the right way" if possible.
 Options are exactly like the search options, with the addition of a
 "password" attribute:
 
-    fb_options = {
-        base: '',
-        filter: '',
-        scope: '',
-        attrs: '',
-        password: ''
-    }
+```js
+fb_options = {
+    base: '',
+    filter: '',
+    scope: '',
+    attrs: '',
+    password: ''
+}
+```
 
 Calls the callback with the record it authenticated against.
 
@@ -204,11 +219,13 @@ ldap.add()
 dn is the full DN of the record you want to add, attrs to be provided
 as follows:
 
-    var attrs = [
-        { attr: 'objectClass',  vals: [ 'organizationalPerson', 'person', 'top' ] },
-        { attr: 'sn',           vals: [ 'Smith' ] },
-        { attr: 'badattr',      vals: [ 'Fried' ] }
-    ]
+```js
+var attrs = [
+    { attr: 'objectClass',  vals: [ 'organizationalPerson', 'person', 'top' ] },
+    { attr: 'sn',           vals: [ 'Smith' ] },
+    { attr: 'badattr',      vals: [ 'Fried' ] }
+]
+```
 
 ldap.modify()
 -------------
@@ -218,12 +235,14 @@ ldap.modify()
 Modifies the provided dn as per the changes array provided. Ops are
 one of "add", "delete" or "replace".
 
-    var changes = [
-        { op: 'add',
-          attr: 'title',
-          vals: [ 'King of Callbacks' ]
-        }
-    ]
+```js
+var changes = [
+    { op: 'add',
+      attr: 'title',
+      vals: [ 'King of Callbacks' ]
+    }
+]
+```
 
 ldap.rename()
 -------------
@@ -234,19 +253,23 @@ Will rename the entry to the new RDN provided.
 
 Example:
 
-    ldap.rename('cn=name,dc=example,dc=com', 'cn=newname')
+```js
+ldap.rename('cn=name,dc=example,dc=com', 'cn=newname')
+```
 
 Schema
 ======
 
 To instantiate:
 
-    var LDAP = require('LDAP');
-    var schema = new LDAP.Schema({
-        init_attr: function(attr),
-        init_obj: function(obj),
-        ready: function()
-    })
+```js
+var LDAP = require('LDAP');
+var schema = new LDAP.Schema({
+    init_attr: function(attr),
+    init_obj: function(obj),
+    ready: function()
+})
+```
 
 init_attr is called as each attribute is added so you can
 augment the attributes as they are loaded (add friendly labels, for
@@ -279,17 +302,19 @@ then issue the ldap.sync() command:
 
 The options are as follows:
 
-    {
-        base: '',
-        scope: ldap.SUBTREE,
-        filter: '(objectClass=*)',
-        attrs: '* +',
-        rid: '000',
-        cookie: '',
-        syncentry: function(data),
-        syncintermediate: function(data),
-        syncresult: function(data)
-    }
+```js
+{
+    base: '',
+    scope: ldap.SUBTREE,
+    filter: '(objectClass=*)',
+    attrs: '* +',
+    rid: '000',
+    cookie: '',
+    syncentry: function(data),
+    syncintermediate: function(data),
+    syncresult: function(data)
+}
+```
 
 The cookie attribute is used to send a cookie to the server to ensure
 sync continues where you last left off.
