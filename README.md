@@ -34,8 +34,8 @@ Node >= 0.8
 Install
 =======
 
-You must ensure you lave the latest OpenLDAP client libraries
-installed from http:///www.openldap.org
+You must ensure you have the latest OpenLDAP client libraries
+installed from http://www.openldap.org
 
 To install the 1.1.6 release from npm:
 
@@ -68,7 +68,7 @@ automatically reconnect until you close():
 
     ldap.open(function(err) {
         if (err) {
-           throw new Error('Can not connect');
+           throw new Error('Cannot connect');
         }
         // connection is ready.
 
@@ -325,5 +325,5 @@ TODO:
 -----
 * Integration testing for syncrepl.
 * Real-world testing of syncrepl.
-* Testing against Microsoft Active Directory is welcomed, as I don't
+* Testing against Microsoft Active Directory is welcome as I don't
 have a server to test against.
