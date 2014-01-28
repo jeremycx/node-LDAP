@@ -226,8 +226,9 @@ public:
     GETOBJ(c);
 
     ARG_STR(uri, 0);
-    ARG_INT(ver, 1);
-    ARG_INT(timeout, 2);
+    ARG_BOOL(starttls, 1);
+    ARG_INT(ver, 2);
+    ARG_INT(timeout, 3);
 
     LJSDEB("OPEN1 %s:%u %p %p\n", c, c->ld);
 
@@ -253,6 +254,10 @@ public:
 
     ldap_set_option(c->ld, LDAP_OPT_RESTART, LDAP_OPT_ON);
     ldap_set_option(c->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
+
+    if (starttls == 1) {      
+      ldap_start_tls_s(c->ld, NULL, NULL);
+    }
 
     LJSDEB("OPEN: %s:%u %p %p\n", c, c->ld);
 

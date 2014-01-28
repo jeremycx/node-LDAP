@@ -49,6 +49,7 @@ var LDAP = function(opts) {
         throw new LDAPError('You must provide a URI');
     }
 
+    opts.starttls = opts.starttls || false;
     opts.timeout = opts.timeout || 5000;
     opts.backoff = 1; //sec
     opts.backoffmax = opts.backoffmax || 32; //sec
@@ -120,7 +121,7 @@ var LDAP = function(opts) {
         stats.opens++;
         binding = new LDAPConnection();
         setcallbacks();
-        binding.open(opts.uri || 'ldap://localhost', (opts.version || 3), (opts.connecttimeout || -1));
+        binding.open(opts.uri || 'ldap://localhost', (opts.starttls || false), (opts.version || 3), (opts.connecttimeout || -1));
         return bind(fn); // do an anon bind to get it all ready.
     }
 
