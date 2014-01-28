@@ -1,4 +1,4 @@
-node-LDAP 1.1.6
+node-LDAP 1.2.0
 ===============
 
 OpenLDAP client bindings for Node.js. Requires libraries from
@@ -37,7 +37,7 @@ Install
 You must ensure you have the latest OpenLDAP client libraries
 installed from http://www.openldap.org
 
-To install the 1.1.6 release from npm:
+To install the latest release from npm:
 
     npm install LDAP
 
@@ -54,9 +54,12 @@ Creating an instance:
 
 ```js
 var LDAP = require('LDAP');
-var ldap = new LDAP({ uri: 'ldap://my.ldap.server',
-                      version: 3,
-                      connecttimeout: 1});
+var ldap = new LDAP({
+    uri: 'ldap://my.ldap.server',
+    version: 3,
+    connecttimeout: 1,
+    reconnect: true
+});
 ```
 
 ldap.open()
@@ -76,6 +79,9 @@ ldap.open(function(err) {
 
 });
 ```
+
+You can disable the automatic reconnect by setting the `reconnect`
+option to false.
 
 ldap.simplebind()
 -----------------
@@ -161,6 +167,17 @@ search_options = {
     attrs: '',
     pagesize: n,
     cookie: cookie
+}
+```
+
+As of version 1.2.0 you can also read the rootDSE entry of an ldap server.
+To do so, simply issue a read request with base set to an empty string:
+
+```js
+search_options = {
+  base: '',
+  scope: Connection.BASE,  // 0
+  // ... other options as necessary
 }
 ```
 
@@ -255,6 +272,23 @@ Example:
 
 ```js
 ldap.rename('cn=name,dc=example,dc=com', 'cn=newname')
+```
+
+ldap.remove()
+-------------
+
+    ldap.remove(dn, function(err))
+
+Deletes an entry.
+
+Example:
+
+```js
+ldap.remove('cn=name,dc=example,dc=com', function(err) {
+  if (err) {
+    // Could not delete entry
+  }
+});
 ```
 
 Schema
