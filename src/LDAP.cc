@@ -716,6 +716,7 @@ public:
         !strcmp(attrname, "thumbnailLogo") ||
         !strcmp(attrname, "supportedAlgorithms") ||
         !strcmp(attrname, "protocolInformation") ||
+        !strcmp(attrname, "objectGUID") ||
         strstr(attrname, ";binary")) {
       return 1;
     }
