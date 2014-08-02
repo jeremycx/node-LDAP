@@ -112,7 +112,7 @@ search_options = {
     base: '',
     scope: '',
     filter: '',
-    attrs: ''
+    attrs: '' // default is '*'
 }
 ```
 
@@ -124,6 +124,10 @@ Scopes are specified as one of the following integers:
 * Connection.SUBORDINATE = 3;
 * Connection.DEFAULT = -1;
 
+List of attributes you want is passed as simple string - join their names
+with space if you need more ('objectGUID sAMAccountName cname' is example of
+valid attrs filter). '\*' is also accepted.
+
 Results are returned as an array of zero or more objects. Each object
 has attributes named after the LDAP attributes in the found
 record(s). Each attribute contains an array of values for that
@@ -132,6 +136,7 @@ before you can act on /anything/ is a pet peeve of
 mine). The exception to this rule is the 'dn' attribute - this is
 always a single-valued string.
 
+Example of search result:
 ```js
 [ { gidNumber: [ '2000' ],
   objectClass: [ 'posixAccount', 'top', 'account' ],
@@ -141,6 +146,14 @@ always a single-valued string.
   cn: [ 'fred' ],
   dn: 'cn=fred,dc=ssimicro,dc=com' } ]
 ```
+
+Attributes themselves are usually returned as strings. There is a list of known
+binary attribute names hardcoded in C++ binding sources. Those are always
+returned as Buffers, but the list is incomplete so far. You can take advantage
+of RFC4522 and specify attribute names in the form '\<name\>;binary' - such
+attributes are returned as Buffers too. There is currently no known way to do
+this for '\*' wildcard - patches are welcome (see discussion in issue #44 and
+pull #58 for some ideas).
 
 LDAP servers are usually limited in how many items they are willing to return -
 1024 or 4096 are some typical values. For larger LDAP directories, you need to
