@@ -44,6 +44,8 @@ To install the latest release from npm:
 If this fails, please ensure you have uuid.h available (on Ubuntu,
 install the uuid-dev package).
 
+You will also require the LDAP Development Libraries (on Ubuntu, `sudo apt-get install libldap2-dev`)
+
 
 API
 ===
