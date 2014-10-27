@@ -50,19 +50,20 @@ You will also require the LDAP Development Libraries (on Ubuntu, `sudo apt-get i
 API
 ===
 
-    new LDAP(otions);
+    new LDAP(options);
 
-Creating an instance:
+Options are provided as a JS object:
 
 ```js
-var LDAP = require('LDAP');
-var ldap = new LDAP({
-    uri: 'ldap://my.ldap.server',
-    version: 3,
-    starttls: false,
-    connecttimeout: 1,
-    reconnect: true
-});
+var options = {
+    uri: 'ldap://my.ldap.server', // string
+    version: 3, // integer, default is 3,
+    starttls: false, // boolean, default is false
+    connecttimeout: -1, // seconds, default is -1 (infinite timeout), connect timeout
+    timeout: 5000, // milliseconds, default is 5000 (infinite timeout is unsupported), operation timeout
+    reconnect: true // boolean, default is true,
+    backoffmax: 32 // seconds, default is 32, reconnect timeout
+};
 ```
 
 ldap.open()
