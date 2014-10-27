@@ -1,6 +1,8 @@
 var events = require('events')
     , util = require('util');
 
+var LDAPConnection;
+
 try {
     LDAPConnection = require('./build/default/LDAP').LDAPConnection;
 } catch(e) {
