@@ -61,7 +61,7 @@ var options = {
     starttls: false, // boolean, default is false
     connecttimeout: -1, // seconds, default is -1 (infinite timeout), connect timeout
     timeout: 5000, // milliseconds, default is 5000 (infinite timeout is unsupported), operation timeout
-    reconnect: true // boolean, default is true,
+    reconnect: true, // boolean, default is true,
     backoffmax: 32 // seconds, default is 32, reconnect timeout
 };
 ```
