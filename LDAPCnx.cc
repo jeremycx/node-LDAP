@@ -22,7 +22,10 @@ void LDAPCnx::Init(v8::Local<v8::Object> exports) {
   // Prototype
   Nan::SetPrototypeMethod(tpl, "search", Search);
   Nan::SetPrototypeMethod(tpl, "delete", Delete);
+  Nan::SetPrototypeMethod(tpl, "bind", Bind);
+  Nan::SetPrototypeMethod(tpl, "add", Add);
   Nan::SetPrototypeMethod(tpl, "initialize", Initialize);
+  Nan::SetPrototypeMethod(tpl, "errorstring", GetErr);
 
   constructor.Reset(tpl->GetFunction());
   exports->Set(Nan::New("LDAPCnx").ToLocalChecked(), tpl->GetFunction());
@@ -48,35 +51,31 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   }
 }
 
-const char * LDAPCnx::ErrCheck() {
-  int err;
-  ldap_get_option(ld, LDAP_OPT_RESULT_CODE, &err);
-  if (err) {
-    return ldap_err2string(err);
-  }
-  return NULL;
-}
-
 void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   Nan::HandleScope scope;
 
   LDAPCnx *ld = (LDAPCnx *)handle->data;
   LDAPMessage * message = NULL;
   LDAPMessage * entry = NULL;
+  v8::Local<v8::Value> errparam;
 
   switch(ldap_result(ld->ld, LDAP_RES_ANY, LDAP_MSG_ALL, &ldap_tv, &message)) {
   case 0:
     // timeout occurred
   case -1:
     {
-      printf("MSGID is %i\n", ldap_msgid(message));
-      if (ld->ErrCheck()) {
-        printf("ERR\n");
-      }
+      // We can't really do much; we don't have a msgid...
       break;
     }
   default:
     {
+      int err = ldap_result2error(ld->ld, message, 0);
+      if (err) {
+        errparam = Nan::Error(ldap_err2string(err));
+      } else {
+        errparam = Nan::Undefined();
+      }
+
       switch ( ldap_msgtype( message ) ) {
       case LDAP_RES_SEARCH_REFERENCE:
         break;
@@ -121,7 +120,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
           } // all entries done.
   
           v8::Local<v8::Value> argv[] = {
-            Nan::Undefined(), // holds error
+            errparam,
             Nan::New(ldap_msgid(message)),
             js_result_list
           };
@@ -134,9 +133,8 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
       case LDAP_RES_ADD:
       case LDAP_RES_DELETE:
         {
-          printf("DELETE RESULT\n");
           v8::Local<v8::Value> argv[] = {
-            Nan::Undefined(), // holds error
+            errparam,
             Nan::New(ldap_msgid(message))
           };
           ld->callback->Call(2, argv);
@@ -161,13 +159,15 @@ void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   uv_poll_t * handle = new uv_poll_t;
   handle->data = ld;
   int fd = 0;
-
+  int ver = 3;
+  
   if (ldap_initialize(&(ld->ld), *url) != LDAP_SUCCESS) {
     Nan::ThrowError("Error init");
     return;
   }
 
    ldap_get_option(ld->ld, LDAP_OPT_DESC, &fd);
+   ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
    
    if ((ldap_simple_bind(ld->ld, NULL, NULL)) == -1) {
      Nan::ThrowError("Error anon bind");
@@ -188,11 +188,26 @@ void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<v8::Value>& info) {
    info.GetReturnValue().Set(info.This());
 }
 
+void LDAPCnx::GetErr(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  int err;
+  ldap_get_option(ld->ld, LDAP_OPT_RESULT_CODE, &err);
+  info.GetReturnValue().Set(Nan::New(ldap_err2string(err)).ToLocalChecked());
+}
+
 void LDAPCnx::Delete(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String dn(info[0]);
 
   info.GetReturnValue().Set(ldap_delete(ld->ld, *dn));
+}
+
+void LDAPCnx::Bind(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  Nan::Utf8String dn(info[0]);
+  Nan::Utf8String pw(info[1]);
+
+  info.GetReturnValue().Set(ldap_simple_bind(ld->ld, *dn, *pw));
 }
 
 void LDAPCnx::Search(const Nan::FunctionCallbackInfo<v8::Value>& info) {
@@ -218,4 +233,50 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   free(bufhead);
   
   info.GetReturnValue().Set(msgid);
+}
+
+void LDAPCnx::Add(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  Nan::Utf8String dn(info[0]);
+  if (info[1]->IsArray()) {
+    v8::Handle<v8::Array> attrs = v8::Handle<v8::Array>::Cast(info[1]);
+    unsigned int numattrs = attrs->Length();
+
+    LDAPMod **ldapmods = (LDAPMod **) malloc(sizeof(LDAPMod *) * (numattrs + 1));
+    for (unsigned int i = 0; i < numattrs; i++) {
+      v8::Local<v8::Object> attrHandle =
+        v8::Local<v8::Object>::Cast(attrs->Get(Nan::New(i)));
+
+      ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
+
+      // Step 1: mod_op
+      ldapmods[i]->mod_op = LDAP_MOD_ADD;
+
+      // Step 2: mod_type
+      v8::String::Utf8Value mod_type(attrHandle->Get(Nan::New("attr").ToLocalChecked()));
+      ldapmods[i]->mod_type = strdup(*mod_type);
+
+      // Step 3: mod_vals
+      v8::Local<v8::Array> attrValsHandle =
+        v8::Local<v8::Array>::Cast(attrHandle->Get(Nan::New("vals").ToLocalChecked()));
+      int attrValsLength = attrValsHandle->Length();
+      ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
+                                                 (attrValsLength + 1));
+      for (int j = 0; j < attrValsLength; j++) {
+        Nan::Utf8String modValue(attrValsHandle->Get(Nan::New(j)));
+        ldapmods[i]->mod_values[j] = strdup(*modValue);
+      }
+      ldapmods[i]->mod_values[attrValsLength] = NULL;
+    }
+
+    ldapmods[numattrs] = NULL;
+
+    int msgid = ldap_add(ld->ld, *dn, ldapmods);
+    
+    info.GetReturnValue().Set(msgid);
+    // TODO: free?
+  } else {
+
+ }
+
 }

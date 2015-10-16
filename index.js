@@ -11,8 +11,8 @@ function LDAP() {
     
     this.ld = new binding.LDAPCnx(0, function ResultCallback(err, msgid, data) {
         if (this.callbacks[msgid]) {
-            this.callbacks[msgid](err, msgid, data);
             clearTimeout(this.callbacks[msgid].timer);
+            this.callbacks[msgid](err, msgid, data);
             delete this.callbacks[msgid];
         } else {
             this.lateresponses++;
@@ -28,8 +28,36 @@ LDAP.prototype.initialize = function(url) {
 
 LDAP.prototype.delete = function(dn, fn) {
     var msgid = this.ld.delete(dn);
+    if (msgid == -1) {
+        process.nextTick(function() {
+            fn(new Error(this.ld.errorstring()));
+            return;
+        });
+    }        
     this.callbacks[msgid] = fn;
 };
+
+LDAP.prototype.bind = function(dn, pw, fn) {
+    var msgid = this.ld.bind(dn, pw);
+    if (msgid == -1) {
+        process.nextTick(function() {
+            fn(new Error(this.ld.errorstring()));
+            return;
+        });
+    }        
+    this.callbacks[msgid] = fn;
+};
+
+LDAP.prototype.add = function(dn, attrs, fn) {
+    var msgid = this.ld.add(dn, attrs);
+    if (msgid == -1) {
+        process.nextTick(function() {
+            fn(new Error(this.ld.errorstring()));
+            return;
+        });
+    }        
+    this.callbacks[msgid] = fn;
+}
 
 LDAP.prototype.enqueue = function(msgid, fn) {
     this.callbacks[msgid] = fn;

@@ -17,8 +17,10 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void Initialize(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Search(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Delete(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void Bind(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void Add(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void GetErr(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Event(uv_poll_t* handle, int status, int events);
-  const char * ErrCheck();
   static Nan::Persistent<v8::Function> constructor;
   LDAP * ld;
 };
