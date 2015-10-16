@@ -1,22 +1,23 @@
 {
-    "author": "Jeremy Childs <jeremyc@ssimicro.com>",
-    "name": "LDAP",
-    "description": "LDAP Binding for node.js",
-    "main": "index.js",
-    "scripts": {
-        "configure": "node-gyp configure",
-        "build": "node-gyp build",
-        "test": "mocha"
-    },
-    "devDependencies": {
-        "nan": "^2.0.5",
-        "mocha": "^2.2.5",
-        "node-gyp": "^1.0.3"
-    },
-    "dependencies": {
-        "bindings": "^1.2.1"
-    },
-    "engines": {
-        "node": ">= 0.8.0"
-    }
+  "author": "Jeremy Childs <jeremyc@ssimicro.com>",
+  "name": "LDAP",
+  "description": "LDAP Binding for node.js",
+  "main": "index.js",
+  "scripts": {
+    "configure": "node-gyp configure",
+    "build": "node-gyp build",
+    "test": "mocha"
+  },
+  "devDependencies": {
+    "nan": "^2.0.5",
+    "mocha": "^2.2.5",
+    "node-gyp": "^1.0.3"
+  },
+  "dependencies": {
+    "bindings": "^1.2.1"
+  },
+  "engines": {
+    "node": ">= 0.8.0"
+  },
+  "version": "2.0.0"
 }
