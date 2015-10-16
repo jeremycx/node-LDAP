@@ -14,3 +14,4 @@
 build
 ldap.node
 *#*
+npm-debug.log
