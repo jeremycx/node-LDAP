@@ -16,13 +16,9 @@ describe('LDAP', function() {
     it ('Should initialize OK', function() {
         ldap.initialize('ldap://localhost:1234');
     });
-    it ('Should require a callback', function() {
-        assert.throws(function() {
-            ldap.search('','');
-        });
-    });
     it ('Should search', function(done) {
         ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
+            assert.equal(err, undefined);
             assert.equal(res.length, 1);
             assert.equal(res[0].sn[0], 'Root');
             assert.equal(res[0].dn, 'cn=Albert,ou=Accounting,dc=sample,dc=com');

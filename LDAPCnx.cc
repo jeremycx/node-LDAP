@@ -226,7 +226,7 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<v8::Value>& info) {
     if (**ap != '\0')
       if (++ap >= &attrlist[255])
         break;
-  
+
   res = ldap_search_ext(ld->ld, *base, 2, *filter , (char **)attrlist, 0,
                          NULL, NULL, NULL, 0, &msgid);
 
