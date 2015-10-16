@@ -21,8 +21,8 @@ function LDAP() {
     return this;
 };
 
-LDAP.prototype.initialize = function(url) {
-    this.ld.initialize(url);
+LDAP.prototype.initialize = function(opt) {
+    this.ld.initialize(opt.uri);
     return this;
 };
 
@@ -30,8 +30,8 @@ LDAP.prototype.remove = LDAP.prototype.delete  = function(dn, fn) {
     return this.enqueue(this.ld.delete(dn), fn);
 };
 
-LDAP.prototype.bind = function(dn, pw, fn) {
-    return this.enqueue(this.ld.bind(dn, pw), fn);
+LDAP.prototype.bind = LDAP.prototype.simplebind = function(opt, fn) {
+    return this.enqueue(this.ld.bind(opt.binddn, opt.password), fn);
 };
 
 LDAP.prototype.add = function(dn, attrs, fn) {
@@ -59,5 +59,11 @@ LDAP.prototype.enqueue = function(msgid, fn) {
     this.callbacks[msgid] = fn;
     return this;
 };
+
+LDAP.prototype.BASE = 0;
+LDAP.prototype.ONELEVEL = 1;
+LDAP.prototype.SUBTREE = 2;
+LDAP.prototype.SUBORDINATE = 3;
+LDAP.prototype.DEFAULT = 4;
 
 module.exports = LDAP;

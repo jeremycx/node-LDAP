@@ -4,15 +4,9 @@ node-LDAP 1.2.0
 OpenLDAP client bindings for Node.js. Requires libraries from
 http://www.openldap.org installed.
 
-This latest version implements proper reconnects to a lost LDAP server.
+Now uses Nan to ensure it will build for all version of Node.js.
 
-Of note in this release is access to LDAP Syncrepl. With this API, you
-can subscribe to changes to the LDAP database, and be notified (and
-fire a callback) when anything is changed in LDAP. Use Syncrepl to
-completely mirror an LDAP database, or use it to implement triggers
-that perform an action when LDAP is modified.
-
-The API is finally stable, and (somewhat) sane.
+This release is a complete rewrite, it's much more stable than the 1.X.X release.
 
 
 Contributing
@@ -121,11 +115,11 @@ search_options = {
 
 Scopes are specified as one of the following integers:
 
-* Connection.BASE = 0;
-* Connection.ONELEVEL = 1;
-* Connection.SUBTREE = 2;
-* Connection.SUBORDINATE = 3;
-* Connection.DEFAULT = -1;
+* LDAP.BASE = 0;
+* LDAP.ONELEVEL = 1;
+* LDAP.SUBTREE = 2;
+* LDAP.SUBORDINATE = 3;
+* LDAP.DEFAULT = -1;
 
 List of attributes you want is passed as simple string - join their names
 with space if you need more ('objectGUID sAMAccountName cname' is example of
@@ -307,99 +301,3 @@ ldap.remove('cn=name,dc=example,dc=com', function(err) {
   }
 });
 ```
-
-Schema
-======
-
-To instantiate:
-
-```js
-var LDAP = require('LDAP');
-var schema = new LDAP.Schema({
-    init_attr: function(attr),
-    init_obj: function(obj),
-    ready: function()
-})
-```
-
-init_attr is called as each attribute is added so you can
-augment the attributes as they are loaded (add friendly labels, for
-instance). Similarly, init_obj is called as each objectClass is loaded
-so you can add your own properties to objectClasses.
-
-ready is called when the schema has been completely loaded from the server.
-
-Once the schema are loaded, you can get an objectClass like this:
-
-    schema.getObjectClass('person')
-
-Get a specific attribute:
-
-    schema.getAttribute('cn');
-
-Given a LDAP search, result, get all the possible attributes associated with it:
-
-    schema.getAttributesForRec(searchres);
-
-
-SYNCREPL API
-============
-
-If you are connecting to an LDAP server with syncrepl overlay enabled,
-you can be notified of updates to the LDAP tree. Begin by connecting,
-then issue the ldap.sync() command:
-
-    ldap.sync(options)
-
-The options are as follows:
-
-```js
-{
-    base: '',
-    scope: ldap.SUBTREE,
-    filter: '(objectClass=*)',
-    attrs: '* +',
-    rid: '000',
-    cookie: '',
-    syncentry: function(data),
-    syncintermediate: function(data),
-    syncresult: function(data)
-}
-```
-
-The cookie attribute is used to send a cookie to the server to ensure
-sync continues where you last left off.
-
-The rid attribute is required, and should be set to a unique value for
-the server you are syncing to.
-
-The function callbacks are called upon initial refresh, and as new
-data is available.
-
-syncentry(data)
---------------------------------
-When this callback fires, you should call ldap.getcookie() to record the
-current cookie and save it somewhere. You can provide this cookie to the
-ldap.sync() call when your process restarts.
-
-
-syncintermediate()
------------------
-TBD.
-
-syncresult(data)
----------------
-TBD.
-
-getcookie()
-----------
-This function returns the current cookie from the sync session. You can
-provide this cookie on the next run to pick up where you left off syncing.
-
-
-TODO:
------
-* Integration testing for syncrepl.
-* Real-world testing of syncrepl.
-* Testing against Microsoft Active Directory is welcome as I don't
-have a server to test against.

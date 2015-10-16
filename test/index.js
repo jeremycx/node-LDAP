@@ -10,11 +10,11 @@ describe('LDAP', function() {
     });
     it('Should not initialize', function() {
         assert.throws(function(){
-            ldap.initialize('ldapi:///tmp/foo');
+            ldap.initialize({uri: 'ldapi:///tmp/foo'});
         });
     });
     it ('Should initialize OK', function() {
-        ldap.initialize('ldap://localhost:1234');
+        ldap.initialize({uri: 'ldap://localhost:1234'});
     });
     it ('Should search', function(done) {
         ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
@@ -53,13 +53,13 @@ describe('LDAP', function() {
         });
     });
     it ('Should not bind', function(done) {
-        ldap.bind('cn=Manager,dc=sample,dc=com', 'xsecret', function(err, msgid) {
+        ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'xsecret'}, function(err, msgid) {
             assert.notEqual(err, undefined);
             done();
         });
     });
     it ('Should bind', function(done) {
-        ldap.bind('cn=Manager,dc=sample,dc=com', 'secret', function(err, msgid) {
+        ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'secret'}, function(err, msgid) {
             assert.equal(err, undefined);
             done();
         });
@@ -73,7 +73,7 @@ describe('LDAP', function() {
             });
         });
     });
-    it ('Should Add', function(done) {
+    it ('Should add', function(done) {
         ldap.add('cn=Albert,ou=Accounting,dc=sample,dc=com', [
             {
                 attr: 'cn',
@@ -97,7 +97,7 @@ describe('LDAP', function() {
         });
 
     });
-    it ('Should Fail to Add', function(done) {
+    it ('Should fail to add', function(done) {
         ldap.add('cn=Albert,ou=Accounting,dc=sample,dc=com', [
             {
                 attr: 'cn',
@@ -120,5 +120,15 @@ describe('LDAP', function() {
             done();
         });
     });
-    
+    it ('Should survive a slight beating', function(done) {
+        var count = 0;
+        for (var x = 0 ; x < 1000 ; x++) {
+            ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
+                count++;
+                if (count >= 1000) {
+                    done();
+                }
+            });
+        }
+    });
 });
