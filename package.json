@@ -1,16 +1,16 @@
 {
-  "author": "Jeremy Childs <jeremyc@ssimicro.com>",
-  "name": "LDAP",
-  "description": "LDAP Binding for node.js",
-  "version": "1.2.1",
-  "homepage": "https://github.com/jeremycx/node-LDAP",
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/jeremycx/node-LDAP.git"
+  "main": "index.js",
+  "scripts": {
+    "configure": "node-gyp configure",
+    "build": "node-gyp build",
+    "test": "mocha"
   },
-  "main": "./LDAP.js",
-  "engines": {
-    "node": ">= 0.8.0"
+  "devDependencies": {
+    "nan": "^2.0.5",
+    "mocha": "^2.2.5",
+    "node-gyp": "^1.0.3"
   },
-  "devDependencies": {}
+  "dependencies": {
+    "bindings": "^1.2.1"
+  }
 }
