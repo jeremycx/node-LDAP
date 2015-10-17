@@ -2,7 +2,9 @@
 
 static struct timeval ldap_tv = { 0, 0 };
 
-Nan::Persistent<v8::Function> LDAPCnx::constructor;
+using namespace v8;
+
+Nan::Persistent<Function> LDAPCnx::constructor;
 
 LDAPCnx::LDAPCnx(double value) {
 }
@@ -11,11 +13,11 @@ LDAPCnx::~LDAPCnx() {
   delete this->callback;
 }
 
-void LDAPCnx::Init(v8::Local<v8::Object> exports) {
+void LDAPCnx::Init(Local<Object> exports) {
   Nan::HandleScope scope;
 
   // Prepare constructor template
-  v8::Local<v8::FunctionTemplate> tpl = Nan::New<v8::FunctionTemplate>(New);
+  Local<FunctionTemplate> tpl = Nan::New<FunctionTemplate>(New);
   tpl->SetClassName(Nan::New("LDAPCnx").ToLocalChecked());
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
@@ -33,21 +35,21 @@ void LDAPCnx::Init(v8::Local<v8::Object> exports) {
   exports->Set(Nan::New("LDAPCnx").ToLocalChecked(), tpl->GetFunction());
 }
 
-void LDAPCnx::New(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
   if (info.IsConstructCall()) {
     // Invoked as constructor: `new LDAPCnx(...)`
     double value = info[0]->IsUndefined() ? 0 : info[0]->NumberValue();
     LDAPCnx* obj = new LDAPCnx(value);
     obj->Wrap(info.Holder());
 
-    obj->callback = new Nan::Callback(info[1].As<v8::Function>());
+    obj->callback = new Nan::Callback(info[1].As<Function>());
     
     info.GetReturnValue().Set(info.Holder());
   } else {
     // Invoked as plain function `LDAPCnx(...)`, turn into construct call.
     const int argc = 1;
-    v8::Local<v8::Value> argv[argc] = { info[0] };
-    v8::Local<v8::Function> cons = Nan::New<v8::Function>(constructor);
+    Local<Value> argv[argc] = { info[0] };
+    Local<Function> cons = Nan::New<Function>(constructor);
     
     info.GetReturnValue().Set(cons->NewInstance(argc, argv));
   }
@@ -59,7 +61,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   LDAPCnx *ld = (LDAPCnx *)handle->data;
   LDAPMessage * message = NULL;
   LDAPMessage * entry = NULL;
-  v8::Local<v8::Value> errparam;
+  Local<Value> errparam;
 
   switch(ldap_result(ld->ld, LDAP_RES_ANY, LDAP_MSG_ALL, &ldap_tv, &message)) {
   case 0:
@@ -84,13 +86,13 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
       case LDAP_RES_SEARCH_ENTRY:
       case LDAP_RES_SEARCH_RESULT:
         {
-          v8::Local<v8::Array> js_result_list = Nan::New<v8::Array>(ldap_count_entries(ld->ld, message));
+          Local<Array> js_result_list = Nan::New<Array>(ldap_count_entries(ld->ld, message));
 
           int j;
   
           for (entry = ldap_first_entry(ld->ld, message), j = 0 ; entry ;
                entry = ldap_next_entry(ld->ld, entry), j++) {
-            v8::Local<v8::Object> js_result = Nan::New<v8::Object>();
+            Local<Object> js_result = Nan::New<Object>();
 
             js_result_list->Set(Nan::New(j), js_result);
     
@@ -100,7 +102,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
                  attrname ; attrname = ldap_next_attribute(ld->ld, entry, berptr)) {
               berval ** vals = ldap_get_values_len(ld->ld, entry, attrname);
               int num_vals = ldap_count_values_len(vals);
-              v8::Local<v8::Array> js_attr_vals = Nan::New<v8::Array>(num_vals);
+              Local<Array> js_attr_vals = Nan::New<Array>(num_vals);
               js_result->Set(Nan::New(attrname).ToLocalChecked(), js_attr_vals);
 
               // int bin = ld->isBinary(attrname);
@@ -121,7 +123,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
             ldap_memfree(dn);
           } // all entries done.
   
-          v8::Local<v8::Value> argv[] = {
+          Local<Value> argv[] = {
             errparam,
             Nan::New(ldap_msgid(message)),
             js_result_list
@@ -135,7 +137,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
       case LDAP_RES_ADD:
       case LDAP_RES_DELETE:
         {
-          v8::Local<v8::Value> argv[] = {
+          Local<Value> argv[] = {
             errparam,
             Nan::New(ldap_msgid(message))
           };
@@ -155,7 +157,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   return;
 }
 
-void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String url(info[0]);
   uv_poll_t * handle = new uv_poll_t;
@@ -190,21 +192,21 @@ void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<v8::Value>& info) {
    info.GetReturnValue().Set(info.This());
 }
 
-void LDAPCnx::GetErr(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::GetErr(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   int err;
   ldap_get_option(ld->ld, LDAP_OPT_RESULT_CODE, &err);
   info.GetReturnValue().Set(Nan::New(ldap_err2string(err)).ToLocalChecked());
 }
 
-void LDAPCnx::Delete(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::Delete(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String dn(info[0]);
 
   info.GetReturnValue().Set(ldap_delete(ld->ld, *dn));
 }
 
-void LDAPCnx::Bind(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::Bind(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String dn(info[0]);
   Nan::Utf8String pw(info[1]);
@@ -212,7 +214,7 @@ void LDAPCnx::Bind(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(ldap_simple_bind(ld->ld, *dn, *pw));
 }
 
-void LDAPCnx::Rename(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::Rename(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String dn(info[0]);
   Nan::Utf8String newrdn(info[1]);
@@ -223,7 +225,7 @@ void LDAPCnx::Rename(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(res);
 }
 
-void LDAPCnx::Search(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::Search(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String base(info[0]);
   Nan::Utf8String filter(info[1]);
@@ -248,22 +250,22 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(msgid);
 }
 
-void LDAPCnx::Modify(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::Modify(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String dn(info[0]);
   
-  v8::Handle<v8::Array> mods = v8::Handle<v8::Array>::Cast(info[1]);
+  Handle<Array> mods = Handle<Array>::Cast(info[1]);
   unsigned int nummods = mods->Length();
 
   LDAPMod **ldapmods = (LDAPMod **) malloc(sizeof(LDAPMod *) * (nummods + 1));
 
   for (unsigned int i = 0; i < nummods; i++) {
-    v8::Local<v8::Object> modHandle =
-      v8::Local<v8::Object>::Cast(mods->Get(Nan::New(i)));
+    Local<Object> modHandle =
+      Local<Object>::Cast(mods->Get(Nan::New(i)));
 
     ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
       
-    v8::String::Utf8Value mod_op(modHandle->Get(Nan::New("op").ToLocalChecked()));
+    String::Utf8Value mod_op(modHandle->Get(Nan::New("op").ToLocalChecked()));
 
     if (!strcmp(*mod_op, "add")) {
       ldapmods[i]->mod_op = LDAP_MOD_ADD;
@@ -273,11 +275,11 @@ void LDAPCnx::Modify(const Nan::FunctionCallbackInfo<v8::Value>& info) {
       ldapmods[i]->mod_op = LDAP_MOD_REPLACE;
     }
 
-    v8::String::Utf8Value mod_type(modHandle->Get(Nan::New("attr").ToLocalChecked()));
+    String::Utf8Value mod_type(modHandle->Get(Nan::New("attr").ToLocalChecked()));
     ldapmods[i]->mod_type = strdup(*mod_type);
     
-    v8::Local<v8::Array> modValsHandle =
-      v8::Local<v8::Array>::Cast(modHandle->Get(Nan::New("vals").ToLocalChecked())); 
+    Local<Array> modValsHandle =
+      Local<Array>::Cast(modHandle->Get(Nan::New("vals").ToLocalChecked())); 
 
     int modValsLength = modValsHandle->Length();
     ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
@@ -297,17 +299,17 @@ void LDAPCnx::Modify(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(msgid);
 }
 
-void LDAPCnx::Add(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+void LDAPCnx::Add(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String dn(info[0]);
   if (info[1]->IsArray()) {
-    v8::Handle<v8::Array> attrs = v8::Handle<v8::Array>::Cast(info[1]);
+    Handle<Array> attrs = Handle<Array>::Cast(info[1]);
     unsigned int numattrs = attrs->Length();
 
     LDAPMod **ldapmods = (LDAPMod **) malloc(sizeof(LDAPMod *) * (numattrs + 1));
     for (unsigned int i = 0; i < numattrs; i++) {
-      v8::Local<v8::Object> attrHandle =
-        v8::Local<v8::Object>::Cast(attrs->Get(Nan::New(i)));
+      Local<Object> attrHandle =
+        Local<Object>::Cast(attrs->Get(Nan::New(i)));
 
       ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
 
@@ -315,12 +317,12 @@ void LDAPCnx::Add(const Nan::FunctionCallbackInfo<v8::Value>& info) {
       ldapmods[i]->mod_op = LDAP_MOD_ADD;
 
       // Step 2: mod_type
-      v8::String::Utf8Value mod_type(attrHandle->Get(Nan::New("attr").ToLocalChecked()));
+      String::Utf8Value mod_type(attrHandle->Get(Nan::New("attr").ToLocalChecked()));
       ldapmods[i]->mod_type = strdup(*mod_type);
 
       // Step 3: mod_vals
-      v8::Local<v8::Array> attrValsHandle =
-        v8::Local<v8::Array>::Cast(attrHandle->Get(Nan::New("vals").ToLocalChecked()));
+      Local<Array> attrValsHandle =
+        Local<Array>::Cast(attrHandle->Get(Nan::New("vals").ToLocalChecked()));
       int attrValsLength = attrValsHandle->Length();
       ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
                                                  (attrValsLength + 1));
