@@ -69,6 +69,9 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   case -1:
     {
       // We can't really do much; we don't have a msgid...
+      // But... this may be where connection errors occur...
+      //int err = ldap_result2error(ld->ld, message, 0);
+      //printf("Received -1 in event loop. Please investigate.\n%s\n", ldap_err2string(err));
       break;
     }
   default:
@@ -294,53 +297,49 @@ void LDAPCnx::Modify(const Nan::FunctionCallbackInfo<Value>& info) {
   
   int msgid = ldap_modify(ld->ld, *dn, ldapmods);
 
-  // TODO: free?
-  
+  ldap_mods_free(ldapmods, 1);
+                 
   info.GetReturnValue().Set(msgid);
 }
 
 void LDAPCnx::Add(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String dn(info[0]);
-  if (info[1]->IsArray()) {
-    Handle<Array> attrs = Handle<Array>::Cast(info[1]);
-    unsigned int numattrs = attrs->Length();
+  Handle<Array> attrs = Handle<Array>::Cast(info[1]);
+  unsigned int numattrs = attrs->Length();
 
-    LDAPMod **ldapmods = (LDAPMod **) malloc(sizeof(LDAPMod *) * (numattrs + 1));
-    for (unsigned int i = 0; i < numattrs; i++) {
-      Local<Object> attrHandle =
-        Local<Object>::Cast(attrs->Get(Nan::New(i)));
+  LDAPMod **ldapmods = (LDAPMod **) malloc(sizeof(LDAPMod *) * (numattrs + 1));
+  for (unsigned int i = 0; i < numattrs; i++) {
+    Local<Object> attrHandle =
+      Local<Object>::Cast(attrs->Get(Nan::New(i)));
 
-      ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
+    ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
 
-      // Step 1: mod_op
-      ldapmods[i]->mod_op = LDAP_MOD_ADD;
+    // Step 1: mod_op
+    ldapmods[i]->mod_op = LDAP_MOD_ADD;
 
-      // Step 2: mod_type
-      String::Utf8Value mod_type(attrHandle->Get(Nan::New("attr").ToLocalChecked()));
-      ldapmods[i]->mod_type = strdup(*mod_type);
+    // Step 2: mod_type
+    String::Utf8Value mod_type(attrHandle->Get(Nan::New("attr").ToLocalChecked()));
+    ldapmods[i]->mod_type = strdup(*mod_type);
 
-      // Step 3: mod_vals
-      Local<Array> attrValsHandle =
-        Local<Array>::Cast(attrHandle->Get(Nan::New("vals").ToLocalChecked()));
-      int attrValsLength = attrValsHandle->Length();
-      ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
-                                                 (attrValsLength + 1));
-      for (int j = 0; j < attrValsLength; j++) {
-        Nan::Utf8String modValue(attrValsHandle->Get(Nan::New(j)));
-        ldapmods[i]->mod_values[j] = strdup(*modValue);
-      }
-      ldapmods[i]->mod_values[attrValsLength] = NULL;
+    // Step 3: mod_vals
+    Local<Array> attrValsHandle =
+      Local<Array>::Cast(attrHandle->Get(Nan::New("vals").ToLocalChecked()));
+    int attrValsLength = attrValsHandle->Length();
+    ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
+                                               (attrValsLength + 1));
+    for (int j = 0; j < attrValsLength; j++) {
+      Nan::Utf8String modValue(attrValsHandle->Get(Nan::New(j)));
+      ldapmods[i]->mod_values[j] = strdup(*modValue);
     }
+    ldapmods[i]->mod_values[attrValsLength] = NULL;
+  }
 
-    ldapmods[numattrs] = NULL;
+  ldapmods[numattrs] = NULL;
 
-    int msgid = ldap_add(ld->ld, *dn, ldapmods);
+  int msgid = ldap_add(ld->ld, *dn, ldapmods);
     
-    info.GetReturnValue().Set(msgid);
-    // TODO: free?
-  } else {
+  info.GetReturnValue().Set(msgid);
 
- }
-
+  ldap_mods_free(ldapmods, 1);
 }
