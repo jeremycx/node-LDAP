@@ -38,8 +38,11 @@ LDAP.prototype.add = function(dn, attrs, fn) {
     return this.enqueue(this.ld.add(dn, attrs), fn);
 };
 
-LDAP.prototype.search = function(base, filter, attrs, fn) {
-    return this.enqueue(this.ld.search(base, filter, attrs), fn);
+LDAP.prototype.search = function(opt, fn) {
+    return this.enqueue(this.ld.search(opt.base?opt.base:'dc=com',
+                                       opt.filter?opt.filter:'(objectClass=*)',
+                                       opt.attrs?opt.attrs:'*',
+                                       opt.scope?opt.scope:this.SUBTREE), fn);
 };
 
 LDAP.prototype.rename = function(dn, newrdn, fn) {

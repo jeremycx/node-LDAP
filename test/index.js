@@ -17,7 +17,12 @@ describe('LDAP', function() {
         ldap.initialize({uri: 'ldap://localhost:1234'});
     });
     it ('Should search', function(done) {
-        ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
+        ldap.search({
+            base:   'dc=sample,dc=com',
+            filter: '(cn=albert)',
+            attrs:  '*',
+            scope:  LDAP.SUBTREE
+        }, function(err, msgid, res) {
             assert.equal(err, undefined);
             assert.equal(res.length, 1);
             assert.equal(res[0].sn[0], 'Root');
@@ -34,14 +39,22 @@ describe('LDAP', function() {
         });
     }); */
     it ('Should return specified attrs', function(done) {
-        ldap.search('dc=sample,dc=com', '(cn=albert)', 'sn', function(err, msgid, res) {
+        ldap.search({
+            base: 'dc=sample,dc=com',
+            filter: '(cn=albert)',
+            attrs: 'sn'
+        }, function(err, msgid, res) {
             assert.equal(res[0].sn[0], 'Root');
             assert.equal(res[0].cn, undefined);
             done();
         });
     });
     it ('Should handle a null result', function(done) {
-        ldap.search('dc=sample,dc=com', '(cn=wontfindthis)', '*', function(err, msgid, res) {
+        ldap.search({
+            base:   'dc=sample,dc=com',
+            filter: '(cn=wontfindthis)',
+            attrs:  '*'
+        }, function(err, msgid, res) {
             assert.equal(res.length, 0);
             done();
         });
@@ -67,7 +80,12 @@ describe('LDAP', function() {
     it ('Should delete', function(done) {
         ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err, msgid) {
             assert.equal(err, undefined);
-            ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
+            ldap.search(
+                {
+                    base:   'dc=sample,dc=com',
+                    filter: '(cn=albert)',
+                    attrs:  '*'
+                }, function(err, msgid, res) {
                 assert(res.length == 0);
                 done();
             });
@@ -123,7 +141,11 @@ describe('LDAP', function() {
     it ('Should survive a slight beating', function(done) {
         var count = 0;
         for (var x = 0 ; x < 1000 ; x++) {
-            ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
+            ldap.search({
+                base: 'dc=sample,dc=com',
+                filter: '(cn=albert)',
+                attrs: '*'
+            }, function(err, msgid, res) {
                 count++;
                 if (count >= 1000) {
                     done();
@@ -154,10 +176,15 @@ describe('LDAP', function() {
                 vals: [ 'King of Callbacks' ]
             }
         ], function(err, msdid) {
-            ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
-                assert.equal(res[0].title[0], 'King of Callbacks');
-                done();
-            });
+            ldap.search(
+                {
+                    base: 'dc=sample,dc=com',
+                    filter: '(cn=albert)',
+                    attrs: '*'
+                }, function(err, msgid, res) {
+                    assert.equal(res[0].title[0], 'King of Callbacks');
+                    done();
+                });
         });
     });
     it ('Should fail to modify a record', function(done) {

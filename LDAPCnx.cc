@@ -233,6 +233,8 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<Value>& info) {
   Nan::Utf8String base(info[0]);
   Nan::Utf8String filter(info[1]);
   Nan::Utf8String attrs(info[2]);
+  int scope = info[3]->NumberValue();
+  
   int msgid = 0;
   int res;
   char * attrlist[255];
@@ -245,7 +247,7 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<Value>& info) {
       if (++ap >= &attrlist[255])
         break;
 
-  res = ldap_search_ext(ld->ld, *base, 2, *filter , (char **)attrlist, 0,
+  res = ldap_search_ext(ld->ld, *base, scope, *filter , (char **)attrlist, 0,
                          NULL, NULL, NULL, 0, &msgid);
 
   free(bufhead);
