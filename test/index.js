@@ -131,4 +131,45 @@ describe('LDAP', function() {
             });
         }
     });
+    it ('Should rename', function(done) {
+        ldap.rename('cn=Albert,ou=Accounting,dc=sample,dc=com', 'cn=Alberto', function(err, msgid) {
+            assert.equal(err, undefined);
+            ldap.rename('cn=Alberto,ou=Accounting,dc=sample,dc=com', 'cn=Albert', function(err, msgid) {
+                assert.equal(err, undefined);
+                done();
+            });
+        });
+    });
+    it ('Should fail to rename', function(done) {
+        ldap.rename('cn=Alberto,ou=Accounting,dc=sample,dc=com', 'cn=Albert', function(err, msgid) {
+            assert.notEqual(err, undefined);
+            done();
+        });
+    });
+    it ('Should modify a record', function(done) {
+        ldap.modify('cn=Albert,ou=Accounting,dc=sample,dc=com', [
+            {
+                op: 'add',
+                attr: 'title',
+                vals: [ 'King of Callbacks' ]
+            }
+        ], function(err, msdid) {
+            ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
+                assert.equal(res[0].title[0], 'King of Callbacks');
+                done();
+            });
+        });
+    });
+    it ('Should fail to modify a record', function(done) {
+        ldap.modify('cn=Albert,ou=Accounting,dc=sample,dc=com', [
+            {
+                op: 'add',
+                attr: 'titlex',
+                vals: [ 'King of Callbacks' ]
+            }
+        ], function(err, msdid) {
+            assert.notEqual(err, undefined);
+            done();
+        });
+    });
 });

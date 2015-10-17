@@ -42,6 +42,14 @@ LDAP.prototype.search = function(base, filter, attrs, fn) {
     return this.enqueue(this.ld.search(base, filter, attrs), fn);
 };
 
+LDAP.prototype.rename = function(dn, newrdn, fn) {
+    return this.enqueue(this.ld.rename(dn, newrdn), fn);
+};
+
+LDAP.prototype.modify = function(dn, ops, fn) {
+    return this.enqueue(this.ld.modify(dn, ops), fn);
+};
+
 LDAP.prototype.enqueue = function(msgid, fn) {
     if (typeof fn !== 'function') {
         throw new Error('Callback is not a function');

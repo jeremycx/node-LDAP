@@ -24,6 +24,8 @@ void LDAPCnx::Init(v8::Local<v8::Object> exports) {
   Nan::SetPrototypeMethod(tpl, "delete", Delete);
   Nan::SetPrototypeMethod(tpl, "bind", Bind);
   Nan::SetPrototypeMethod(tpl, "add", Add);
+  Nan::SetPrototypeMethod(tpl, "modify", Modify);
+  Nan::SetPrototypeMethod(tpl, "rename", Rename);
   Nan::SetPrototypeMethod(tpl, "initialize", Initialize);
   Nan::SetPrototypeMethod(tpl, "errorstring", GetErr);
 
@@ -210,6 +212,17 @@ void LDAPCnx::Bind(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   info.GetReturnValue().Set(ldap_simple_bind(ld->ld, *dn, *pw));
 }
 
+void LDAPCnx::Rename(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  Nan::Utf8String dn(info[0]);
+  Nan::Utf8String newrdn(info[1]);
+  int res;
+
+  ldap_rename(ld->ld, *dn, *newrdn, NULL, 1, NULL, NULL, &res);
+    
+  info.GetReturnValue().Set(res);
+}
+
 void LDAPCnx::Search(const Nan::FunctionCallbackInfo<v8::Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String base(info[0]);
@@ -231,6 +244,55 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<v8::Value>& info) {
                          NULL, NULL, NULL, 0, &msgid);
 
   free(bufhead);
+  
+  info.GetReturnValue().Set(msgid);
+}
+
+void LDAPCnx::Modify(const Nan::FunctionCallbackInfo<v8::Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  Nan::Utf8String dn(info[0]);
+  
+  v8::Handle<v8::Array> mods = v8::Handle<v8::Array>::Cast(info[1]);
+  unsigned int nummods = mods->Length();
+
+  LDAPMod **ldapmods = (LDAPMod **) malloc(sizeof(LDAPMod *) * (nummods + 1));
+
+  for (unsigned int i = 0; i < nummods; i++) {
+    v8::Local<v8::Object> modHandle =
+      v8::Local<v8::Object>::Cast(mods->Get(Nan::New(i)));
+
+    ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
+      
+    v8::String::Utf8Value mod_op(modHandle->Get(Nan::New("op").ToLocalChecked()));
+
+    if (!strcmp(*mod_op, "add")) {
+      ldapmods[i]->mod_op = LDAP_MOD_ADD;
+    } else if (!strcmp(*mod_op, "delete")) {
+      ldapmods[i]->mod_op = LDAP_MOD_DELETE;
+    } else {
+      ldapmods[i]->mod_op = LDAP_MOD_REPLACE;
+    }
+
+    v8::String::Utf8Value mod_type(modHandle->Get(Nan::New("attr").ToLocalChecked()));
+    ldapmods[i]->mod_type = strdup(*mod_type);
+    
+    v8::Local<v8::Array> modValsHandle =
+      v8::Local<v8::Array>::Cast(modHandle->Get(Nan::New("vals").ToLocalChecked())); 
+
+    int modValsLength = modValsHandle->Length();
+    ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
+                                               (modValsLength + 1));
+    for (int j = 0; j < modValsLength; j++) {
+      Nan::Utf8String modValue(modValsHandle->Get(Nan::New(j)));
+      ldapmods[i]->mod_values[j] = strdup(*modValue);
+    }
+    ldapmods[i]->mod_values[modValsLength] = NULL;
+  }
+  ldapmods[nummods] = NULL;
+  
+  int msgid = ldap_modify(ld->ld, *dn, ldapmods);
+
+  // TODO: free?
   
   info.GetReturnValue().Set(msgid);
 }
