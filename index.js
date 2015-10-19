@@ -5,7 +5,7 @@
 var binding = require('bindings')('LDAPCnx');
 
 function arg(val, def) {
-    if (val === undefined) {
+    if (val !== undefined) {
         return val;
     }
     return def;
@@ -54,7 +54,7 @@ LDAP.prototype.bind = LDAP.prototype.simplebind = function(opt, fn) {
 
 LDAP.prototype.add = function(dn, attrs, fn) {
     if (typeof dn    !== 'string' ||
-        typeof attrs !== 'string') {
+        typeof attrs !== 'object') {
         throw new Error('Missing argument');
     }
     return this.enqueue(this.ld.add(dn, attrs), fn);
