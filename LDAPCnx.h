@@ -10,7 +10,7 @@ class LDAPCnx : public Nan::ObjectWrap {
   Nan::Callback * callback;
 
  private:
-  explicit LDAPCnx(double value = 0);
+  explicit LDAPCnx();
   ~LDAPCnx();
 
   static void New(const Nan::FunctionCallbackInfo<v8::Value>& info);

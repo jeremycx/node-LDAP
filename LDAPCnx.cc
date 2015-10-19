@@ -6,7 +6,7 @@ using namespace v8;
 
 Nan::Persistent<Function> LDAPCnx::constructor;
 
-LDAPCnx::LDAPCnx(double value) {
+LDAPCnx::LDAPCnx() {
 }
 
 LDAPCnx::~LDAPCnx() {
@@ -38,8 +38,7 @@ void LDAPCnx::Init(Local<Object> exports) {
 void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
   if (info.IsConstructCall()) {
     // Invoked as constructor: `new LDAPCnx(...)`
-    double value = info[0]->IsUndefined() ? 0 : info[0]->NumberValue();
-    LDAPCnx* obj = new LDAPCnx(value);
+    LDAPCnx* obj = new LDAPCnx();
     obj->Wrap(info.Holder());
 
     obj->callback = new Nan::Callback(info[1].As<Function>());
@@ -47,8 +46,8 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
     info.GetReturnValue().Set(info.Holder());
   } else {
     // Invoked as plain function `LDAPCnx(...)`, turn into construct call.
-    const int argc = 1;
-    Local<Value> argv[argc] = { info[0] };
+    const int argc = 0;
+    Local<Value> argv[argc] = { };
     Local<Function> cons = Nan::New<Function>(constructor);
     
     info.GetReturnValue().Set(cons->NewInstance(argc, argv));
