@@ -4,30 +4,35 @@
 
 var LDAP = require('../');
 var assert = require('assert');
+var fs = require('fs');
 var ldap;
 
+// This shows an inline image for iTerm2
+// should not harm anything otherwise.
+function showImage(what) {
+    var encoded = what.toString('base64');
+
+    process.stdout.write('\x1b]1337;File=size='+ what.length +
+                         ';width=auto;height=auto;inline=1:' +
+                         encoded + '\x07\n');
+    
+}
+
+
 describe('LDAP', function() {
-    it('Should instantiate', function() {
-        ldap = new LDAP();
-    });
-    it('Should not initialize', function() {
-        assert.throws(function(){
-            ldap.initialize({uri: 'ldapi:///tmp/foo'});
-        });
-    });
     it ('Should initialize OK', function() {
-        ldap.initialize({uri: 'ldap://localhost:1234'});
+        ldap = new LDAP({uri: 'ldap://localhost:1234'});
     });
     it ('Should search', function(done) {
         ldap.search({
             base:   'dc=sample,dc=com',
-            filter: '(cn=albert)',
+            filter: '(cn=babs)',
             scope:  LDAP.SUBTREE
         }, function(err, msgid, res) {
             assert.equal(err, undefined);
             assert.equal(res.length, 1);
-            assert.equal(res[0].sn[0], 'Root');
-            assert.equal(res[0].dn, 'cn=Albert,ou=Accounting,dc=sample,dc=com');
+            assert.equal(res[0].sn[0], 'Jensen');
+            assert.equal(res[0].dn, 'cn=Babs,dc=sample,dc=com');
             done();
         });
     });
@@ -201,5 +206,15 @@ describe('LDAP', function() {
             assert.notEqual(err, undefined);
             done();
         });
+    });
+    it ('Should handle a binary return', function(done) {
+        ldap.search(
+            {
+                base: 'dc=sample,dc=com',
+                filter: '(cn=babs)'
+            }, function(err, msgid, res) {
+                showImage(res[0].jpegPhoto[0]);
+                done();
+            });
     });
 });
