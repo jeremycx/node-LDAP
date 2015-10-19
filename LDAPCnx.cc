@@ -12,6 +12,7 @@ LDAPCnx::LDAPCnx() {
 LDAPCnx::~LDAPCnx() {
   free(this->ldap_callback);
   delete this->callback;
+  delete this->reconnect_callback;
 }
 
 void LDAPCnx::Init(Local<Object> exports) {
@@ -41,20 +42,16 @@ void LDAPCnx::Init(Local<Object> exports) {
 void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
   if (info.IsConstructCall()) {
     // Invoked as constructor: `new LDAPCnx(...)`
-    LDAPCnx* obj = new LDAPCnx();
-    obj->Wrap(info.Holder());
+    LDAPCnx* ld = new LDAPCnx();
+    ld->Wrap(info.Holder());
 
-    obj->callback = new Nan::Callback(info[1].As<Function>());
+    ld->callback = new Nan::Callback(info[0].As<Function>());
+    ld->reconnect_callback = new Nan::Callback(info[1].As<Function>());
     
     info.GetReturnValue().Set(info.Holder());
-  } else {
-    // Invoked as plain function `LDAPCnx(...)`, turn into construct call.
-    const int argc = 0;
-    Local<Value> argv[argc] = { };
-    Local<Function> cons = Nan::New<Function>(constructor);
-    
-    info.GetReturnValue().Set(cons->NewInstance(argc, argv));
+    return;
   }
+  Nan::ThrowError("Must instantiate with new");
 }
 
 void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
@@ -178,7 +175,9 @@ int LDAPCnx::OnConnect(LDAP *ld, Sockbuf *sb,
     uv_poll_stop(lc->handle);
   }
   uv_poll_start(lc->handle, UV_READABLE, (uv_poll_cb)lc->Event);
-  
+
+  lc->reconnect_callback->Call(0, NULL);
+
   return LDAP_SUCCESS;
 }
 

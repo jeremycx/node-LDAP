@@ -12,26 +12,37 @@ function arg(val, def) {
 }
 
 
-function LDAP() {
+function LDAP(opt) {
     this.callbacks = {};
     this.lateresponses = 0;
     this.timeout = 2000;
+    if (typeof opt.reconnect === 'function') {
+        this.onreconnect = opt.reconnect;
+    }
+
+    if (typeof opt.uri !== 'string') {
+        throw new Error('Missing argument');
+    }
+    this.uri = opt.uri;
     
-    this.ld = new binding.LDAPCnx(0, function ResultCallback(err, msgid, data) {
-        if (this.callbacks[msgid]) {
-            clearTimeout(this.callbacks[msgid].timer);
-            this.callbacks[msgid](err, msgid, data);
-            delete this.callbacks[msgid];
-        } else {
-            this.lateresponses++;
-        }
-    }.bind(this));
+    this.ld = new binding.LDAPCnx(this.onresult.bind(this),
+                                  this.onreconnect.bind(this));
+    this.ld.initialize(this.uri);
     return this;
 }
 
-LDAP.prototype.initialize = function(opt) {
-    this.ld.initialize(opt.uri);
-    return this;
+LDAP.prototype.onresult = function(err, msgid, data) {
+    if (this.callbacks[msgid]) {
+        clearTimeout(this.callbacks[msgid].timer);
+        this.callbacks[msgid](err, msgid, data);
+        delete this.callbacks[msgid];
+    } else {
+        this.lateresponses++;
+    }
+};
+
+LDAP.prototype.onreconnect = function() {
+    // default reconnect callback does nothing
 };
 
 LDAP.prototype.remove = LDAP.prototype.delete  = function(dn, fn) {
