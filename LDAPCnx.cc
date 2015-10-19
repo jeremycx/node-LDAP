@@ -103,12 +103,13 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
               Local<Array> js_attr_vals = Nan::New<Array>(num_vals);
               js_result->Set(Nan::New(attrname).ToLocalChecked(), js_attr_vals);
 
-              // int bin = ld->isBinary(attrname);
-              int bin = 0;
+              // char * bin = strstr(attrname, ";binary");
+              int bin = !strcmp(attrname, "jpegPhoto");
               
               for (int i = 0 ; i < num_vals && vals[i] ; i++) {
                 if (bin) {
                   // js_attr_vals->Set(Nan::New(i), ld->makeBuffer(vals[i]));
+                  js_attr_vals->Set(Nan::New(i), Nan::CopyBuffer(vals[i]->bv_val, vals[i]->bv_len).ToLocalChecked());
                 } else {
                   js_attr_vals->Set(Nan::New(i), Nan::New(vals[i]->bv_val).ToLocalChecked());
                 }
