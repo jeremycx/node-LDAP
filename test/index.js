@@ -1,7 +1,9 @@
+/*jshint globalstrict:true, node:true, trailing:true, mocha:true unused:true */
+
+'use strict';
+
 var LDAP = require('../');
 var assert = require('assert');
-var spawn = require('child_process').spawn;
-var child;
 var ldap;
 
 describe('LDAP', function() {
@@ -20,7 +22,6 @@ describe('LDAP', function() {
         ldap.search({
             base:   'dc=sample,dc=com',
             filter: '(cn=albert)',
-            attrs:  '*',
             scope:  LDAP.SUBTREE
         }, function(err, msgid, res) {
             assert.equal(err, undefined);
@@ -44,6 +45,8 @@ describe('LDAP', function() {
             filter: '(cn=albert)',
             attrs: 'sn'
         }, function(err, msgid, res) {
+            assert.notEqual(res, undefined);
+            assert.notEqual(res[0], undefined);
             assert.equal(res[0].sn[0], 'Root');
             assert.equal(res[0].cn, undefined);
             done();
