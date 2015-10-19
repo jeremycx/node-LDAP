@@ -63,7 +63,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   
   switch(ldap_result(ld->ld, LDAP_RES_ANY, LDAP_MSG_ALL, &ldap_tv, &message)) {
   case 0:
-    // timeout occurred
+    // timeout occurred, which I don't think happens in async mode
   case -1:
     {
       // We can't really do much; we don't have a msgid to callback to

@@ -3,6 +3,7 @@
 'use strict';
 
 var binding = require('bindings')('LDAPCnx');
+var LDAPError = require('./LDAPError');
 
 function arg(val, def) {
     if (val !== undefined) {
@@ -21,13 +22,17 @@ function LDAP(opt) {
     }
 
     if (typeof opt.uri !== 'string') {
-        throw new Error('Missing argument');
+        throw new LDAPError('Missing argument');
     }
     this.uri = opt.uri;
     
     this.ld = new binding.LDAPCnx(this.onresult.bind(this),
                                   this.onreconnect.bind(this));
-    this.ld.initialize(this.uri);
+    try {
+        this.ld.initialize(this.uri);
+    } catch (e) {
+        
+    }
     return this;
 }
 
@@ -48,7 +53,7 @@ LDAP.prototype.onreconnect = function() {
 LDAP.prototype.remove = LDAP.prototype.delete  = function(dn, fn) {
     if (typeof dn !== 'string' ||
         typeof fn !== 'function') {
-        throw new Error('Missing argument');
+        throw new LDAPError('Missing argument');
     }
     return this.enqueue(this.ld.delete(dn), fn);
 };
@@ -58,7 +63,7 @@ LDAP.prototype.bind = LDAP.prototype.simplebind = function(opt, fn) {
         typeof opt.binddn   !== 'string' ||
         typeof opt.password !== 'string' ||
         typeof fn           !== 'function') {
-        throw new Error('Missing argument');
+        throw new LDAPError('Missing argument');
     }
     return this.enqueue(this.ld.bind(opt.binddn, opt.password), fn);
 };
@@ -66,7 +71,7 @@ LDAP.prototype.bind = LDAP.prototype.simplebind = function(opt, fn) {
 LDAP.prototype.add = function(dn, attrs, fn) {
     if (typeof dn    !== 'string' ||
         typeof attrs !== 'object') {
-        throw new Error('Missing argument');
+        throw new LDAPError('Missing argument');
     }
     return this.enqueue(this.ld.add(dn, attrs), fn);
 };
@@ -82,7 +87,7 @@ LDAP.prototype.rename = function(dn, newrdn, fn) {
     if (typeof dn     !== 'string' ||
         typeof newrdn !== 'string' ||
         typeof fn     !== 'function') {
-        throw new Error('Missing argument');
+        throw new LDAPError('Missing argument');
        }
     return this.enqueue(this.ld.rename(dn, newrdn), fn);
 };
@@ -91,7 +96,7 @@ LDAP.prototype.modify = function(dn, ops, fn) {
     if (typeof dn  !== 'string' ||
         typeof ops !== 'object' ||
         typeof fn  !== 'function') {
-        throw new Error('Missing argument');
+        throw new LDAPError('Missing argument');
     }
     return this.enqueue(this.ld.modify(dn, ops), fn);
 };
@@ -99,14 +104,14 @@ LDAP.prototype.modify = function(dn, ops, fn) {
 LDAP.prototype.enqueue = function(msgid, fn) {
     if (msgid == -1) {
         process.nextTick(function() {
-            fn(new Error(this.ld.errorstring()));
+            fn(new LDAPError(this.ld.errorstring()));
             return;
         }.bind(this));
         return this;
     }        
     fn.timer = setTimeout(function searchTimeout() {
         delete this.callbacks[msgid];
-        fn(new Error('Timeout'), msgid);
+        fn(new LDAPError('Timeout'), msgid);
     }.bind(this), this.timeout);
     this.callbacks[msgid] = fn;
     return this;
