@@ -18,3 +18,5 @@ npm-debug.log
 sample.c
 .tern-port
 openldap-data
+test/slapd.args
+test/slapd.pid
