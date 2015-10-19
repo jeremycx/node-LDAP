@@ -4,6 +4,34 @@ static struct timeval ldap_tv = { 0, 0 };
 
 using namespace v8;
 
+
+// this fires when the LDAP lib reconnects.
+// TODO: plumb in a reconnect handler
+// so the called can re-bind, etc....
+static int connection_restart(LDAP *ld, Sockbuf *sb,
+                      LDAPURLDesc *srv, struct sockaddr *addr,
+                      struct ldap_conncb *ctx) {
+  int fd;
+  LDAPCnx * lc = (LDAPCnx *)ctx->lc_arg;
+  
+  if (lc->handle == NULL) {
+    lc->handle = new uv_poll_t;
+    ldap_get_option(ld, LDAP_OPT_DESC, &fd);
+    uv_poll_init(uv_default_loop(), lc->handle, fd);
+    lc->handle->data = lc;
+  } else {
+    uv_poll_stop(lc->handle);
+  }
+  uv_poll_start(lc->handle, UV_READABLE, (uv_poll_cb)lc->Event);
+  
+  return LDAP_SUCCESS;
+}
+
+void connection_delete(LDAP *ld, Sockbuf *sb,
+                      struct ldap_conncb *ctx) {
+  // this fires when the connection closes
+}
+
 Nan::Persistent<Function> LDAPCnx::constructor;
 
 LDAPCnx::LDAPCnx() {
@@ -30,6 +58,8 @@ void LDAPCnx::Init(Local<Object> exports) {
   Nan::SetPrototypeMethod(tpl, "rename", Rename);
   Nan::SetPrototypeMethod(tpl, "initialize", Initialize);
   Nan::SetPrototypeMethod(tpl, "errorstring", GetErr);
+  Nan::SetPrototypeMethod(tpl, "errorno", GetErrNo);
+  Nan::SetPrototypeMethod(tpl, "fd", GetFD);
 
   constructor.Reset(tpl->GetFunction());
   exports->Set(Nan::New("LDAPCnx").ToLocalChecked(), tpl->GetFunction());
@@ -56,21 +86,20 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
 
 void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   Nan::HandleScope scope;
-
   LDAPCnx *ld = (LDAPCnx *)handle->data;
   LDAPMessage * message = NULL;
   LDAPMessage * entry = NULL;
   Local<Value> errparam;
 
+  int r = 0;
+  ldap_get_option(ld->ld, LDAP_OPT_RESTART, &r);
+  
   switch(ldap_result(ld->ld, LDAP_RES_ANY, LDAP_MSG_ALL, &ldap_tv, &message)) {
   case 0:
     // timeout occurred
   case -1:
     {
-      // We can't really do much; we don't have a msgid...
-      // But... this may be where connection errors occur...
-      //int err = ldap_result2error(ld->ld, message, 0);
-      //printf("Received -1 in event loop. Please investigate.\n%s\n", ldap_err2string(err));
+      // We can't really do much; we don't have a msgid to callback to
       break;
     }
   default:
@@ -162,8 +191,6 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
 void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String url(info[0]);
-  uv_poll_t * handle = new uv_poll_t;
-  handle->data = ld;
   int fd = 0;
   int ver = 3;
   
@@ -172,24 +199,28 @@ void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
     return;
   }
 
-   ldap_get_option(ld->ld, LDAP_OPT_DESC, &fd);
    ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
+
+   //TODO: static is bad. alloc this, and free on destroy
+   static struct ldap_conncb lcb = {
+     connection_restart,
+     connection_delete,
+     (void *)ld
+   };
+
+   ldap_set_option(ld->ld, LDAP_OPT_CONNECT_CB, &lcb);
    
    if ((ldap_simple_bind(ld->ld, NULL, NULL)) == -1) {
      Nan::ThrowError("Error anon bind");
      return;
    }
-   ldap_get_option(ld->ld, LDAP_OPT_DESC, &fd);
 
    ldap_get_option(ld->ld, LDAP_OPT_DESC, &fd);
-
+   
    if (fd < 0) {
      Nan::ThrowError("Connection issue");
      return;
    }
-   
-   uv_poll_init(uv_default_loop(), handle, fd);
-   uv_poll_start(handle, UV_READABLE, Event);
 
    info.GetReturnValue().Set(info.This());
 }
@@ -199,6 +230,20 @@ void LDAPCnx::GetErr(const Nan::FunctionCallbackInfo<Value>& info) {
   int err;
   ldap_get_option(ld->ld, LDAP_OPT_RESULT_CODE, &err);
   info.GetReturnValue().Set(Nan::New(ldap_err2string(err)).ToLocalChecked());
+}
+
+void LDAPCnx::GetErrNo(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  int err;
+  ldap_get_option(ld->ld, LDAP_OPT_RESULT_CODE, &err);
+  info.GetReturnValue().Set(err);
+}
+
+void LDAPCnx::GetFD(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  int fd;
+  ldap_get_option(ld->ld, LDAP_OPT_DESC, &fd);
+  info.GetReturnValue().Set(fd);
 }
 
 void LDAPCnx::Delete(const Nan::FunctionCallbackInfo<Value>& info) {
