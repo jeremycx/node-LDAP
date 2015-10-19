@@ -8,8 +8,6 @@ class LDAPCnx : public Nan::ObjectWrap {
  public:
   static void Init(v8::Local<v8::Object> exports);
   Nan::Callback * callback;
-  static void Event(uv_poll_t* handle, int status, int events);
-  uv_poll_t * handle = NULL;
   
  private:
   explicit LDAPCnx();
@@ -17,7 +15,9 @@ class LDAPCnx : public Nan::ObjectWrap {
 
   static void New(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Initialize(const Nan::FunctionCallbackInfo<v8::Value>& info);
-  static void Restart(LDAP *ld, Sockbuf *sb, LDAPURLDesc *srv, struct sockaddr *addr, struct ldap_conncb *ctx);
+  static void Event(uv_poll_t* handle, int status, int events);
+  static int  OnConnect(LDAP *ld, Sockbuf *sb, LDAPURLDesc *srv, struct sockaddr *addr, struct ldap_conncb *ctx);
+  static void OnDisconnect(LDAP *ld, Sockbuf *sb, struct ldap_conncb *ctx);
   static void Search(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Delete(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Bind(const Nan::FunctionCallbackInfo<v8::Value>& info);
@@ -27,6 +27,9 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void GetErr(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetErrNo(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetFD(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  ldap_conncb * ldap_callback;
+  uv_poll_t * handle = NULL;
+
   static Nan::Persistent<v8::Function> constructor;
   LDAP * ld;
 };

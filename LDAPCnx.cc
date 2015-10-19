@@ -4,40 +4,13 @@ static struct timeval ldap_tv = { 0, 0 };
 
 using namespace v8;
 
-
-// this fires when the LDAP lib reconnects.
-// TODO: plumb in a reconnect handler
-// so the called can re-bind, etc....
-static int connection_restart(LDAP *ld, Sockbuf *sb,
-                      LDAPURLDesc *srv, struct sockaddr *addr,
-                      struct ldap_conncb *ctx) {
-  int fd;
-  LDAPCnx * lc = (LDAPCnx *)ctx->lc_arg;
-  
-  if (lc->handle == NULL) {
-    lc->handle = new uv_poll_t;
-    ldap_get_option(ld, LDAP_OPT_DESC, &fd);
-    uv_poll_init(uv_default_loop(), lc->handle, fd);
-    lc->handle->data = lc;
-  } else {
-    uv_poll_stop(lc->handle);
-  }
-  uv_poll_start(lc->handle, UV_READABLE, (uv_poll_cb)lc->Event);
-  
-  return LDAP_SUCCESS;
-}
-
-void connection_delete(LDAP *ld, Sockbuf *sb,
-                      struct ldap_conncb *ctx) {
-  // this fires when the connection closes
-}
-
 Nan::Persistent<Function> LDAPCnx::constructor;
 
 LDAPCnx::LDAPCnx() {
 }
 
 LDAPCnx::~LDAPCnx() {
+  free(this->ldap_callback);
   delete this->callback;
 }
 
@@ -90,9 +63,6 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   LDAPMessage * message = NULL;
   LDAPMessage * entry = NULL;
   Local<Value> errparam;
-
-  int r = 0;
-  ldap_get_option(ld->ld, LDAP_OPT_RESTART, &r);
   
   switch(ldap_result(ld->ld, LDAP_RES_ANY, LDAP_MSG_ALL, &ldap_tv, &message)) {
   case 0:
@@ -188,27 +158,52 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   return;
 }
 
+// this fires when the LDAP lib reconnects.
+// TODO: plumb in a reconnect handler
+// so the caller can re-bind when the reconnect
+// happens... this could be handled automatically
+// (remember the last bind call) by the js driver
+int LDAPCnx::OnConnect(LDAP *ld, Sockbuf *sb,
+                      LDAPURLDesc *srv, struct sockaddr *addr,
+                      struct ldap_conncb *ctx) {
+  int fd;
+  LDAPCnx * lc = (LDAPCnx *)ctx->lc_arg;
+  
+  if (lc->handle == NULL) {
+    lc->handle = new uv_poll_t;
+    ldap_get_option(ld, LDAP_OPT_DESC, &fd);
+    uv_poll_init(uv_default_loop(), lc->handle, fd);
+    lc->handle->data = lc;
+  } else {
+    uv_poll_stop(lc->handle);
+  }
+  uv_poll_start(lc->handle, UV_READABLE, (uv_poll_cb)lc->Event);
+  
+  return LDAP_SUCCESS;
+}
+
+void LDAPCnx::OnDisconnect(LDAP *ld, Sockbuf *sb,
+                      struct ldap_conncb *ctx) {
+  // this fires when the connection closes
+}
+
 void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String url(info[0]);
   int fd = 0;
   int ver = 3;
+  ld->ldap_callback = (ldap_conncb *)malloc(sizeof(ldap_conncb));
+  ld->ldap_callback->lc_add = OnConnect;
+  ld->ldap_callback->lc_del = OnDisconnect;
+  ld->ldap_callback->lc_arg = ld;
   
   if (ldap_initialize(&(ld->ld), *url) != LDAP_SUCCESS) {
     Nan::ThrowError("Error init");
     return;
   }
 
-   ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
-
-   //TODO: static is bad. alloc this, and free on destroy
-   static struct ldap_conncb lcb = {
-     connection_restart,
-     connection_delete,
-     (void *)ld
-   };
-
-   ldap_set_option(ld->ld, LDAP_OPT_CONNECT_CB, &lcb);
+  ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
+  ldap_set_option(ld->ld, LDAP_OPT_CONNECT_CB, ld->ldap_callback);
    
    if ((ldap_simple_bind(ld->ld, NULL, NULL)) == -1) {
      Nan::ThrowError("Error anon bind");
