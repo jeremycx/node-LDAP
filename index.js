@@ -91,6 +91,7 @@ LDAP.prototype.enqueue = function(msgid, fn) {
             fn(new Error(this.ld.errorstring()));
             return;
         }.bind(this));
+        return this;
     }        
     fn.timer = setTimeout(function searchTimeout() {
         delete this.callbacks[msgid];
