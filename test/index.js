@@ -191,7 +191,7 @@ describe('LDAP', function() {
         ldap.modify('cn=Albert,ou=Accounting,dc=sample,dc=com', [
             {
                 op: 'add',
-                attr: 'titlex',
+                attr: 'notInSchema',
                 vals: [ 'King of Callbacks' ]
             }
         ], function(err, msdid) {
