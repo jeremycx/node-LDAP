@@ -301,3 +301,11 @@ ldap.remove('cn=name,dc=example,dc=com', function(err) {
   }
 });
 ```
+
+TODO Items
+----------
+Basically, these are features I don't really need myself.
+
+* Referral Chasing
+* Binary Attribute Handling
+* Paged search Results
