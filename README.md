@@ -6,7 +6,9 @@ http://www.openldap.org installed.
 
 Now uses Nan to ensure it will build for all version of Node.js.
 
-This release is a complete rewrite, it's much more stable than the 1.X.X release.
+This release is a complete rewrite from 1.x.x, but remains API compatible.
+
+NOTE: The module has been renamed to `ldap-client` as `npm` no longer accepts capital letters.
 
 
 Contributing
@@ -33,7 +35,7 @@ installed from http://www.openldap.org
 
 To install the latest release from npm:
 
-    npm install LDAP
+    npm install ldap-client
 
 If this fails, please ensure you have uuid.h available (on Ubuntu,
 install the uuid-dev package).
@@ -49,7 +51,9 @@ API
 Options are provided as a JS object:
 
 ```js
-var options = {
+var LDAP = require('ldap-client');
+
+var ldap = new LDAP({
     uri:             'ldap://server',   // string
     starttls:        false,             // boolean, default is false
     connecttimeout:  -1,                // seconds, default is -1 (infinite timeout), connect timeout
@@ -59,12 +63,12 @@ var options = {
     scope:           LDAP.SUBTREE,      // default scope for all future searches
     reconnect:       function(),        // optional function to call when connect/reconnect occurs
     disconnect:      function(),        // optional function to call when disconnect occurs        
-};
+});
+
 ```
 
-The reconnect handler is a good place to put a bind() call if you need on. This will make
-the connect rebind on every rconnect (which is probably what you want).
-
+The reconnect handler is a good place to put a bind() call if you need one. This will rebind on every
+reconnect (which is probably what you want).
 
 ldap.open()
 -----------
@@ -78,10 +82,6 @@ ldap.open(function(err) {
     }
     // connection is ready.
 });
-```
-
-You can disable the automatic reconnect by setting the `reconnect`
-option to false.
 
 ldap.simplebind()
 -----------------
