@@ -1,0 +1,27 @@
+/*jshint globalstrict:true, node:true, trailing:true, mocha:true unused:true */
+
+'use strict';
+
+var LDAP = require('../');
+var assert = require('assert');
+var ldap;
+var x = 0;
+
+ldap = new LDAP({uri: 'ldap://localhost:1234'});
+setInterval(function() {
+    ldap.search({
+        base:   'dc=sample,dc=com',
+        filter: '(objectClass=*)',
+        scope:  LDAP.SUBTREE
+    }, function(err, res) {
+        if (err) {
+            console.log(err.message);
+            return;
+        }
+        if (x++ > 1000) {
+            console.log('✓ ' + new Date());
+            console.log(ldap.stats);
+            x = 0;
+        }
+    });
+}, 10);
