@@ -2,7 +2,7 @@
     "targets": [
         {
             "target_name": "LDAPCnx",
-            "sources": [ "addon.cc", "LDAPCnx.cc" ],
+            "sources": [ "LDAP.cc", "LDAPCnx.cc" ],
             "include_dirs" : [
  	 	"<!(node -e \"require('nan')\")",
                 "/usr/local/include"

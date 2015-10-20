@@ -5,4 +5,4 @@ void InitAll(v8::Local<v8::Object> exports) {
   LDAPCnx::Init(exports);
 }
 
-NODE_MODULE(addon, InitAll)
+NODE_MODULE(LDAPCnx, InitAll)
