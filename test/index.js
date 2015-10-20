@@ -28,7 +28,7 @@ describe('LDAP', function() {
             base:   'dc=sample,dc=com',
             filter: '(cn=babs)',
             scope:  LDAP.SUBTREE
-        }, function(err, msgid, res) {
+        }, function(err, res) {
             assert.equal(err, undefined);
             assert.equal(res.length, 1);
             assert.equal(res[0].sn[0], 'Jensen');
@@ -49,7 +49,7 @@ describe('LDAP', function() {
             base: 'dc=sample,dc=com',
             filter: '(cn=albert)',
             attrs: 'sn'
-        }, function(err, msgid, res) {
+        }, function(err, res) {
             assert.notEqual(res, undefined);
             assert.notEqual(res[0], undefined);
             assert.equal(res[0].sn[0], 'Root');
@@ -62,38 +62,60 @@ describe('LDAP', function() {
             base:   'dc=sample,dc=com',
             filter: '(cn=wontfindthis)',
             attrs:  '*'
-        }, function(err, msgid, res) {
+        }, function(err, res) {
             assert.equal(res.length, 0);
             done();
         });
     });
     it ('Should not delete', function(done) {
-        ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err, msgid) {
+        ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err) {
             assert.notEqual(err, undefined);
             done();
         });
     });
+    it ('Should findandbind()', function(done) {
+        ldap.findandbind({
+            base:     'dc=sample,dc=com',
+            filter:   '(cn=Charlie)',
+            attrs:    '*',
+            password: 'foobarbaz'
+        }, function(err, data) {
+            assert.equal(err, undefined);
+            done();
+        });
+    });
+    it ('Should fail findandbind()', function(done) {
+        ldap.findandbind({
+            base:     'dc=sample,dc=com',
+            filter:   '(cn=Charlie)',
+            attrs:    'cn',
+            password: 'foobarbax'
+        }, function(err, data) {
+            assert.notEqual(err, undefined);
+            done();
+        });
+    });    
     it ('Should not bind', function(done) {
-        ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'xsecret'}, function(err, msgid) {
+        ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'xsecret'}, function(err) {
             assert.notEqual(err, undefined);
             done();
         });
     });
     it ('Should bind', function(done) {
-        ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'secret'}, function(err, msgid) {
+        ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'secret'}, function(err) {
             assert.equal(err, undefined);
             done();
         });
     });
     it ('Should delete', function(done) {
-        ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err, msgid) {
+        ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err) {
             assert.equal(err, undefined);
             ldap.search(
                 {
                     base:   'dc=sample,dc=com',
                     filter: '(cn=albert)',
                     attrs:  '*'
-                }, function(err, msgid, res) {
+                }, function(err, res) {
                 assert(res.length == 0);
                 done();
             });
@@ -117,7 +139,7 @@ describe('LDAP', function() {
                 attr: 'userPassword',
                 vals: [ 'e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9' ]
             }
-        ], function(err, msgid, res) {
+        ], function(err, res) {
             assert.equal(err, undefined);
             done();
         });
@@ -141,7 +163,7 @@ describe('LDAP', function() {
                 attr: 'userPassword',
                 vals: [ 'e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9' ]
             }
-        ], function(err, msgid, res) {
+        ], function(err, res) {
             assert.notEqual(err, undefined);
             done();
         });
@@ -153,7 +175,7 @@ describe('LDAP', function() {
                 base: 'dc=sample,dc=com',
                 filter: '(cn=albert)',
                 attrs: '*'
-            }, function(err, msgid, res) {
+            }, function(err, res) {
                 count++;
                 if (count >= 1000) {
                     done();
@@ -162,16 +184,16 @@ describe('LDAP', function() {
         }
     });
     it ('Should rename', function(done) {
-        ldap.rename('cn=Albert,ou=Accounting,dc=sample,dc=com', 'cn=Alberto', function(err, msgid) {
+        ldap.rename('cn=Albert,ou=Accounting,dc=sample,dc=com', 'cn=Alberto', function(err) {
             assert.equal(err, undefined);
-            ldap.rename('cn=Alberto,ou=Accounting,dc=sample,dc=com', 'cn=Albert', function(err, msgid) {
+            ldap.rename('cn=Alberto,ou=Accounting,dc=sample,dc=com', 'cn=Albert', function(err) {
                 assert.equal(err, undefined);
                 done();
             });
         });
     });
     it ('Should fail to rename', function(done) {
-        ldap.rename('cn=Alberto,ou=Accounting,dc=sample,dc=com', 'cn=Albert', function(err, msgid) {
+        ldap.rename('cn=Alberto,ou=Accounting,dc=sample,dc=com', 'cn=Albert', function(err) {
             assert.notEqual(err, undefined);
             done();
         });
@@ -183,13 +205,14 @@ describe('LDAP', function() {
                 attr: 'title',
                 vals: [ 'King of Callbacks' ]
             }
-        ], function(err, msdid) {
+        ], function(err) {
+            assert.equal(err, undefined);
             ldap.search(
                 {
                     base: 'dc=sample,dc=com',
                     filter: '(cn=albert)',
                     attrs: '*'
-                }, function(err, msgid, res) {
+                }, function(err, res) {
                     assert.equal(res[0].title[0], 'King of Callbacks');
                     done();
                 });
@@ -202,7 +225,7 @@ describe('LDAP', function() {
                 attr: 'notInSchema',
                 vals: [ 'King of Callbacks' ]
             }
-        ], function(err, msdid) {
+        ], function(err) {
             assert.notEqual(err, undefined);
             done();
         });
@@ -212,7 +235,7 @@ describe('LDAP', function() {
             {
                 base: 'dc=sample,dc=com',
                 filter: '(cn=babs)'
-            }, function(err, msgid, res) {
+            }, function(err, res) {
                 showImage(res[0].jpegPhoto[0]);
                 done();
             });

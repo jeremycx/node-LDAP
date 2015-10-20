@@ -10,7 +10,7 @@ objectClass: person
 objectClass: top
 cn: Charlie
 sn: Root
-userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
+userPassword: {sha}X1UT+IIv2+UUWvM7ZNjZcNz5XG4=
 
 dn: cn=Babs,dc=sample,dc=com
 objectClass: organizationalPerson

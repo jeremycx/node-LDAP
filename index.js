@@ -39,7 +39,7 @@ function LDAP(opt) {
 LDAP.prototype.onresult = function(err, msgid, data) {
     if (this.callbacks[msgid]) {
         clearTimeout(this.callbacks[msgid].timer);
-        this.callbacks[msgid](err, msgid, data);
+        this.callbacks[msgid](err, data);
         delete this.callbacks[msgid];
     } else {
         this.lateresponses++;
@@ -99,6 +99,34 @@ LDAP.prototype.modify = function(dn, ops, fn) {
         throw new LDAPError('Missing argument');
     }
     return this.enqueue(this.ld.modify(dn, ops), fn);
+};
+
+LDAP.prototype.findandbind = function(opt, fn) {
+    if (opt          === undefined ||
+        opt.filter   === undefined ||
+        opt.base     === undefined ||
+        opt.password === undefined)  {
+            throw new Error('Missing argument');
+        }
+    if (opt.scope === undefined) opt.scope = this.SUBTREE;
+
+    this.search(opt, function(err, data) {
+        if (err) {
+            fn(err);
+            return;
+        }
+        if (data === undefined || data.length != 1) {
+            fn(new LDAPError('Search returned ' + data.length + ' results, expected 1'));
+            return;
+        }
+        this.bind({ binddn: data[0].dn, password: opt.password }, function(err) {
+            if (err) {
+                fn(err);
+                return;
+            }
+            fn(undefined, data[0]);
+        }.bind(this));
+    }.bind(this));
 };
 
 LDAP.prototype.enqueue = function(msgid, fn) {
