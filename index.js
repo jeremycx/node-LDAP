@@ -31,6 +31,12 @@ function Stats() {
 
 function LDAP(opt) {
     this.callbacks = {};
+    this.defaults = {
+        base:   'dc=com',
+        filter: '(objectClass=*)',
+        scope:  this.SUBTREE,
+        attrs:  '*'
+    };
     this.timeout = 2000;
 
     this.stats = new Stats();
@@ -46,6 +52,10 @@ function LDAP(opt) {
         throw new LDAPError('Missing argument');
     }
     this.uri = opt.uri;
+    if (opt.base)   this.defaults.base   = opt.base;
+    if (opt.filter) this.defaults.filter = opt.filter;
+    if (opt.scope)  this.defaults.scope  = opt.scope;
+    if (opt.attrs)  this.defaults.attrs  = opt.attrs;
     
     this.ld = new binding.LDAPCnx(this.onresult.bind(this),
                                   this.onreconnect.bind(this),
@@ -57,6 +67,9 @@ function LDAP(opt) {
     }
     return this;
 }
+
+LDAP.prototype.defaults = {
+};
 
 LDAP.prototype.onresult = function(err, msgid, data) {
     this.stats.results++;
@@ -110,10 +123,10 @@ LDAP.prototype.add = function(dn, attrs, fn) {
 
 LDAP.prototype.search = function(opt, fn) {
     this.stats.searches++;
-    return this.enqueue(this.ld.search(arg(opt.base   ,'dc=com'),
-                                       arg(opt.filter ,'(objectClass=*)'),
-                                       arg(opt.attrs  ,'*'),
-                                       arg(opt.scope  , this.SUBTREE)), fn);
+    return this.enqueue(this.ld.search(arg(opt.base   , this.defaults.base),
+                                       arg(opt.filter , this.defaults.filter),
+                                       arg(opt.attrs  , this.defaults.attrs),
+                                       arg(opt.scope  , this.defaults.scope)), fn);
 };
 
 LDAP.prototype.rename = function(dn, newrdn, fn) {
@@ -138,12 +151,9 @@ LDAP.prototype.modify = function(dn, ops, fn) {
 
 LDAP.prototype.findandbind = function(opt, fn) {
     if (opt          === undefined ||
-        opt.filter   === undefined ||
-        opt.base     === undefined ||
         opt.password === undefined)  {
             throw new Error('Missing argument');
         }
-    if (opt.scope === undefined) opt.scope = this.SUBTREE;
 
     this.search(opt, function(err, data) {
         if (err) {

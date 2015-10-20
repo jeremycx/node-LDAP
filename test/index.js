@@ -21,11 +21,14 @@ function showImage(what) {
 
 describe('LDAP', function() {
     it ('Should initialize OK', function() {
-        ldap = new LDAP({uri: 'ldap://localhost:1234'});
+        ldap = new LDAP({
+            uri: 'ldap://localhost:1234',
+            base: 'dc=sample,dc=com',
+            attrs: '*'
+        });
     });
     it ('Should search', function(done) {
         ldap.search({
-            base:   'dc=sample,dc=com',
             filter: '(cn=babs)',
             scope:  LDAP.SUBTREE
         }, function(err, res) {

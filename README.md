@@ -51,12 +51,13 @@ Options are provided as a JS object:
 ```js
 var options = {
     uri: 'ldap://my.ldap.server', // string
-    version: 3, // integer, default is 3,
-    starttls: false, // boolean, default is false
-    connecttimeout: -1, // seconds, default is -1 (infinite timeout), connect timeout
-    timeout: 5000, // milliseconds, default is 5000 (infinite timeout is unsupported), operation timeout
-    reconnect: true, // boolean, default is true,
-    backoffmax: 32 // seconds, default is 32, reconnect timeout
+    starttls: false,              // boolean, default is false
+    connecttimeout: -1,           // seconds, default is -1 (infinite timeout), connect timeout
+    timeout: 5000,                // milliseconds, default is 5000 (infinite timeout is unsupported), operation timeout
+    base: 'dc=com',               // default base for all future searches
+    attrs: '*',                   // default attribute list for all future searches
+    filter: '(objectClass=*)',    // default filter for all future searches
+    scope: LDAP.SUBTREE           // default scope for all future searches
 };
 ```
 
