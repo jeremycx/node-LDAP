@@ -1,6 +1,6 @@
 {
   "author": "Jeremy Childs <jeremyc@ssimicro.com>",
-  "name": "node-LDAP",
+  "name": "ldap-client",
   "description": "LDAP Binding for node.js",
   "homepage": "https://github.com/jeremycx/node-LDAP",
   "repository": {
