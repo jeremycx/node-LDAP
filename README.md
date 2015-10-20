@@ -312,5 +312,4 @@ Basically, these are features I don't really need myself.
 * Binary attribute handling
 * Paged search results
 * close() and friends
-* test network timeouts
-* test initial reconnect logic
+
