@@ -200,11 +200,8 @@ describe('LDAP', function() {
     });
     it ('Should modify a record', function(done) {
         ldap.modify('cn=Albert,ou=Accounting,dc=sample,dc=com', [
-            {
-                op: 'add',
-                attr: 'title',
-                vals: [ 'King of Callbacks' ]
-            }
+            { op: 'add',  attr: 'title', vals: [ 'King of Callbacks' ] },
+            { op: 'add',  attr: 'telephoneNumber', vals: [ '18005551212', '18005551234' ] }
         ], function(err) {
             assert.equal(err, undefined);
             ldap.search(
@@ -214,6 +211,8 @@ describe('LDAP', function() {
                     attrs: '*'
                 }, function(err, res) {
                     assert.equal(res[0].title[0], 'King of Callbacks');
+                    assert.equal(res[0].telephoneNumber[0], '18005551212');
+                    assert.equal(res[0].telephoneNumber[1], '18005551234');
                     done();
                 });
         });
