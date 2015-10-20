@@ -32,10 +32,12 @@ function Stats() {
 function LDAP(opt) {
     this.callbacks = {};
     this.defaults = {
-        base:   'dc=com',
-        filter: '(objectClass=*)',
-        scope:  this.SUBTREE,
-        attrs:  '*'
+        base:        'dc=com',
+        filter:      '(objectClass=*)',
+        scope:       this.SUBTREE,
+        attrs:       '*',
+        starttls:    false,
+        ntimeout:    1000
     };
     this.timeout = 2000;
 
@@ -45,23 +47,25 @@ function LDAP(opt) {
         this.onreconnect = opt.reconnect;
     }
     if (typeof opt.disconnect === 'function') {
-        this.ondisconnect = opt.ondisconnect;
+        this.ondisconnect = opt.disconnect;
     }
 
     if (typeof opt.uri !== 'string') {
         throw new LDAPError('Missing argument');
     }
     this.uri = opt.uri;
-    if (opt.base)   this.defaults.base   = opt.base;
-    if (opt.filter) this.defaults.filter = opt.filter;
-    if (opt.scope)  this.defaults.scope  = opt.scope;
-    if (opt.attrs)  this.defaults.attrs  = opt.attrs;
+    if (opt.base)            this.defaults.base      = opt.base;
+    if (opt.filter)          this.defaults.filter    = opt.filter;
+    if (opt.scope)           this.defaults.scope     = opt.scope;
+    if (opt.attrs)           this.defaults.attrs     = opt.attrs;
+    if (opt.connecttimeout)  this.defaults.ntimeout  = opt.connecttimeout;
+    if (opt.starttls)        this.defaults.starttls  = opt.starttls;
     
     this.ld = new binding.LDAPCnx(this.onresult.bind(this),
                                   this.onreconnect.bind(this),
                                   this.ondisconnect.bind(this));
     try {
-        this.ld.initialize(this.uri);
+        this.ld.initialize(this.uri, this.defaults.ntimeout, this.defaults.starttls);
     } catch (e) {
         
     }

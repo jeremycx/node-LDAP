@@ -50,32 +50,33 @@ Options are provided as a JS object:
 
 ```js
 var options = {
-    uri: 'ldap://my.ldap.server', // string
-    starttls: false,              // boolean, default is false
-    connecttimeout: -1,           // seconds, default is -1 (infinite timeout), connect timeout
-    timeout: 5000,                // milliseconds, default is 5000 (infinite timeout is unsupported), operation timeout
-    base: 'dc=com',               // default base for all future searches
-    attrs: '*',                   // default attribute list for all future searches
-    filter: '(objectClass=*)',    // default filter for all future searches
-    scope: LDAP.SUBTREE           // default scope for all future searches
+    uri:             'ldap://server',   // string
+    starttls:        false,             // boolean, default is false
+    connecttimeout:  -1,                // seconds, default is -1 (infinite timeout), connect timeout
+    base:            'dc=com',          // default base for all future searches
+    attrs:           '*',               // default attribute list for all future searches
+    filter:          '(objectClass=*)', // default filter for all future searches
+    scope:           LDAP.SUBTREE,      // default scope for all future searches
+    reconnect:       function(),        // optional function to call when connect/reconnect occurs
+    disconnect:      function(),        // optional function to call when disconnect occurs        
 };
 ```
+
+The reconnect handler is a good place to put a bind() call if you need on. This will make
+the connect rebind on every rconnect (which is probably what you want).
+
 
 ldap.open()
 -----------
 
-    ldap.open(function(err));
-
-Now that you have an instance, you can open a connection. This will
-automatically reconnect until you close():
+Deprecated. Currently, just calls the callback with no error. Feel free to omit.
 
 ```js
 ldap.open(function(err) {
     if (err) {
-       throw new Error('Can not connect');
+        // will never happen
     }
     // connection is ready.
-
 });
 ```
 
@@ -307,6 +308,9 @@ TODO Items
 ----------
 Basically, these are features I don't really need myself.
 
-* Referral Chasing
-* Binary Attribute Handling
-* Paged search Results
+* Referral chasing
+* Binary attribute handling
+* Paged search results
+* close() and friends
+* test network timeouts
+* test initial reconnect logic

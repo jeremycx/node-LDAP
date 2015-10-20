@@ -5,9 +5,9 @@
 var LDAP = require('../');
 var assert = require('assert');
 var ldap;
-var x = 0;
+var errors = {};;
 
-ldap = new LDAP({uri: 'ldap://localhost:1234'});
+ldap = new LDAP({uri: 'ldap://10.0.0.1:1234', connecttimeout: 100});
 setInterval(function() {
     ldap.search({
         base:   'dc=sample,dc=com',
@@ -15,13 +15,19 @@ setInterval(function() {
         scope:  LDAP.SUBTREE
     }, function(err, res) {
         if (err) {
-            console.log(err.message);
+            if (!errors[err.message]) {
+                errors[err.message] = 0;
+            }
+            errors[err.message]++;
             return;
-        }
-        if (x++ > 1000) {
-            console.log('✓ ' + new Date());
-            console.log(ldap.stats);
-            x = 0;
         }
     });
 }, 10);
+
+setInterval(function() {
+    console.log('✓ ' + new Date());
+    console.log(ldap.stats);
+    console.log(errors);
+    console.log('');
+}, 10000);
+                       
