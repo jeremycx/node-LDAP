@@ -47,6 +47,8 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
 
     ld->callback = new Nan::Callback(info[0].As<Function>());
     ld->reconnect_callback = new Nan::Callback(info[1].As<Function>());
+    ld->handle = NULL;
+
     
     info.GetReturnValue().Set(info.Holder());
     return;

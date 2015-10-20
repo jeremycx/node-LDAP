@@ -29,7 +29,7 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void GetErrNo(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetFD(const Nan::FunctionCallbackInfo<v8::Value>& info);
   ldap_conncb * ldap_callback;
-  uv_poll_t * handle = NULL;
+  uv_poll_t * handle;
 
   static Nan::Persistent<v8::Function> constructor;
   LDAP * ld;
