@@ -9,6 +9,7 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void Init(v8::Local<v8::Object> exports);
   Nan::Callback * callback;
   Nan::Callback * reconnect_callback;
+  Nan::Callback * disconnect_callback;
   
  private:
   explicit LDAPCnx();

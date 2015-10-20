@@ -47,6 +47,7 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
 
     ld->callback = new Nan::Callback(info[0].As<Function>());
     ld->reconnect_callback = new Nan::Callback(info[1].As<Function>());
+    ld->disconnect_callback = new Nan::Callback(info[2].As<Function>());
     ld->handle = NULL;
 
     
@@ -187,13 +188,14 @@ int LDAPCnx::OnConnect(LDAP *ld, Sockbuf *sb,
 void LDAPCnx::OnDisconnect(LDAP *ld, Sockbuf *sb,
                       struct ldap_conncb *ctx) {
   // this fires when the connection closes
+  lc->disonnect_callback->Call(0, NULL);
 }
 
 void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String url(info[0]);
   int fd = 0;
-  int ver = 3;
+  int ver = LDAP_VERSION3;
   ld->ldap_callback = (ldap_conncb *)malloc(sizeof(ldap_conncb));
   ld->ldap_callback->lc_add = OnConnect;
   ld->ldap_callback->lc_del = OnDisconnect;
@@ -206,7 +208,9 @@ void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
 
   ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
   ldap_set_option(ld->ld, LDAP_OPT_CONNECT_CB, ld->ldap_callback);
-   
+  ldap_set_option(ld->ld, LDAP_OPT_REFERRALS, LDAP_OPT_OFF);
+  
+  
    if ((ldap_simple_bind(ld->ld, NULL, NULL)) == -1) {
      Nan::ThrowError("Error anon bind");
      return;
