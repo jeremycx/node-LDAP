@@ -110,12 +110,11 @@ describe('LDAP', function() {
     it ('Should delete', function(done) {
         ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err) {
             assert.equal(err, undefined);
-            ldap.search(
-                {
-                    base:   'dc=sample,dc=com',
-                    filter: '(cn=albert)',
-                    attrs:  '*'
-                }, function(err, res) {
+            ldap.search({
+                base:   'dc=sample,dc=com',
+                filter: '(cn=albert)',
+                attrs:  '*'
+            }, function(err, res) {
                 assert(res.length == 0);
                 done();
             });
@@ -203,7 +202,7 @@ describe('LDAP', function() {
             { op: 'add',  attr: 'title', vals: [ 'King of Callbacks' ] },
             { op: 'add',  attr: 'telephoneNumber', vals: [ '18005551212', '18005551234' ] }
         ], function(err) {
-            assert.equal(err, undefined);
+            assert(!err);
             ldap.search(
                 {
                     base: 'dc=sample,dc=com',
@@ -230,12 +229,36 @@ describe('LDAP', function() {
         });
     });
     it ('Should handle a binary return', function(done) {
-        ldap.search(
-            {
-                base: 'dc=sample,dc=com',
-                filter: '(cn=babs)'
+        ldap.search({
+            base: 'dc=sample,dc=com',
+            filter: '(cn=babs)'
+        }, function(err, res) {
+            showImage(res[0].jpegPhoto[0]);
+            done();
+        });
+    });
+    it ('Should accept unicode on modify', function(done) {
+         ldap.modify('cn=Albert,ou=Accounting,dc=sample,dc=com', [
+             { op: 'replace',  attr: 'title', vals: [ 'ᓄᓇᕗᑦ ᒐᕙᒪᖓ' ] }
+         ], function(err) {
+             assert(!err, 'Bad unicode');
+             ldap.search({
+                 base: 'dc=sample,dc=com',
+                 filter: '(cn=albert)',
+                 attrs: '*'
+             }, function(err, res) {
+                 assert.equal(res[0].title[0], 'ᓄᓇᕗᑦ ᒐᕙᒪᖓ');
+                 done();
+             });
+         });
+    });
+    it ('Should search with unicode', function(done) {
+        ldap.search({
+            base: 'dc=sample,dc=com',
+            filter: '(title=ᓄᓇᕗᑦ ᒐᕙᒪᖓ)',
+            attrs: '*'
             }, function(err, res) {
-                showImage(res[0].jpegPhoto[0]);
+                assert.equal(res[0].dn, 'cn=Albert,ou=Accounting,dc=sample,dc=com');
                 done();
             });
     });
