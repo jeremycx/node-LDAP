@@ -1,18 +1,12 @@
-node-LDAP 1.2.0
+node-LDAP 2.X.X
 ===============
 
 OpenLDAP client bindings for Node.js. Requires libraries from
 http://www.openldap.org installed.
 
-This latest version implements proper reconnects to a lost LDAP server.
+Now uses Nan to ensure it will build for all version of Node.js.
 
-Of note in this release is access to LDAP Syncrepl. With this API, you
-can subscribe to changes to the LDAP database, and be notified (and
-fire a callback) when anything is changed in LDAP. Use Syncrepl to
-completely mirror an LDAP database, or use it to implement triggers
-that perform an action when LDAP is modified.
-
-The API is finally stable, and (somewhat) sane.
+This release is a complete rewrite, it's much more stable than the 1.X.X release.
 
 
 Contributing
@@ -56,31 +50,33 @@ Options are provided as a JS object:
 
 ```js
 var options = {
-    uri: 'ldap://my.ldap.server', // string
-    version: 3, // integer, default is 3,
-    starttls: false, // boolean, default is false
-    connecttimeout: -1, // seconds, default is -1 (infinite timeout), connect timeout
-    timeout: 5000, // milliseconds, default is 5000 (infinite timeout is unsupported), operation timeout
-    reconnect: true, // boolean, default is true,
-    backoffmax: 32 // seconds, default is 32, reconnect timeout
+    uri:             'ldap://server',   // string
+    starttls:        false,             // boolean, default is false
+    connecttimeout:  -1,                // seconds, default is -1 (infinite timeout), connect timeout
+    base:            'dc=com',          // default base for all future searches
+    attrs:           '*',               // default attribute list for all future searches
+    filter:          '(objectClass=*)', // default filter for all future searches
+    scope:           LDAP.SUBTREE,      // default scope for all future searches
+    reconnect:       function(),        // optional function to call when connect/reconnect occurs
+    disconnect:      function(),        // optional function to call when disconnect occurs        
 };
 ```
+
+The reconnect handler is a good place to put a bind() call if you need on. This will make
+the connect rebind on every rconnect (which is probably what you want).
+
 
 ldap.open()
 -----------
 
-    ldap.open(function(err));
-
-Now that you have an instance, you can open a connection. This will
-automatically reconnect until you close():
+Deprecated. Currently, just calls the callback with no error. Feel free to omit.
 
 ```js
 ldap.open(function(err) {
     if (err) {
-       throw new Error('Can not connect');
+        // will never happen
     }
     // connection is ready.
-
 });
 ```
 
@@ -121,11 +117,11 @@ search_options = {
 
 Scopes are specified as one of the following integers:
 
-* Connection.BASE = 0;
-* Connection.ONELEVEL = 1;
-* Connection.SUBTREE = 2;
-* Connection.SUBORDINATE = 3;
-* Connection.DEFAULT = -1;
+* LDAP.BASE = 0;
+* LDAP.ONELEVEL = 1;
+* LDAP.SUBTREE = 2;
+* LDAP.SUBORDINATE = 3;
+* LDAP.DEFAULT = -1;
 
 List of attributes you want is passed as simple string - join their names
 with space if you need more ('objectGUID sAMAccountName cname' is example of
@@ -308,98 +304,12 @@ ldap.remove('cn=name,dc=example,dc=com', function(err) {
 });
 ```
 
-Schema
-======
-
-To instantiate:
-
-```js
-var LDAP = require('LDAP');
-var schema = new LDAP.Schema({
-    init_attr: function(attr),
-    init_obj: function(obj),
-    ready: function()
-})
-```
-
-init_attr is called as each attribute is added so you can
-augment the attributes as they are loaded (add friendly labels, for
-instance). Similarly, init_obj is called as each objectClass is loaded
-so you can add your own properties to objectClasses.
-
-ready is called when the schema has been completely loaded from the server.
-
-Once the schema are loaded, you can get an objectClass like this:
-
-    schema.getObjectClass('person')
-
-Get a specific attribute:
-
-    schema.getAttribute('cn');
-
-Given a LDAP search, result, get all the possible attributes associated with it:
-
-    schema.getAttributesForRec(searchres);
-
-
-SYNCREPL API
-============
-
-If you are connecting to an LDAP server with syncrepl overlay enabled,
-you can be notified of updates to the LDAP tree. Begin by connecting,
-then issue the ldap.sync() command:
-
-    ldap.sync(options)
-
-The options are as follows:
-
-```js
-{
-    base: '',
-    scope: ldap.SUBTREE,
-    filter: '(objectClass=*)',
-    attrs: '* +',
-    rid: '000',
-    cookie: '',
-    syncentry: function(data),
-    syncintermediate: function(data),
-    syncresult: function(data)
-}
-```
-
-The cookie attribute is used to send a cookie to the server to ensure
-sync continues where you last left off.
-
-The rid attribute is required, and should be set to a unique value for
-the server you are syncing to.
-
-The function callbacks are called upon initial refresh, and as new
-data is available.
-
-syncentry(data)
---------------------------------
-When this callback fires, you should call ldap.getcookie() to record the
-current cookie and save it somewhere. You can provide this cookie to the
-ldap.sync() call when your process restarts.
-
-
-syncintermediate()
------------------
-TBD.
-
-syncresult(data)
----------------
-TBD.
-
-getcookie()
+TODO Items
 ----------
-This function returns the current cookie from the sync session. You can
-provide this cookie on the next run to pick up where you left off syncing.
+Basically, these are features I don't really need myself.
 
+* Referral chasing
+* Binary attribute handling
+* Paged search results
+* close() and friends
 
-TODO:
------
-* Integration testing for syncrepl.
-* Real-world testing of syncrepl.
-* Testing against Microsoft Active Directory is welcome as I don't
-have a server to test against.
