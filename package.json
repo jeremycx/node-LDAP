@@ -16,8 +16,7 @@
   },
   "devDependencies": {
     "jshint": "^2.8.0",
-    "mocha": "^2.2.5",
-
+    "mocha": "^2.2.5"
   },
   "dependencies": {
     "bindings": "^1.2.1",
