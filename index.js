@@ -53,7 +53,7 @@ function LDAP(opt) {
     if (typeof opt.uri !== 'string') {
         throw new LDAPError('Missing argument');
     }
-    this.uri = opt.uri;
+    this.defaults.uri = opt.uri;
     if (opt.base)            this.defaults.base      = opt.base;
     if (opt.filter)          this.defaults.filter    = opt.filter;
     if (opt.scope)           this.defaults.scope     = opt.scope;
@@ -65,15 +65,12 @@ function LDAP(opt) {
                                   this.onreconnect.bind(this),
                                   this.ondisconnect.bind(this));
     try {
-        this.ld.initialize(this.uri, this.defaults.ntimeout, this.defaults.starttls);
+        this.ld.initialize(this.defaults.uri, this.defaults.ntimeout, this.defaults.starttls);
     } catch (e) {
         
     }
     return this;
 }
-
-LDAP.prototype.defaults = {
-};
 
 LDAP.prototype.onresult = function(err, msgid, data) {
     this.stats.results++;
@@ -168,7 +165,10 @@ LDAP.prototype.findandbind = function(opt, fn) {
             fn(new LDAPError('Search returned ' + data.length + ' results, expected 1'));
             return;
         }
-        this.bind({ binddn: data[0].dn, password: opt.password }, function(err) {
+        if (this.auth_connection === undefined) {
+            this.auth_connection = new LDAP(this.defaults);
+        }
+        this.auth_connection.bind({ binddn: data[0].dn, password: opt.password }, function(err) {
             if (err) {
                 fn(err);
                 return;
@@ -176,6 +176,13 @@ LDAP.prototype.findandbind = function(opt, fn) {
             fn(undefined, data[0]);
         }.bind(this));
     }.bind(this));
+};
+
+LDAP.prototype.close = function() {
+    if (this.auth_connection !== undefined) {
+        this.auth_connection.close();
+    }
+    // TODO: clean up and disconnect
 };
 
 LDAP.prototype.enqueue = function(msgid, fn) {

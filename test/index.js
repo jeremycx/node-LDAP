@@ -87,6 +87,17 @@ describe('LDAP', function() {
             done();
         });
     });
+    it ('Should findandbind() again', function(done) {
+        ldap.findandbind({
+            base:     'dc=sample,dc=com',
+            filter:   '(cn=Charlie)',
+            attrs:    '*',
+            password: 'foobarbaz'
+        }, function(err, data) {
+            assert.equal(err, undefined);
+            done();
+        });
+    });
     it ('Should fail findandbind()', function(done) {
         ldap.findandbind({
             base:     'dc=sample,dc=com',
@@ -234,7 +245,8 @@ describe('LDAP', function() {
     it ('Should handle a binary return', function(done) {
         ldap.search({
             base: 'dc=sample,dc=com',
-            filter: '(cn=babs)'
+            filter: '(cn=babs)',
+            attrs: 'jpegPhoto'
         }, function(err, res) {
             showImage(res[0].jpegPhoto[0]);
             done();

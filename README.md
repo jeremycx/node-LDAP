@@ -193,8 +193,6 @@ search_options = {
 
 ldap.findandbind()
 ------------------
-A convenience function that is in here only to encourage developers to
-do LDAP authentication "the right way" if possible.
 
     ldap.findandbind(fb_options, function(err, data))
 
@@ -211,32 +209,20 @@ fb_options = {
 }
 ```
 
-Calls the callback with the record it authenticated against.
+Calls the callback with the record it authenticated against as the
+`data` argument.
 
-Note: since findandbind leaves the connection in an authenticated
-state, you probably don't want to do a findandbind with a general
-purpose instance of this library, as you would be sending one user's
-queries on the authenticated connection of the last user to log
-in. Depending on your configuration, this may not even be an issue,
-but you should be aware.
+`findandbind()` does two convenient things: It searches LDAP for
+a record that matches your search filter, and if one (and only one)
+result is retured, it then uses a second connection with the same
+options as the primary connection to attempt to authenticate to
+LDAP as the user found in the first step.
 
-Did someone say that asyncronous programming wasn't perilous?
+The idea here is to bind your main LDAP instance with an "admin-like"
+account that has the permissions to search. Your secondary connection
+can then just attempt to authenticate to it's heart's content.
 
-There are three obvious solutions to this problem:
-
-* Use two instances of this library (and thus two TCP connections) -
-  one for authenication binds, and the other for general purpose use
-  (which may be pre-bound as admin or some other suitably priveleged
-  user). You are then completely in charge of authorization (can this
-  user edit that user?).
-
-* Create a new instance for each authenticated user, and reconnect
-  that user to their own instance with each page load. The advantage of
-  this strategy is you can then rely on LDAP's authorization systems
-  (slapd then decides what each user can and can't do).
-
-* Create, bind, and close a connection for each user's initial visit, and
-  use cookies and session trickery for subsequent visits.
+`bind()` itself will change the authentication on the primary connection.
 
 ldap.add()
 ----------
