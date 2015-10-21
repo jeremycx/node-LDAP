@@ -37,9 +37,6 @@ To install the latest release from npm:
 
     npm install ldap-client
 
-If this fails, please ensure you have uuid.h available (on Ubuntu,
-install the uuid-dev package).
-
 You will also require the LDAP Development Libraries (on Ubuntu, `sudo apt-get install libldap2-dev`)
 
 
@@ -303,6 +300,12 @@ ldap.remove('cn=name,dc=example,dc=com', function(err) {
   }
 });
 ```
+
+Bugs
+----
+Domain errors don't work properly. Domains are deprecated as of node 4,
+so I don't think I'm going to track it down. If you need domain handling,
+let me know.
 
 TODO Items
 ----------
