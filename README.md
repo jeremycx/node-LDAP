@@ -79,6 +79,7 @@ ldap.open(function(err) {
     }
     // connection is ready.
 });
+```
 
 ldap.bind()
 -----------------
