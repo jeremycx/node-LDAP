@@ -64,8 +64,22 @@ var ldap = new LDAP({
 
 ```
 
-The reconnect handler is a good place to put a bind() call if you need one. This will rebind on every
-reconnect (which is probably what you want).
+The reconnect handler is called on initial connect as well, so this function is a really good place
+to do a bind() or any other things you want to set up for every connection.
+
+```js
+var ldap = new LDAP({
+    uri: 'ldap://server',
+    reconnect: function() {
+        ldap.bind({
+            binddn: 'cn=admin,dc=com',
+            password: 'supersecret'
+        }, function(err) {
+           ...
+        });
+    }
+}
+```
 
 ldap.open()
 -----------
