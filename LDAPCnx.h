@@ -7,8 +7,8 @@
 class LDAPCnx : public Nan::ObjectWrap {
  public:
   static void Init(v8::Local<v8::Object> exports);
-  Nan::Callback * callback;
-  Nan::Callback * reconnect_callback;
+  Nan::Callback * result_callback;
+  Nan::Callback * ready_callback;
   Nan::Callback * disconnect_callback;
   
  private:
@@ -20,6 +20,7 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void Event(uv_poll_t* handle, int status, int events);
   static int  OnConnect(LDAP *ld, Sockbuf *sb, LDAPURLDesc *srv, struct sockaddr *addr, struct ldap_conncb *ctx);
   static void OnDisconnect(LDAP *ld, Sockbuf *sb, struct ldap_conncb *ctx);
+  static void OnTLSConnect(LDAP *ld, void *ssl,	void *ctx, void *arg);
   static void Search(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Delete(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Bind(const Nan::FunctionCallbackInfo<v8::Value>& info);
@@ -29,11 +30,17 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void GetErr(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetErrNo(const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetFD(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void Close(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void StartTLS(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void InstallTLS(const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void CheckTLS(const Nan::FunctionCallbackInfo<v8::Value>& info);
+
+  LDAP * ld;
   ldap_conncb * ldap_callback;
   uv_poll_t * handle;
-
+  int tls;
+  
   static Nan::Persistent<v8::Function> constructor;
-  LDAP * ld;
 };
 
 #endif

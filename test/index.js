@@ -6,6 +6,7 @@ var LDAP = require('../');
 var assert = require('assert');
 var fs = require('fs');
 var ldap;
+var ldap2;
 
 // This shows an inline image for iTerm2
 // should not harm anything otherwise.
@@ -19,13 +20,13 @@ function showImage(what) {
 }
 
 
-describe('LDAP', function() {
+describe('LDAP', function(done) {
     it ('Should initialize OK', function() {
         ldap = new LDAP({
             uri: 'ldap://localhost:1234',
             base: 'dc=sample,dc=com',
             attrs: '*'
-        });
+        }, done);
     });
     it ('Should search', function(done) {
         ldap.search({
@@ -182,6 +183,7 @@ describe('LDAP', function() {
         });
     });
     it ('Should survive a slight beating', function(done) {
+        this.timeout(5000);
         var count = 0;
         for (var x = 0 ; x < 1000 ; x++) {
             ldap.search({
@@ -277,4 +279,15 @@ describe('LDAP', function() {
                 done();
             });
     });
+    it ('Should close and disconnect', function() {
+        ldap.close();
+    });
+    it ('Should connect again OK', function() {
+        ldap = new LDAP({
+            uri: 'ldap://localhost:1234',
+            base: 'dc=sample,dc=com',
+            attrs: '*'
+        }, done);
+    });
+    
 });

@@ -14,7 +14,7 @@ function arg(val, def) {
 
 function Stats() {
     this.lateresponses = 0;
-    this.reconnects    = 0;
+    this.connects    = 0;
     this.timeouts      = 0;
     this.requests      = 0;
     this.searches      = 0;
@@ -29,7 +29,7 @@ function Stats() {
     return this;
 }
 
-function LDAP(opt) {
+function LDAP(opt, fn) {
     this.callbacks = {};
     this.defaults = {
         base:        'dc=com',
@@ -37,18 +37,14 @@ function LDAP(opt) {
         scope:       this.SUBTREE,
         attrs:       '*',
         starttls:    false,
-        ntimeout:    1000
+        validate:    true,
+        ntimeout:    5000,
+        timeout:     2000,
+        ready:       function() {},
+        disconnect:  function() {}
     };
-    this.timeout = 2000;
 
     this.stats = new Stats();
-
-    if (typeof opt.reconnect === 'function') {
-        this.onreconnect = opt.reconnect;
-    }
-    if (typeof opt.disconnect === 'function') {
-        this.ondisconnect = opt.disconnect;
-    }
 
     if (typeof opt.uri !== 'string') {
         throw new LDAPError('Missing argument');
@@ -59,16 +55,32 @@ function LDAP(opt) {
     if (opt.scope)           this.defaults.scope     = opt.scope;
     if (opt.attrs)           this.defaults.attrs     = opt.attrs;
     if (opt.connecttimeout)  this.defaults.ntimeout  = opt.connecttimeout;
-    if (opt.starttls)        this.defaults.starttls  = opt.starttls;
+    if (opt.starttls !== undefined)        this.defaults.starttls   = opt.starttls;
+    if (opt.validate !== undefined)        this.defaults.validate   = opt.validate;
+    if (opt.ready !== undefined)           this.defaults.ready      = opt.ready;
+    if (opt.disconnect !== undefined)      this.defaults.disconnect = opt.disconnect;
     
-    this.ld = new binding.LDAPCnx(this.onresult.bind(this),
-                                  this.onreconnect.bind(this),
-                                  this.ondisconnect.bind(this));
-    try {
-        this.ld.initialize(this.defaults.uri, this.defaults.ntimeout, this.defaults.starttls);
-    } catch (e) {
-        
+    this.ld = new binding.LDAPCnx();
+    this.ld.initialize(this.onresult.bind(this),
+                       this.ready.bind(this),
+                       this.ondisconnect.bind(this),
+                       this.defaults.uri,
+                       this.defaults.ntimeout,
+                       this.defaults.starttls?1:0,
+                       this.defaults.validate?1:0);
+
+    if (opt.starttls) {
+        this.enqueue(this.ld.starttls(), function(err) {
+            if (err) return fn(err);
+            this.ld.installtls();
+            return fn(this.ld.checktls()?undefined:new Error('TLS not active'));
+        }.bind(this));
+    } else {
+        this.enqueue(this.ld.bind(null, null), function(err) {
+            if (fn) fn(err);
+        }.bind(this));
     }
+    
     return this;
 }
 
@@ -83,14 +95,14 @@ LDAP.prototype.onresult = function(err, msgid, data) {
     }
 };
 
-LDAP.prototype.onreconnect = function() {
-    this.stats.reconnects++;
-    // default reconnect callback does nothing
+LDAP.prototype.ready = function() {
+    this.stats.connects++;
+    this.defaults.ready();
 };
 
 LDAP.prototype.ondisconnect = function() {
     this.stats.disconnects++;
-    // default reconnect callback does nothing
+    if (this.defaults.disconnect) this.defaults.disconnect();
 };
 
 LDAP.prototype.remove = LDAP.prototype.delete  = function(dn, fn) {
@@ -182,7 +194,7 @@ LDAP.prototype.close = function() {
     if (this.auth_connection !== undefined) {
         this.auth_connection.close();
     }
-    // TODO: clean up and disconnect
+    return this.ld.close();
 };
 
 LDAP.prototype.enqueue = function(msgid, fn) {
@@ -194,11 +206,11 @@ LDAP.prototype.enqueue = function(msgid, fn) {
         this.stats.errors++;
         return this;
     }
-    fn.timer = setTimeout(function searchTimeout() {
+    fn.timer = setTimeout(function requestTimeout() {
         delete this.callbacks[msgid];
-        fn(new LDAPError('Timeout'), msgid);
+        fn(new LDAPError('Request Timeout'), msgid);
         this.stats.timeouts++;
-    }.bind(this), this.timeout);
+    }.bind(this), this.defaults.timeout);
     this.callbacks[msgid] = fn;
     this.stats.requests++;
     return this;
