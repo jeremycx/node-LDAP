@@ -46,10 +46,10 @@ function LDAP(opt, fn) {
         starttls:     false,
         validatecert: true,
         connect:      function() {},
-        disconnect:   function() {},
-        ready:    fn
+        disconnect:   function() {}
     }, opt);
 
+    this.readyfn = fn;
 
     if (typeof opt.uri !== 'string') {
         throw new LDAPError('Missing argument');
@@ -63,12 +63,11 @@ function LDAP(opt, fn) {
     } catch (e) {
         //TODO: does init still need to throw?
     }
-
     if (this.options.starttls) {
         this.enqueue(this.ld.starttls(this.options.validatecert), function(err) {
-            if (err) return this.options.ready(err);
-            if (err = this.ld.installtls() !== 0) return this.options.ready(new LDAPError(this.ld.errorstring()));
-            if (err = this.ld.checktls() !== 1) return this.options.ready(new LDAPError('Expected TLS'));
+            if (err) return this.readyfn(err);
+            if ((err = this.ld.installtls()) !== 0) return this.readyfn(new LDAPError(this.ld.errorstring()));
+            if ((err = this.ld.checktls()) !== 1) return this.readyfn(new LDAPError('Expected TLS'));
             return this.enqueue(this.ld.bind(undefined, undefined), this.do_ready.bind(this));
         }.bind(this));
     } else {
@@ -80,7 +79,7 @@ function LDAP(opt, fn) {
 
 LDAP.prototype.do_ready = function(err) {
     this.initialconnect = false;
-    if (typeof this.options.ready === 'function') this.options.ready(err);
+    if (typeof this.readyfn === 'function') this.readyfn(err);
 };
 
 LDAP.prototype.onresult = function(err, msgid, data) {
@@ -103,6 +102,10 @@ LDAP.prototype.onconnect = function() {
 LDAP.prototype.ondisconnect = function() {
     this.stats.disconnects++;
     this.options.disconnect();
+};
+
+LDAP.prototype.tlsactive = function() {
+    return this.ld.checktls();
 };
 
 LDAP.prototype.remove = LDAP.prototype.delete  = function(dn, fn) {
@@ -169,27 +172,27 @@ LDAP.prototype.findandbind = function(opt, fn) {
         }
 
     this.search(opt, function(err, data) {
-        if (err) {
-            fn(err);
-            return;
-        }
+        if (err) return fn(err);
+
         if (data === undefined || data.length != 1) {
-            fn(new LDAPError('Search returned ' + data.length + ' results, expected 1'));
-            return;
+            return fn(new LDAPError('Search returned ' + data.length + ' results, expected 1'));
         }
         if (this.auth_connection === undefined) {
-            this.auth_connection = new LDAP(this.options);
+            this.auth_connection = new LDAP(this.options, function(err) {
+                if (err) return fn(err);
+                return this.authbind(data[0].dn, opt.password, fn);
+            }.bind(this));
+        } else {
+            this.authbind(data[0].dn, opt.password, fn);
         }
-        this.auth_connection.bind({ binddn: data[0].dn, password: opt.password }, function(err) {
-            if (err) {
-                fn(err);
-                return;
-            }
-            fn(undefined, data[0]);
-        }.bind(this));
+        return undefined;
     }.bind(this));
 };
 
+LDAP.prototype.authbind = function(dn, password, fn) {
+    this.auth_connection.bind({ binddn: dn, password: password }, fn.bind(this));
+};
+   
 LDAP.prototype.close = function() {
     if (this.auth_connection !== undefined) {
         this.auth_connection.close();
@@ -201,6 +204,13 @@ LDAP.prototype.close = function() {
 LDAP.prototype.enqueue = function(msgid, fn) {
     if (msgid == -1 || this.ld === undefined) {
         if (this.ld.errorstring() === 'Can\'t contact LDAP server') {
+            // this means we have had a disconnect event, but since there
+            // are still requests outstanding from libldap's perspective,
+            // the connection isn't "closed" and the disconnect event has
+            // not yet fired. To get libldap to actually call the disconnect
+            // handler, we need to dump all outstanding requests, and hope
+            // we're not missing one for some reason. Only once we've
+            // abandoned everything does the handle properly close.
             Object.keys(this.callbacks).forEach(function(msgid) {
                 this.callbacks[msgid](new LDAPError('Timeout'));
                 delete this.callbacks[msgid];
