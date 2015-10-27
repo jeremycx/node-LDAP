@@ -1,4 +1,4 @@
-ldap-client 2.X.X
+ldap-client 3.X.X
 ===============
 
 OpenLDAP client bindings for Node.js. Requires libraries from
@@ -6,7 +6,7 @@ http://www.openldap.org installed.
 
 Now uses Nan to ensure it will build for all version of Node.js.
 
-This release is a complete rewrite from 1.x.x, but remains API compatible.
+This is an API-breaking release, but it should be easy to convert to the new API.
 
 NOTE: The module has been renamed to `ldap-client` as `npm` no longer accepts capital letters.
 
@@ -39,11 +39,16 @@ To install the latest release from npm:
 
 You will also require the LDAP Development Libraries (on Ubuntu, `sudo apt-get install libldap2-dev`)
 
+Reconnection
+==========
+If the connection fails during operation, the client library will handle the reconnection, calling the function specified in the reconnect option. This callback is a good place to put bind()s and other things you want to always be in place.
+
+You must close() the instance to stop the reconnect behavior.
 
 API
 ===
 
-    new LDAP(options);
+    new LDAP(options, readyCallback);
 
 Options are provided as a JS object:
 
@@ -53,13 +58,16 @@ var LDAP = require('ldap-client');
 var ldap = new LDAP({
     uri:             'ldap://server',   // string
     starttls:        false,             // boolean, default is false
+    validatecert:    false,             // Verify server certificate
     connecttimeout:  -1,                // seconds, default is -1 (infinite timeout), connect timeout
     base:            'dc=com',          // default base for all future searches
-    attrs:           '*',               // default attribute list for all future searches
+    attrs:           '*',               // default attribute list for future searches
     filter:          '(objectClass=*)', // default filter for all future searches
     scope:           LDAP.SUBTREE,      // default scope for all future searches
     reconnect:       function(),        // optional function to call when connect/reconnect occurs
     disconnect:      function(),        // optional function to call when disconnect occurs        
+}, function(err) {
+    // connected and ready    
 });
 
 ```
@@ -150,6 +158,7 @@ mine). The exception to this rule is the 'dn' attribute - this is
 always a single-valued string.
 
 Example of search result:
+
 ```js
 [ { gidNumber: [ '2000' ],
   objectClass: [ 'posixAccount', 'top', 'account' ],
