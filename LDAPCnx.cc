@@ -31,9 +31,14 @@ void LDAPCnx::Init(Local<Object> exports) {
   Nan::SetPrototypeMethod(tpl, "modify", Modify);
   Nan::SetPrototypeMethod(tpl, "rename", Rename);
   Nan::SetPrototypeMethod(tpl, "initialize", Initialize);
+  Nan::SetPrototypeMethod(tpl, "abandon", Abandon);
   Nan::SetPrototypeMethod(tpl, "errorstring", GetErr);
+  Nan::SetPrototypeMethod(tpl, "close", Close);
   Nan::SetPrototypeMethod(tpl, "errorno", GetErrNo);
   Nan::SetPrototypeMethod(tpl, "fd", GetFD);
+  Nan::SetPrototypeMethod(tpl, "starttls", StartTLS);
+  Nan::SetPrototypeMethod(tpl, "installtls", InstallTLS);
+  Nan::SetPrototypeMethod(tpl, "checktls", CheckTLS);
 
   constructor.Reset(tpl->GetFunction());
   exports->Set(Nan::New("LDAPCnx").ToLocalChecked(), tpl->GetFunction());
@@ -62,15 +67,16 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   LDAPMessage * message = NULL;
   LDAPMessage * entry = NULL;
   Local<Value> errparam;
+
+  assert(status == 0);
+  int msgtype;
   
   switch(ldap_result(ld->ld, LDAP_RES_ANY, LDAP_MSG_ALL, &ldap_tv, &message)) {
   case 0:
     // timeout occurred, which I don't think happens in async mode
   case -1:
-    {
       // We can't really do much; we don't have a msgid to callback to
       break;
-    }
   default:
     {
       int err = ldap_result2error(ld->ld, message, 0);
@@ -80,7 +86,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
         errparam = Nan::Undefined();
       }
 
-      switch ( ldap_msgtype( message ) ) {
+      switch ( msgtype = ldap_msgtype( message ) ) {
       case LDAP_RES_SEARCH_REFERENCE:
         break;
       case LDAP_RES_SEARCH_ENTRY:
@@ -105,12 +111,11 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
               Local<Array> js_attr_vals = Nan::New<Array>(num_vals);
               js_result->Set(Nan::New(attrname).ToLocalChecked(), js_attr_vals);
 
-              // char * bin = strstr(attrname, ";binary");
+              // TODO: check for binary settings
               int bin = !strcmp(attrname, "jpegPhoto");
               
               for (int i = 0 ; i < num_vals && vals[i] ; i++) {
                 if (bin) {
-                  // js_attr_vals->Set(Nan::New(i), ld->makeBuffer(vals[i]));
                   js_attr_vals->Set(Nan::New(i), Nan::CopyBuffer(vals[i]->bv_val, vals[i]->bv_len).ToLocalChecked());
                 } else {
                   js_attr_vals->Set(Nan::New(i), Nan::New(vals[i]->bv_val).ToLocalChecked());
@@ -137,6 +142,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:
       case LDAP_RES_DELETE:
+      case LDAP_RES_EXTENDED:
         {
           Local<Value> argv[] = {
             errparam,
@@ -147,7 +153,6 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
         }
       default:
         {
-          
           //emit an error
           // Nan::ThrowError("Unrecognized packet");
         }
@@ -158,11 +163,6 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   return;
 }
 
-// this fires when the LDAP lib reconnects.
-// TODO: plumb in a reconnect handler
-// so the caller can re-bind when the reconnect
-// happens... this could be handled automatically
-// (remember the last bind call) by the js driver
 int LDAPCnx::OnConnect(LDAP *ld, Sockbuf *sb,
                       LDAPURLDesc *srv, struct sockaddr *addr,
                       struct ldap_conncb *ctx) {
@@ -188,22 +188,23 @@ void LDAPCnx::OnDisconnect(LDAP *ld, Sockbuf *sb,
                       struct ldap_conncb *ctx) {
   // this fires when the connection closes
   LDAPCnx * lc = (LDAPCnx *)ctx->lc_arg;
+
+  uv_poll_stop(lc->handle);
   lc->disconnect_callback->Call(0, NULL);
 }
 
 void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   Nan::Utf8String       url(info[0]);  
-  int fd              = 0;
   int ver             = LDAP_VERSION3;
   int timeout         = info[1]->NumberValue();
-  int starttls        = info[2]->NumberValue();
-
+  int debug           = info[2]->NumberValue();
+  
   ld->ldap_callback = (ldap_conncb *)malloc(sizeof(ldap_conncb));
   ld->ldap_callback->lc_add = OnConnect;
   ld->ldap_callback->lc_del = OnDisconnect;
   ld->ldap_callback->lc_arg = ld;
-  
+
   if (ldap_initialize(&(ld->ld), *url) != LDAP_SUCCESS) {
     Nan::ThrowError("Error init");
     return;
@@ -212,26 +213,11 @@ void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
   struct timeval ntimeout = { timeout/1000, (timeout%1000) * 1000 };
 
   ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
+  ldap_set_option(NULL,   LDAP_OPT_DEBUG_LEVEL,      &debug);
   ldap_set_option(ld->ld, LDAP_OPT_CONNECT_CB,       ld->ldap_callback);
   ldap_set_option(ld->ld, LDAP_OPT_REFERRALS,        LDAP_OPT_OFF);
   ldap_set_option(ld->ld, LDAP_OPT_NETWORK_TIMEOUT,  &ntimeout);
-
-  if (starttls == 1) {      
-      ldap_start_tls_s(ld->ld, NULL, NULL);
-  }
   
-  if ((ldap_simple_bind(ld->ld, NULL, NULL)) == -1) {
-    Nan::ThrowError("Error anon bind");
-    return;
-  }
-
-  ldap_get_option(ld->ld, LDAP_OPT_DESC, &fd);
-   
-  if (fd < 0) {
-    Nan::ThrowError("Connection issue");
-    return;
-  }
-
   info.GetReturnValue().Set(info.This());
 }
 
@@ -240,6 +226,51 @@ void LDAPCnx::GetErr(const Nan::FunctionCallbackInfo<Value>& info) {
   int err;
   ldap_get_option(ld->ld, LDAP_OPT_RESULT_CODE, &err);
   info.GetReturnValue().Set(Nan::New(ldap_err2string(err)).ToLocalChecked());
+}
+
+void LDAPCnx::Close(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+
+  info.GetReturnValue().Set(ldap_unbind(ld->ld));
+}
+
+void LDAPCnx::StartTLS(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  int msgid;
+  int verifycert = info[0]->NumberValue();
+  int val;
+  int res;
+  
+  if (verifycert == 0) {
+    val = LDAP_OPT_X_TLS_ALLOW;
+  } else {
+    val = LDAP_OPT_X_TLS_HARD;
+  }
+  ldap_set_option(ld->ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &val);
+  val = 0;
+  ldap_set_option(ld->ld, LDAP_OPT_X_TLS_NEWCTX, &val);
+
+  res = ldap_start_tls(ld->ld, NULL, NULL, &msgid);
+  
+  info.GetReturnValue().Set(msgid);
+}
+
+void LDAPCnx::InstallTLS(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+
+  info.GetReturnValue().Set(ldap_install_tls(ld->ld)); 
+}
+
+void LDAPCnx::CheckTLS(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+
+  info.GetReturnValue().Set(ldap_tls_inplace(ld->ld));
+}
+
+void LDAPCnx::Abandon(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+
+  info.GetReturnValue().Set(ldap_abandon(ld->ld, info[0]->NumberValue())); //findme
 }
 
 void LDAPCnx::GetErrNo(const Nan::FunctionCallbackInfo<Value>& info) {
@@ -268,7 +299,9 @@ void LDAPCnx::Bind(const Nan::FunctionCallbackInfo<Value>& info) {
   Nan::Utf8String dn(info[0]);
   Nan::Utf8String pw(info[1]);
 
-  info.GetReturnValue().Set(ldap_simple_bind(ld->ld, *dn, *pw));
+  info.GetReturnValue().Set(ldap_simple_bind(ld->ld,
+                                             info[0]->IsUndefined()?NULL:*dn,
+                                             info[1]->IsUndefined()?NULL:*pw));
 }
 
 void LDAPCnx::Rename(const Nan::FunctionCallbackInfo<Value>& info) {

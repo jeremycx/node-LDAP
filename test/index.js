@@ -19,13 +19,13 @@ function showImage(what) {
 }
 
 
-describe('LDAP', function() {
+describe('LDAP', function(done) {
     it ('Should initialize OK', function() {
         ldap = new LDAP({
             uri: 'ldap://localhost:1234',
             base: 'dc=sample,dc=com',
             attrs: '*'
-        });
+        }, done);
     });
     it ('Should search', function(done) {
         ldap.search({

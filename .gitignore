@@ -21,3 +21,5 @@ openldap-data
 test/slapd.args
 test/slapd.pid
 test/reconnect.js
+.DS_Store
+.fuse_*

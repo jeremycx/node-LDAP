@@ -4,6 +4,7 @@
 
 var binding = require('bindings')('LDAPCnx');
 var LDAPError = require('./LDAPError');
+var _ = require('lodash');
 
 function arg(val, def) {
     if (val !== undefined) {
@@ -29,48 +30,58 @@ function Stats() {
     return this;
 }
 
-function LDAP(opt) {
+function LDAP(opt, fn) {
     this.callbacks = {};
-    this.defaults = {
-        base:        'dc=com',
-        filter:      '(objectClass=*)',
-        scope:       this.SUBTREE,
-        attrs:       '*',
-        starttls:    false,
-        ntimeout:    1000
-    };
-    this.timeout = 2000;
-
     this.stats = new Stats();
+    this.initialconnect = true;
+    
+    this.options = _.assign({
+        base:         'dc=com',
+        filter:       '(objectClass=*)',
+        scope:        2,
+        attrs:        '*',
+        ntimeout:     1000,
+        timeout:      2000,
+        debug:        0,
+        starttls:     false,
+        validatecert: true,
+        connect:      function() {},
+        disconnect:   function() {},
+        ready:    fn
+    }, opt);
 
-    if (typeof opt.reconnect === 'function') {
-        this.onreconnect = opt.reconnect;
-    }
-    if (typeof opt.disconnect === 'function') {
-        this.ondisconnect = opt.disconnect;
-    }
 
     if (typeof opt.uri !== 'string') {
         throw new LDAPError('Missing argument');
     }
-    this.defaults.uri = opt.uri;
-    if (opt.base)            this.defaults.base      = opt.base;
-    if (opt.filter)          this.defaults.filter    = opt.filter;
-    if (opt.scope)           this.defaults.scope     = opt.scope;
-    if (opt.attrs)           this.defaults.attrs     = opt.attrs;
-    if (opt.connecttimeout)  this.defaults.ntimeout  = opt.connecttimeout;
-    if (opt.starttls)        this.defaults.starttls  = opt.starttls;
     
     this.ld = new binding.LDAPCnx(this.onresult.bind(this),
-                                  this.onreconnect.bind(this),
+                                  this.onconnect.bind(this),
                                   this.ondisconnect.bind(this));
     try {
-        this.ld.initialize(this.defaults.uri, this.defaults.ntimeout, this.defaults.starttls);
+        this.ld.initialize(this.options.uri, this.options.ntimeout, this.options.debug);
     } catch (e) {
-        
+        //TODO: does init still need to throw?
     }
+
+    if (this.options.starttls) {
+        this.enqueue(this.ld.starttls(this.options.validatecert), function(err) {
+            if (err) return this.options.ready(err);
+            if (err = this.ld.installtls() !== 0) return this.options.ready(new LDAPError(this.ld.errorstring()));
+            if (err = this.ld.checktls() !== 1) return this.options.ready(new LDAPError('Expected TLS'));
+            return this.enqueue(this.ld.bind(undefined, undefined), this.do_ready.bind(this));
+        }.bind(this));
+    } else {
+        this.enqueue(this.ld.bind(undefined, undefined), this.do_ready.bind(this));
+    }
+
     return this;
 }
+
+LDAP.prototype.do_ready = function(err) {
+    this.initialconnect = false;
+    if (typeof this.options.ready === 'function') this.options.ready(err);
+};
 
 LDAP.prototype.onresult = function(err, msgid, data) {
     this.stats.results++;
@@ -83,14 +94,15 @@ LDAP.prototype.onresult = function(err, msgid, data) {
     }
 };
 
-LDAP.prototype.onreconnect = function() {
+LDAP.prototype.onconnect = function() {
     this.stats.reconnects++;
-    // default reconnect callback does nothing
+    if (this.initialconnect) return; // suppress initial connect event
+    this.options.connect();
 };
 
 LDAP.prototype.ondisconnect = function() {
     this.stats.disconnects++;
-    // default reconnect callback does nothing
+    this.options.disconnect();
 };
 
 LDAP.prototype.remove = LDAP.prototype.delete  = function(dn, fn) {
@@ -124,10 +136,10 @@ LDAP.prototype.add = function(dn, attrs, fn) {
 
 LDAP.prototype.search = function(opt, fn) {
     this.stats.searches++;
-    return this.enqueue(this.ld.search(arg(opt.base   , this.defaults.base),
-                                       arg(opt.filter , this.defaults.filter),
-                                       arg(opt.attrs  , this.defaults.attrs),
-                                       arg(opt.scope  , this.defaults.scope)), fn);
+    return this.enqueue(this.ld.search(arg(opt.base   , this.options.base),
+                                       arg(opt.filter , this.options.filter),
+                                       arg(opt.attrs  , this.options.attrs),
+                                       arg(opt.scope  , this.options.scope)), fn);
 };
 
 LDAP.prototype.rename = function(dn, newrdn, fn) {
@@ -166,7 +178,7 @@ LDAP.prototype.findandbind = function(opt, fn) {
             return;
         }
         if (this.auth_connection === undefined) {
-            this.auth_connection = new LDAP(this.defaults);
+            this.auth_connection = new LDAP(this.options);
         }
         this.auth_connection.bind({ binddn: data[0].dn, password: opt.password }, function(err) {
             if (err) {
@@ -182,32 +194,40 @@ LDAP.prototype.close = function() {
     if (this.auth_connection !== undefined) {
         this.auth_connection.close();
     }
-    // TODO: clean up and disconnect
+    this.ld.close();
+    this.ld = undefined;
 };
 
 LDAP.prototype.enqueue = function(msgid, fn) {
-    if (msgid == -1) {
+    if (msgid == -1 || this.ld === undefined) {
+        if (this.ld.errorstring() === 'Can\'t contact LDAP server') {
+            Object.keys(this.callbacks).forEach(function(msgid) {
+                this.callbacks[msgid](new LDAPError('Timeout'));
+                delete this.callbacks[msgid];
+                this.ld.abandon(msgid);
+            }.bind(this));
+        } 
         process.nextTick(function() {
             fn(new LDAPError(this.ld.errorstring()));
-            return;
         }.bind(this));
         this.stats.errors++;
         return this;
     }
     fn.timer = setTimeout(function searchTimeout() {
+        this.ld.abandon(msgid);
         delete this.callbacks[msgid];
-        fn(new LDAPError('Timeout'), msgid);
+        fn(new LDAPError('Timeout'));
         this.stats.timeouts++;
-    }.bind(this), this.timeout);
+    }.bind(this), this.options.timeout);
     this.callbacks[msgid] = fn;
     this.stats.requests++;
     return this;
 };
 
-LDAP.prototype.BASE = 0;
-LDAP.prototype.ONELEVEL = 1;
-LDAP.prototype.SUBTREE = 2;
-LDAP.prototype.SUBORDINATE = 3;
-LDAP.prototype.DEFAULT = 4;
+LDAP.BASE = 0;
+LDAP.ONELEVEL = 1;
+LDAP.SUBTREE = 2;
+LDAP.SUBORDINATE = 3;
+LDAP.DEFAULT = 4;
 
 module.exports = LDAP;
