@@ -64,8 +64,22 @@ var ldap = new LDAP({
 
 ```
 
-The reconnect handler is a good place to put a bind() call if you need one. This will rebind on every
-reconnect (which is probably what you want).
+The reconnect handler is called on initial connect as well, so this function is a really good place
+to do a bind() or any other things you want to set up for every connection.
+
+```js
+var ldap = new LDAP({
+    uri: 'ldap://server',
+    reconnect: function() {
+        ldap.bind({
+            binddn: 'cn=admin,dc=com',
+            password: 'supersecret'
+        }, function(err) {
+           ...
+        });
+    }
+}
+```
 
 ldap.open()
 -----------
@@ -79,14 +93,15 @@ ldap.open(function(err) {
     }
     // connection is ready.
 });
+```
 
-ldap.simplebind()
+ldap.bind()
 -----------------
 Calling open automatically does an anonymous bind to check to make
 sure the connection is actually open. If you call simplebind(), you
 will upgrade the existing anonymous bind.
 
-    ldap.simplebind(bind_options, function(err));
+    ldap.bind(bind_options, function(err));
 
 Options are binddn and password:
 
@@ -96,6 +111,8 @@ bind_options = {
     password: ''
 }
 ```
+Aliased to `ldap.simplebind()` for backward compatibility.
+
 
 ldap.search()
 -------------
@@ -219,10 +236,44 @@ options as the primary connection to attempt to authenticate to
 LDAP as the user found in the first step.
 
 The idea here is to bind your main LDAP instance with an "admin-like"
-account that has the permissions to search. Your secondary connection
-can then just attempt to authenticate to it's heart's content.
+account that has the permissions to search. Your (hidden) secondary
+connection will be used only for authenticating users.
 
-`bind()` itself will change the authentication on the primary connection.
+In contrast, the `bind()` method will, if successful, change the
+authentication on the primary connection.
+
+```js
+ldap.bind({
+    binddn: 'cn=admin,dc=com',
+    password: 'supersecret'
+}, function(err, data) {
+   if (err) {
+       ...
+   }
+   // now we're authenticated as admin on the main connection
+   // and thus have the correct permissions for search
+   
+   ldap.findandbind({
+       filter: '(&(username=johndoe)(status=enabled))',
+       attrs: 'username homeDirectory'
+   }, function(err, data) {
+      if (err) {
+          ...
+      }
+      // our main connection is still cn=admin
+      // but there's a hidden connection bound
+      // as "johndoe"
+      console.log(data[0].homeDirectory[0]);
+   }
+}
+
+```
+
+If you ensure that the "admin" user (or whatever you bind as for
+the main connection) can not READ the password field, then
+passwords will never leave the LDAP server -- all authentication
+is done my the LDAP server itself.
+
 
 ldap.add()
 ----------
