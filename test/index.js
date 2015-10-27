@@ -33,7 +33,7 @@ describe('LDAP', function(done) {
             filter: '(cn=babs)',
             scope:  LDAP.SUBTREE
         }, function(err, res) {
-            assert.equal(err, undefined);
+            assert.ifError(err);
             assert.equal(res.length, 1);
             assert.equal(res[0].sn[0], 'Jensen');
             assert.equal(res[0].dn, 'cn=Babs,dc=sample,dc=com');
@@ -54,6 +54,7 @@ describe('LDAP', function(done) {
             filter: '(cn=albert)',
             attrs: 'sn'
         }, function(err, res) {
+            assert.ifError(err);
             assert.notEqual(res, undefined);
             assert.notEqual(res[0], undefined);
             assert.equal(res[0].sn[0], 'Root');
@@ -73,7 +74,7 @@ describe('LDAP', function(done) {
     });
     it ('Should not delete', function(done) {
         ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err) {
-            assert.notEqual(err, undefined);
+            assert.ifError(!err);
             done();
         });
     });
@@ -84,7 +85,7 @@ describe('LDAP', function(done) {
             attrs:    '*',
             password: 'foobarbaz'
         }, function(err, data) {
-            assert.equal(err, undefined);
+            assert.ifError(err);
             done();
         });
     });
@@ -95,7 +96,7 @@ describe('LDAP', function(done) {
             attrs:    '*',
             password: 'foobarbaz'
         }, function(err, data) {
-            assert.equal(err, undefined);
+            assert.ifError(err);
             done();
         });
     });
@@ -106,25 +107,25 @@ describe('LDAP', function(done) {
             attrs:    'cn',
             password: 'foobarbax'
         }, function(err, data) {
-            assert.notEqual(err, undefined);
+            assert.ifError(!err);
             done();
         });
     });    
     it ('Should not bind', function(done) {
         ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'xsecret'}, function(err) {
-            assert.notEqual(err, undefined);
+            assert.ifError(!err);
             done();
         });
     });
     it ('Should bind', function(done) {
         ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'secret'}, function(err) {
-            assert.equal(err, undefined);
+            assert.ifError(err);
             done();
         });
     });
     it ('Should delete', function(done) {
         ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err) {
-            assert.equal(err, undefined);
+            assert.ifError(err);
             ldap.search({
                 base:   'dc=sample,dc=com',
                 filter: '(cn=albert)',
@@ -154,7 +155,7 @@ describe('LDAP', function(done) {
                 vals: [ 'e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9' ]
             }
         ], function(err, res) {
-            assert.equal(err, undefined);
+            assert.ifError(err);
             done();
         });
 
@@ -178,7 +179,7 @@ describe('LDAP', function(done) {
                 vals: [ 'e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9' ]
             }
         ], function(err, res) {
-            assert.notEqual(err, undefined);
+            assert.ifError(!err);
             done();
         });
     });
@@ -200,16 +201,16 @@ describe('LDAP', function(done) {
     });
     it ('Should rename', function(done) {
         ldap.rename('cn=Albert,ou=Accounting,dc=sample,dc=com', 'cn=Alberto', function(err) {
-            assert.equal(err, undefined);
+            assert.ifError(err);
             ldap.rename('cn=Alberto,ou=Accounting,dc=sample,dc=com', 'cn=Albert', function(err) {
-                assert.equal(err, undefined);
+                assert.ifError(err);
                 done();
             });
         });
     });
     it ('Should fail to rename', function(done) {
         ldap.rename('cn=Alberto,ou=Accounting,dc=sample,dc=com', 'cn=Albert', function(err) {
-            assert.notEqual(err, undefined);
+            assert.ifError(!err);
             done();
         });
     });
@@ -218,7 +219,7 @@ describe('LDAP', function(done) {
             { op: 'add',  attr: 'title', vals: [ 'King of Callbacks' ] },
             { op: 'add',  attr: 'telephoneNumber', vals: [ '18005551212', '18005551234' ] }
         ], function(err) {
-            assert(!err);
+            assert.ifError(err);
             ldap.search(
                 {
                     base: 'dc=sample,dc=com',

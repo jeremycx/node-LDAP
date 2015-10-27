@@ -44,4 +44,29 @@ describe('LDAP TLS', function() {
             done();
         });
     });
+    it ('Should findandbind()', function(done) {
+        ldap.findandbind({
+            base:     'dc=sample,dc=com',
+            filter:   '(cn=Charlie)',
+            attrs:    '*',
+            password: 'foobarbaz'
+        }, function(err, data) {
+            assert.ifError(err);
+            done();
+        });
+    });
+    it ('Should fail findandbind()', function(done) {
+        ldap.findandbind({
+            base:     'dc=sample,dc=com',
+            filter:   '(cn=Charlie)',
+            attrs:    'cn',
+            password: 'foobarbax'
+        }, function(err, data) {
+            assert.ifError(!err);
+            done();
+        });
+    });    
+    it ('Should still have TLS', function() {
+        assert(ldap.tlsactive());
+    });
 });

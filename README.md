@@ -351,5 +351,3 @@ Basically, these are features I don't really need myself.
 * Referral chasing
 * Binary attribute handling
 * Paged search results
-* close() and friends
-* test starttls
