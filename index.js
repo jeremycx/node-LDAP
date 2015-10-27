@@ -64,7 +64,7 @@ function LDAP(opt, fn) {
         //TODO: does init still need to throw?
     }
     if (this.options.starttls) {
-        this.enqueue(this.ld.starttls(this.options.validatecert), function(err) {
+        this.enqueue(this.ld.starttls(this.options.validatecert), function tlsStarted(err) {
             if (err) return this.readyfn(err);
             if ((err = this.ld.installtls()) !== 0) return this.readyfn(new LDAPError(this.ld.errorstring()));
             if ((err = this.ld.checktls()) !== 1) return this.readyfn(new LDAPError('Expected TLS'));
@@ -171,14 +171,14 @@ LDAP.prototype.findandbind = function(opt, fn) {
             throw new Error('Missing argument');
         }
 
-    this.search(opt, function(err, data) {
+    this.search(opt, function findandbindFind(err, data) {
         if (err) return fn(err);
 
         if (data === undefined || data.length != 1) {
             return fn(new LDAPError('Search returned ' + data.length + ' results, expected 1'));
         }
         if (this.auth_connection === undefined) {
-            this.auth_connection = new LDAP(this.options, function(err) {
+            this.auth_connection = new LDAP(this.options, function newAuthConnection(err) {
                 if (err) return fn(err);
                 return this.authbind(data[0].dn, opt.password, fn);
             }.bind(this));
@@ -211,13 +211,13 @@ LDAP.prototype.enqueue = function(msgid, fn) {
             // handler, we need to dump all outstanding requests, and hope
             // we're not missing one for some reason. Only once we've
             // abandoned everything does the handle properly close.
-            Object.keys(this.callbacks).forEach(function(msgid) {
+            Object.keys(this.callbacks).forEach(function fireTimeout(msgid) {
                 this.callbacks[msgid](new LDAPError('Timeout'));
                 delete this.callbacks[msgid];
                 this.ld.abandon(msgid);
             }.bind(this));
         } 
-        process.nextTick(function() {
+        process.nextTick(function emitError() {
             fn(new LDAPError(this.ld.errorstring()));
         }.bind(this));
         this.stats.errors++;
