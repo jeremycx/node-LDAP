@@ -89,7 +89,7 @@ var ldap = new LDAP({
 
 TLS
 ===
-TLS can be used via the ldaps:// protocol string in the URI attribute on instantiation. If you want to eschew server certificate checking (if you have a self-signed cserver certificate, for example), you can add the `verifycert` attribute, which may contain one of the following values:
+TLS can be used via the ldaps:// protocol string in the URI attribute on instantiation. If you want to eschew server certificate checking (if you have a self-signed cserver certificate, for example), you can set the `verifycert` attribute to `LDAP.LDAP_OPT_X_TLS_NEVER`, or one of the following values:
 
 ```js
 var LDAP=require('ldap-client');
