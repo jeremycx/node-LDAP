@@ -175,12 +175,7 @@ Example of search result:
 
 Attributes themselves are usually returned as strings. There is a list of known
 binary attribute names hardcoded in C++ binding sources. Those are always
-returned as Buffers, but the list is incomplete so far. You can take advantage
-of RFC4522 and specify attribute names in the form '\<name\>;binary' - such
-attributes are returned as Buffers too. There is currently no known way to do
-this for '\*' wildcard - patches are welcome (see discussion in issue #44 and
-pull #58 for some ideas).
-
+returned as Buffers, but the list is incomplete so far. 
 Paged Search Results
 ===
 NB: Paged search results are not currently implemented.
