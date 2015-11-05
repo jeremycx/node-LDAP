@@ -136,7 +136,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
               js_result->Set(Nan::New(attrname).ToLocalChecked(), js_attr_vals);
 
               // TODO: check for binary settings
-              int bin = !strcmp(attrname, "jpegPhoto");
+              int bin = isBinary(attrname);
               
               for (int i = 0 ; i < num_vals && vals[i] ; i++) {
                 if (bin) {
@@ -399,4 +399,30 @@ void LDAPCnx::Add(const Nan::FunctionCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(msgid);
 
   ldap_mods_free(ldapmods, 1);
+}
+
+// Attributes matching this list will be returned as Buffer()s
+
+int LDAPCnx::isBinary(char * attrname) {
+  if (!strcmp(attrname, "jpegPhoto") ||
+      !strcmp(attrname, "photo") ||
+      !strcmp(attrname, "personalSignature") ||
+      !strcmp(attrname, "userCertificate") ||
+      !strcmp(attrname, "cACertificate") ||
+      !strcmp(attrname, "authorityRevocationList") ||
+      !strcmp(attrname, "certificateRevocationList") ||
+      !strcmp(attrname, "deltaRevocationList") ||
+      !strcmp(attrname, "crossCertificatePair") ||
+      !strcmp(attrname, "x500UniqueIdentifier") ||
+      !strcmp(attrname, "audio") ||
+      !strcmp(attrname, "javaSerializedObject") ||
+      !strcmp(attrname, "thumbnailPhoto") ||
+      !strcmp(attrname, "thumbnailLogo") ||
+      !strcmp(attrname, "supportedAlgorithms") ||
+      !strcmp(attrname, "protocolInformation") ||
+      !strcmp(attrname, "objectGUID") ||
+      strstr(attrname, ";binary")) {
+    return 1;
+  }
+  return 0;
 }

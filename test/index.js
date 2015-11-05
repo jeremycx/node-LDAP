@@ -125,6 +125,18 @@ describe('LDAP', function() {
             done();
         });
     });
+    it ('Should show the rootDSE', function(done) {
+        ldap.search({
+            base: '',
+            scope: LDAP.BASE,
+            filter: '(objectClass=*)',
+            attrs: '+'
+        }, function(err, data) {
+            assert.ifError(err);
+            assert(data[0].namingContexts[0] === 'dc=sample,dc=com');
+            done();
+        });
+    });
     it ('Should delete', function(done) {
         ldap.delete('cn=Albert,ou=Accounting,dc=sample,dc=com', function(err) {
             assert.ifError(err);

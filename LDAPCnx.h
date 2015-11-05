@@ -32,6 +32,7 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void GetErrNo    (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetFD       (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void CheckTLS    (const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static int isBinary     (char * attrname);
 
   ldap_conncb * ldap_callback;
   uv_poll_t * handle;
@@ -41,3 +42,4 @@ class LDAPCnx : public Nan::ObjectWrap {
 };
 
 #endif
+
