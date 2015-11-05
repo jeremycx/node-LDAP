@@ -370,4 +370,8 @@ TODO Items
 Basically, these are features I don't really need myself.
 
 * Referral chasing
-* Paged search results (create cookie.cc to store cookie bervals)
+* Paged search results
+
+Notes on Paged Results
+===
+To properly implement paged search results, we need to create another C++ class that represents the page cookie. This class should be instantiated to store the pointer to the ber cookie, and properly destroy itself when it goes out of scope. This object should be returned as part of the search results.
