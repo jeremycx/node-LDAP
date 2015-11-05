@@ -19,7 +19,6 @@ function showImage(what) {
     
 }
 
-
 describe('LDAP', function() {
     it ('Should initialize OK', function(done) {
         ldap = new LDAP({
@@ -47,7 +46,10 @@ describe('LDAP', function() {
             ldap.timeout=1000;
             done();
         });
-    }); */
+     }); */
+    it ('Should show TLS not active', function() {
+        assert(ldap.tlsactive() === 0);
+    });
     it ('Should return specified attrs', function(done) {
         ldap.search({
             base: 'dc=sample,dc=com',
