@@ -7,7 +7,11 @@ var assert = require('assert');
 var ldap;
 var errors = {};;
 
-ldap = new LDAP({uri: 'ldap://localhost:1234', connecttimeout: 1000});
+ldap = new LDAP({
+    uri: 'ldaps://localhost:1235',
+    starttls: false,
+    verifycert: false
+});
 setInterval(function() {
     ldap.search({
         base:   'dc=sample,dc=com',
@@ -19,6 +23,7 @@ setInterval(function() {
                 errors[err.message] = 0;
             }
             errors[err.message]++;
+            // assert(ldap.tlsactive());
             return;
         }
     });

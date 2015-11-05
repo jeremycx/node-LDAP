@@ -30,14 +30,11 @@ void LDAPCnx::Init(Local<Object> exports) {
   Nan::SetPrototypeMethod(tpl, "add", Add);
   Nan::SetPrototypeMethod(tpl, "modify", Modify);
   Nan::SetPrototypeMethod(tpl, "rename", Rename);
-  Nan::SetPrototypeMethod(tpl, "initialize", Initialize);
   Nan::SetPrototypeMethod(tpl, "abandon", Abandon);
   Nan::SetPrototypeMethod(tpl, "errorstring", GetErr);
   Nan::SetPrototypeMethod(tpl, "close", Close);
-  Nan::SetPrototypeMethod(tpl, "errorno", GetErrNo);
+  Nan::SetPrototypeMethod(tpl, "errno", GetErrNo);
   Nan::SetPrototypeMethod(tpl, "fd", GetFD);
-  Nan::SetPrototypeMethod(tpl, "starttls", StartTLS);
-  Nan::SetPrototypeMethod(tpl, "installtls", InstallTLS);
   Nan::SetPrototypeMethod(tpl, "checktls", CheckTLS);
 
   constructor.Reset(tpl->GetFunction());
@@ -54,7 +51,34 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
     ld->reconnect_callback = new Nan::Callback(info[1].As<Function>());
     ld->disconnect_callback = new Nan::Callback(info[2].As<Function>());
     ld->handle = NULL;
-    
+
+    Nan::Utf8String       url(info[3]);  
+    int ver             = LDAP_VERSION3;
+    int timeout         = info[4]->NumberValue();
+    int debug           = info[5]->NumberValue();
+    int verifycert      = info[6]->NumberValue();
+    int zero            = 0;
+
+    ld->ldap_callback = (ldap_conncb *)malloc(sizeof(ldap_conncb));
+    ld->ldap_callback->lc_add = OnConnect;
+    ld->ldap_callback->lc_del = OnDisconnect;
+    ld->ldap_callback->lc_arg = ld;
+
+    if (ldap_initialize(&(ld->ld), *url) != LDAP_SUCCESS) {
+      Nan::ThrowError("Error init");
+      return;
+    }
+
+    struct timeval ntimeout = { timeout/1000, (timeout%1000) * 1000 };
+
+    ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION,   &ver);
+    ldap_set_option(NULL,   LDAP_OPT_DEBUG_LEVEL,        &debug);
+    ldap_set_option(ld->ld, LDAP_OPT_CONNECT_CB,         ld->ldap_callback);
+    ldap_set_option(ld->ld, LDAP_OPT_REFERRALS,          LDAP_OPT_OFF);
+    ldap_set_option(ld->ld, LDAP_OPT_NETWORK_TIMEOUT,    &ntimeout);
+    ldap_set_option(ld->ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &verifycert);
+    ldap_set_option(ld->ld, LDAP_OPT_X_TLS_NEWCTX,       &zero);
+
     info.GetReturnValue().Set(info.Holder());
     return;
   }
@@ -193,34 +217,6 @@ void LDAPCnx::OnDisconnect(LDAP *ld, Sockbuf *sb,
   lc->disconnect_callback->Call(0, NULL);
 }
 
-void LDAPCnx::Initialize(const Nan::FunctionCallbackInfo<Value>& info) {
-  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
-  Nan::Utf8String       url(info[0]);  
-  int ver             = LDAP_VERSION3;
-  int timeout         = info[1]->NumberValue();
-  int debug           = info[2]->NumberValue();
-  
-  ld->ldap_callback = (ldap_conncb *)malloc(sizeof(ldap_conncb));
-  ld->ldap_callback->lc_add = OnConnect;
-  ld->ldap_callback->lc_del = OnDisconnect;
-  ld->ldap_callback->lc_arg = ld;
-
-  if (ldap_initialize(&(ld->ld), *url) != LDAP_SUCCESS) {
-    Nan::ThrowError("Error init");
-    return;
-  }
-
-  struct timeval ntimeout = { timeout/1000, (timeout%1000) * 1000 };
-
-  ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION, &ver);
-  ldap_set_option(NULL,   LDAP_OPT_DEBUG_LEVEL,      &debug);
-  ldap_set_option(ld->ld, LDAP_OPT_CONNECT_CB,       ld->ldap_callback);
-  ldap_set_option(ld->ld, LDAP_OPT_REFERRALS,        LDAP_OPT_OFF);
-  ldap_set_option(ld->ld, LDAP_OPT_NETWORK_TIMEOUT,  &ntimeout);
-  
-  info.GetReturnValue().Set(info.This());
-}
-
 void LDAPCnx::GetErr(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
   int err;
@@ -234,33 +230,6 @@ void LDAPCnx::Close(const Nan::FunctionCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(ldap_unbind(ld->ld));
 }
 
-void LDAPCnx::StartTLS(const Nan::FunctionCallbackInfo<Value>& info) {
-  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
-  int msgid;
-  int verifycert = info[0]->NumberValue();
-  int val;
-  int res;
-  
-  if (verifycert == 0) {
-    val = LDAP_OPT_X_TLS_ALLOW;
-  } else {
-    val = LDAP_OPT_X_TLS_HARD;
-  }
-  ldap_set_option(ld->ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &val);
-  val = 0;
-  ldap_set_option(ld->ld, LDAP_OPT_X_TLS_NEWCTX, &val);
-
-  res = ldap_start_tls(ld->ld, NULL, NULL, &msgid);
-  
-  info.GetReturnValue().Set(msgid);
-}
-
-void LDAPCnx::InstallTLS(const Nan::FunctionCallbackInfo<Value>& info) {
-  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
-
-  info.GetReturnValue().Set(ldap_install_tls(ld->ld)); 
-}
-
 void LDAPCnx::CheckTLS(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
 
@@ -270,7 +239,7 @@ void LDAPCnx::CheckTLS(const Nan::FunctionCallbackInfo<Value>& info) {
 void LDAPCnx::Abandon(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
 
-  info.GetReturnValue().Set(ldap_abandon(ld->ld, info[0]->NumberValue())); //findme
+  info.GetReturnValue().Set(ldap_abandon(ld->ld, info[0]->NumberValue()));
 }
 
 void LDAPCnx::GetErrNo(const Nan::FunctionCallbackInfo<Value>& info) {

@@ -20,8 +20,8 @@ function showImage(what) {
 }
 
 
-describe('LDAP', function(done) {
-    it ('Should initialize OK', function() {
+describe('LDAP', function() {
+    it ('Should initialize OK', function(done) {
         ldap = new LDAP({
             uri: 'ldap://localhost:1234',
             base: 'dc=sample,dc=com',
@@ -283,12 +283,53 @@ describe('LDAP', function(done) {
     it ('Should close and disconnect', function() {
         ldap.close();
     });
-    it ('Should connect again OK', function() {
+    it ('Should connect again OK', function(done) {
         ldap = new LDAP({
             uri: 'ldap://localhost:1234',
             base: 'dc=sample,dc=com',
             attrs: '*'
         }, done);
     });
-    
+    it ('Should close again', function(done) {
+        ldap = new LDAP({
+            uri: 'ldap://localhost:1234',
+            base: 'dc=sample,dc=com',
+            attrs: '*'
+        }, done);
+    });
+    it ('Should connect over domain socket', function(done) {
+        ldap = new LDAP({
+            uri: 'ldapi://%2ftmp%2fslapd.sock',
+            base: 'dc=sample,dc=com',
+            attrs: '*'
+        }, done);
+    });
+    it ('Should search over domain socket', function(done) {
+        ldap.search({
+            filter: '(cn=babs)',
+            scope:  LDAP.SUBTREE
+        }, function(err, res) {
+            assert.ifError(err);
+            assert.equal(res.length, 1);
+            assert.equal(res[0].sn[0], 'Jensen');
+            assert.equal(res[0].dn, 'cn=Babs,dc=sample,dc=com');
+            done();
+        });
+    });
+    it ('Should survive a slight beating', function(done) {
+        this.timeout(5000);
+        var count = 0;
+        for (var x = 0 ; x < 1000 ; x++) {
+            ldap.search({
+                base: 'dc=sample,dc=com',
+                filter: '(cn=albert)',
+                attrs: '*'
+            }, function(err, res) {
+                count++;
+                if (count >= 1000) {
+                    done();
+                }
+            });
+        }
+    });
 });

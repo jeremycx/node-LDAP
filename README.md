@@ -10,7 +10,6 @@ This is an API-breaking release, but it should be easy to convert to the new API
 
 NOTE: The module has been renamed to `ldap-client` as `npm` no longer accepts capital letters.
 
-
 Contributing
 ------------
 

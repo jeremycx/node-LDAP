@@ -4,6 +4,7 @@
 
 var binding = require('bindings')('LDAPCnx');
 var LDAPError = require('./LDAPError');
+var assert = require('assert');
 var _ = require('lodash');
 
 function arg(val, def) {
@@ -31,10 +32,9 @@ function Stats() {
 }
 
 function LDAP(opt, fn) {
-    this.callbacks = {};
+    this.queue = {};
     this.stats = new Stats();
-    this.initialconnect = true;
-    
+
     this.options = _.assign({
         base:         'dc=com',
         filter:       '(objectClass=*)',
@@ -43,60 +43,33 @@ function LDAP(opt, fn) {
         ntimeout:     1000,
         timeout:      2000,
         debug:        0,
-        starttls:     false,
         validatecert: true,
         connect:      function() {},
         disconnect:   function() {}
     }, opt);
 
-    this.readyfn = fn;
+    if (typeof this.options.uri === 'string') {
+        this.options.uri = [ this.options.uri ];
+    }
 
-    if (typeof opt.uri !== 'string') {
-        throw new LDAPError('Missing argument');
+    this.ld = new binding.LDAPCnx(this.dequeue.bind(this),
+                                  this.onconnect.bind(this),
+                                  this.ondisconnect.bind(this),
+                                  this.options.uri.join(' '),
+                                  this.options.ntimeout,
+                                  this.options.debug,
+                                  this.options.validatecert);
+                                  
+    if (typeof fn !== 'function') {
+        fn = function() {};
     }
     
-    this.ld = new binding.LDAPCnx(this.onresult.bind(this),
-                                  this.onconnect.bind(this),
-                                  this.ondisconnect.bind(this));
-    try {
-        this.ld.initialize(this.options.uri, this.options.ntimeout, this.options.debug);
-    } catch (e) {
-        //TODO: does init still need to throw?
-    }
-    if (this.options.starttls) {
-        this.enqueue(this.ld.starttls(this.options.validatecert), function tlsStarted(err) {
-            if (err) return this.readyfn(err);
-            if ((err = this.ld.installtls()) !== 0) return this.readyfn(new LDAPError(this.ld.errorstring()));
-            if ((err = this.ld.checktls()) !== 1) return this.readyfn(new LDAPError('Expected TLS'));
-            return this.enqueue(this.ld.bind(undefined, undefined), this.do_ready.bind(this));
-        }.bind(this));
-    } else {
-        this.enqueue(this.ld.bind(undefined, undefined), this.do_ready.bind(this));
-    }
-
-    return this;
+    return this.enqueue(this.ld.bind(undefined, undefined), fn);
 }
-
-LDAP.prototype.do_ready = function(err) {
-    this.initialconnect = false;
-    if (typeof this.readyfn === 'function') this.readyfn(err);
-};
-
-LDAP.prototype.onresult = function(err, msgid, data) {
-    this.stats.results++;
-    if (this.callbacks[msgid]) {
-        clearTimeout(this.callbacks[msgid].timer);
-        this.callbacks[msgid](err, data);
-        delete this.callbacks[msgid];
-    } else {
-        this.stats.lateresponses++;
-    }
-};
 
 LDAP.prototype.onconnect = function() {
     this.stats.reconnects++;
-    if (this.initialconnect) return; // suppress initial connect event
-    this.options.connect();
+    return this.options.connect();
 };
 
 LDAP.prototype.ondisconnect = function() {
@@ -201,6 +174,17 @@ LDAP.prototype.close = function() {
     this.ld = undefined;
 };
 
+LDAP.prototype.dequeue = function(err, msgid, data) {
+    this.stats.results++;
+    if (this.queue[msgid]) {
+        clearTimeout(this.queue[msgid].timer);
+        this.queue[msgid](err, data);
+        delete this.queue[msgid];
+    } else {
+        this.stats.lateresponses++;
+    }
+};
+
 LDAP.prototype.enqueue = function(msgid, fn) {
     if (msgid == -1 || this.ld === undefined) {
         if (this.ld.errorstring() === 'Can\'t contact LDAP server') {
@@ -211,9 +195,9 @@ LDAP.prototype.enqueue = function(msgid, fn) {
             // handler, we need to dump all outstanding requests, and hope
             // we're not missing one for some reason. Only once we've
             // abandoned everything does the handle properly close.
-            Object.keys(this.callbacks).forEach(function fireTimeout(msgid) {
-                this.callbacks[msgid](new LDAPError('Timeout'));
-                delete this.callbacks[msgid];
+            Object.keys(this.queue).forEach(function fireTimeout(msgid) {
+                this.queue[msgid](new LDAPError('Timeout'));
+                delete this.queue[msgid];
                 this.ld.abandon(msgid);
             }.bind(this));
         } 
@@ -225,19 +209,25 @@ LDAP.prototype.enqueue = function(msgid, fn) {
     }
     fn.timer = setTimeout(function searchTimeout() {
         this.ld.abandon(msgid);
-        delete this.callbacks[msgid];
+        delete this.queue[msgid];
         fn(new LDAPError('Timeout'));
         this.stats.timeouts++;
     }.bind(this), this.options.timeout);
-    this.callbacks[msgid] = fn;
+    this.queue[msgid] = fn;
     this.stats.requests++;
     return this;
 };
 
-LDAP.BASE = 0;
-LDAP.ONELEVEL = 1;
-LDAP.SUBTREE = 2;
-LDAP.SUBORDINATE = 3;
-LDAP.DEFAULT = 4;
+LDAP.BASE                  = 0;
+LDAP.ONELEVEL              = 1;
+LDAP.SUBTREE               = 2;
+LDAP.SUBORDINATE           = 3;
+LDAP.DEFAULT               = 4;
+
+LDAP.LDAP_OPT_X_TLS_NEVER  = 0;
+LDAP.LDAP_OPT_X_TLS_HARD   = 1;
+LDAP.LDAP_OPT_X_TLS_DEMAND = 2;
+LDAP.LDAP_OPT_X_TLS_ALLOW  = 3;
+LDAP.LDAP_OPT_X_TLS_TRY    = 4;
 
 module.exports = LDAP;
