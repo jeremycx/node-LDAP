@@ -6,23 +6,24 @@ http://www.openldap.org installed.
 
 Now uses Nan to ensure it will build for all version of Node.js.
 
-This is an API-breaking release, but it should be easy to convert to the new API.
+***3.X is an API-breaking release***, but it should be easy to convert to the new API.
 
 NOTE: The module has been renamed to `ldap-client` as `npm` no longer accepts capital letters.
 
 Contributing
-------------
+===
 
 Any and all patches and pull requests are certainly welcome.
 
 Thanks to:
-----------
+===
 * Petr Běhan
 * YANG Xudong
 * Victor Powell
+* Many other contributors
 
 Dependencies
-------------
+===
 
 Node >= 0.8
 
@@ -34,7 +35,7 @@ installed from http://www.openldap.org
 
 To install the latest release from npm:
 
-    npm install ldap-client
+    npm install --save ldap-client
 
 You will also require the LDAP Development Libraries (on Ubuntu, `sudo apt-get install libldap2-dev`)
 
@@ -56,7 +57,6 @@ var LDAP = require('ldap-client');
 
 var ldap = new LDAP({
     uri:             'ldap://server',   // string
-    starttls:        false,             // boolean, default is false
     validatecert:    false,             // Verify server certificate
     connecttimeout:  -1,                // seconds, default is -1 (infinite timeout), connect timeout
     base:            'dc=com',          // default base for all future searches
@@ -71,8 +71,7 @@ var ldap = new LDAP({
 
 ```
 
-The reconnect handler is called on initial connect as well, so this function is a really good place
-to do a bind() or any other things you want to set up for every connection.
+The reconnect handler is called on initial connect as well, so this function is a really good place to do a bind() or any other things you want to set up for every connection.
 
 ```js
 var ldap = new LDAP({
@@ -88,24 +87,24 @@ var ldap = new LDAP({
 }
 ```
 
-ldap.open()
------------
-
-Deprecated. Currently, just calls the callback with no error. Feel free to omit.
+TLS
+===
+TLS can be used via the ldaps:// protocol string in the URI attribute on instantiation. If you want to eschew server certificate checking (if you have a self-signed cserver certificate, for example), you can add the `verifycert` attribute, which may contain one of the following values:
 
 ```js
-ldap.open(function(err) {
-    if (err) {
-        // will never happen
-    }
-    // connection is ready.
-});
+var LDAP=require('ldap-client');
+
+LDAP.LDAP_OPT_X_TLS_NEVER  = 0;
+LDAP.LDAP_OPT_X_TLS_HARD   = 1;
+LDAP.LDAP_OPT_X_TLS_DEMAND = 2;
+LDAP.LDAP_OPT_X_TLS_ALLOW  = 3;
+LDAP.LDAP_OPT_X_TLS_TRY    = 4;
 ```
 
 ldap.bind()
------------------
+===
 Calling open automatically does an anonymous bind to check to make
-sure the connection is actually open. If you call simplebind(), you
+sure the connection is actually open. If you call `bind()`, you
 will upgrade the existing anonymous bind.
 
     ldap.bind(bind_options, function(err));
@@ -122,27 +121,33 @@ Aliased to `ldap.simplebind()` for backward compatibility.
 
 
 ldap.search()
--------------
+===
     ldap.search(search_options, function(err, data));
 
 Options are provided as a JS object:
 
 ```js
 search_options = {
-    base: '',
-    scope: '',
-    filter: '',
-    attrs: '' // default is '*'
+    base: 'dc=com',
+    scope: LDAP.SUBTREE,
+    filter: '(objectClass=*)',
+    attrs: '*'
 }
 ```
 
+If one omits any of the above options, then sensible defaults will be used. One can also provide search defaults as part of instantiation.
+
 Scopes are specified as one of the following integers:
 
-* LDAP.BASE = 0;
-* LDAP.ONELEVEL = 1;
-* LDAP.SUBTREE = 2;
-* LDAP.SUBORDINATE = 3;
-* LDAP.DEFAULT = -1;
+```js
+var LDAP=require('ldap-client');
+
+LDAP.BASE = 0;
+LDAP.ONELEVEL = 1;
+LDAP.SUBTREE = 2;
+LDAP.SUBORDINATE = 3;
+LDAP.DEFAULT = -1;
+```
 
 List of attributes you want is passed as simple string - join their names
 with space if you need more ('objectGUID sAMAccountName cname' is example of
@@ -176,6 +181,10 @@ attributes are returned as Buffers too. There is currently no known way to do
 this for '\*' wildcard - patches are welcome (see discussion in issue #44 and
 pull #58 for some ideas).
 
+Paged Search Results
+===
+NB: Paged search results are not currently implemented.
+
 LDAP servers are usually limited in how many items they are willing to return -
 1024 or 4096 are some typical values. For larger LDAP directories, you need to
 either partition your results with filter, or use paged search. To get
@@ -205,19 +214,23 @@ search_options = {
 }
 ```
 
+RootDSE
+===
+
 As of version 1.2.0 you can also read the rootDSE entry of an ldap server.
 To do so, simply issue a read request with base set to an empty string:
 
 ```js
 search_options = {
   base: '',
-  scope: Connection.BASE,  // 0
+  scope: Connection.BASE,
+  attrs: '+'
   // ... other options as necessary
 }
 ```
 
 ldap.findandbind()
-------------------
+===
 
     ldap.findandbind(fb_options, function(err, data))
 
@@ -284,7 +297,7 @@ is done my the LDAP server itself.
 
 
 ldap.add()
-----------
+===
 
     ldap.add(dn, [attrs], function(err))
 
@@ -300,7 +313,7 @@ var attrs = [
 ```
 
 ldap.modify()
--------------
+===
 
     ldap.modify(dn, [ changes ], function(err))
 
@@ -317,7 +330,7 @@ var changes = [
 ```
 
 ldap.rename()
--------------
+===
 
     ldap.rename(dn, newrdn, function(err))
 
@@ -330,7 +343,7 @@ ldap.rename('cn=name,dc=example,dc=com', 'cn=newname')
 ```
 
 ldap.remove()
--------------
+===
 
     ldap.remove(dn, function(err))
 
@@ -347,15 +360,14 @@ ldap.remove('cn=name,dc=example,dc=com', function(err) {
 ```
 
 Bugs
-----
+===
 Domain errors don't work properly. Domains are deprecated as of node 4,
 so I don't think I'm going to track it down. If you need domain handling,
 let me know.
 
 TODO Items
-----------
+===
 Basically, these are features I don't really need myself.
 
 * Referral chasing
-* Binary attribute handling
-* Paged search results
+* Paged search results (create cookie.cc to store cookie bervals)
