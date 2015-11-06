@@ -92,7 +92,6 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
   LDAPMessage * entry = NULL;
   Local<Value> errparam;
 
-  assert(status == 0);
   int msgtype;
   
   switch(ldap_result(ld->ld, LDAP_RES_ANY, LDAP_MSG_ALL, &ldap_tv, &message)) {
