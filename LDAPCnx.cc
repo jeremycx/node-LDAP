@@ -211,8 +211,9 @@ void LDAPCnx::OnDisconnect(LDAP *ld, Sockbuf *sb,
                       struct ldap_conncb *ctx) {
   // this fires when the connection closes
   LDAPCnx * lc = (LDAPCnx *)ctx->lc_arg;
-
-  uv_poll_stop(lc->handle);
+  if (lc->handle) {
+    uv_poll_stop(lc->handle);
+  }
   lc->disconnect_callback->Call(0, NULL);
 }
 
