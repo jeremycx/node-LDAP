@@ -43,7 +43,7 @@ function LDAP(opt, fn) {
         ntimeout:     1000,
         timeout:      2000,
         debug:        0,
-        validatecert: true,
+        validatecert: LDAP.LDAP_OPT_X_TLS_HARD,
         connect:      function() {},
         disconnect:   function() {}
     }, opt);

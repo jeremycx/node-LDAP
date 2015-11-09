@@ -304,12 +304,8 @@ describe('LDAP', function() {
             attrs: '*'
         }, done);
     });
-    it ('Should close again', function(done) {
-        ldap = new LDAP({
-            uri: 'ldap://localhost:1234',
-            base: 'dc=sample,dc=com',
-            attrs: '*'
-        }, done);
+    it ('Should close again', function() {
+        ldap.close();
     });
     it ('Should connect over domain socket', function(done) {
         ldap = new LDAP({
@@ -341,6 +337,7 @@ describe('LDAP', function() {
             }, function(err, res) {
                 count++;
                 if (count >= 1000) {
+                    ldap.close();
                     done();
                 }
             });

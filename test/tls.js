@@ -9,11 +9,11 @@ var ldap;
 
 describe('LDAP TLS', function() {
     it ('Should fail TLS on cert validation', function(done) {
+        this.timeout(10000);
         ldap = new LDAP({
             uri: 'ldaps://localhost:1235',
             base: 'dc=sample,dc=com',
             attrs: '*',
-            starttls: true
         }, function(err) {
             assert.ifError(!err);
             done();
@@ -25,7 +25,6 @@ describe('LDAP TLS', function() {
             uri: 'ldaps://localhost:1235',
             base: 'dc=sample,dc=com',
             attrs: '*',
-            starttls: true,
             validatecert: false
         }, function(err) {
             assert.ifError(err);
