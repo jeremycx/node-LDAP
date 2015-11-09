@@ -45,6 +45,8 @@ If the connection fails during operation, the client library will handle the rec
 
 You must close() the instance to stop the reconnect behavior.
 
+During long-running operation, you should be prepared to handle errors robustly - there is no telling when the underlying driver will be in the process of automatically reconnecting. `ldap.search()` and friends will happily return a `Timeout` or `Can't contact LDAP server` error if the server has temporarily gone away. So, though you **may** want to implement your app in the `new LDAP()` callback, it's perfectly acceptable (and maybe even recommended) to ignore the ready callback in `new LDAP()` and proceed anyway, knowing the library will eventually connect when it is able to.
+
 API
 ===
 
