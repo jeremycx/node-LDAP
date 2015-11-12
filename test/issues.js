@@ -11,25 +11,56 @@ describe('Issues', function() {
     it('Should fix Issue #80', function(done) {
         var ldapConfig = {
             schema: 'ldaps://',
-            host: 'localhost:1235',
-            binddn: 'cn=Babs,dc=sample,dc=com',
-            password: 'secret'
+            host: 'localhost:1235'
         };
-        var bind_options = {
-            binddn: ldapConfig.binddn,
-            password: ldapConfig.password
-        };
-
         var uri = ldapConfig.schema + ldapConfig.host;
-        console.log(uri);
+
         ldap = new LDAP({
             uri: uri,
             validatecert: LDAP.LDAP_OPT_X_TLS_NEVER
-        }, function(err) {
-            ldap.bind(bind_options, function (err) {
+        }, function (err) {
+            assert.ifError(err);
+            done();
+        });
+    });
+    it('Should search after Issue #80', function(done) {
+        ldap.search({
+            base: 'dc=sample,dc=com',
+            filter: '(objectClass=*)'
+        }, function(err, res) {
+            assert.ifError(err);
+            assert.equal(res.length, 6);
+            done();
+        });
+
+    });
+    it('Base scope should work - Issue #81', function(done) {
+        assert.equal(ldap.DEFAULT, 4, 'ldap.DEFAULT const is not zero');
+        assert.equal(LDAP.DEFAULT, 4, 'LDAP.DEFAULT const is not zero');
+        assert.equal(LDAP.LDAP_OPT_X_TLS_TRY, 4);
+        ldap.search({
+            base: 'dc=sample,dc=com',
+            scope: ldap.BASE,
+            filter: '(objectClass=*)'
+        }, function(err, res) {
+
+            assert.equal(res.length, 1, 'Unexpected number of results');
+            ldap.search({
+                base: 'dc=sample,dc=com',
+                scope: LDAP.SUBTREE,
+                filter: '(objectClass=*)'
+            }, function(err, res) {
                 assert.ifError(err);
-                ldap.close();
-                done();
+                assert.equal(res.length, 6, 'Unexpected number of results');
+                ldap.search({
+                base: 'dc=sample,dc=com',
+                scope: LDAP.ONELEVEL,
+                filter: '(objectClass=*)'
+                }, function(err, res) {
+                    assert.ifError(err);
+                    assert.equal(res.length, 4, 'Unexpected number of results');
+                    done();
+                });
             });
         });
     });

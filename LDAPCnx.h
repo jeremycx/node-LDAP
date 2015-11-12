@@ -20,6 +20,8 @@ class LDAPCnx : public Nan::ObjectWrap {
   static int  OnConnect   (LDAP *ld, Sockbuf *sb, LDAPURLDesc *srv,
                            struct sockaddr *addr, struct ldap_conncb *ctx);
   static void OnDisconnect(LDAP *ld, Sockbuf *sb, struct ldap_conncb *ctx);
+  static int  OnRebind    (LDAP *ld, LDAP_CONST char *url, ber_tag_t request,
+                           ber_int_t msgid, void *params );
   static void Search      (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Delete      (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Bind        (const Nan::FunctionCallbackInfo<v8::Value>& info);

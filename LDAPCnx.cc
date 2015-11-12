@@ -57,6 +57,7 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
     int timeout         = info[4]->NumberValue();
     int debug           = info[5]->NumberValue();
     int verifycert      = info[6]->NumberValue();
+    int referrals       = info[7]->NumberValue();
     int zero            = 0;
 
     ld->ldap_callback = (ldap_conncb *)malloc(sizeof(ldap_conncb));
@@ -74,11 +75,15 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
     ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION,   &ver);
     ldap_set_option(NULL,   LDAP_OPT_DEBUG_LEVEL,        &debug);
     ldap_set_option(ld->ld, LDAP_OPT_CONNECT_CB,         ld->ldap_callback);
-    ldap_set_option(ld->ld, LDAP_OPT_REFERRALS,          LDAP_OPT_OFF);
     ldap_set_option(ld->ld, LDAP_OPT_NETWORK_TIMEOUT,    &ntimeout);
     ldap_set_option(ld->ld, LDAP_OPT_X_TLS_REQUIRE_CERT, &verifycert);
     ldap_set_option(ld->ld, LDAP_OPT_X_TLS_NEWCTX,       &zero);
 
+    ldap_set_option(ld->ld, LDAP_OPT_REFERRALS,          &referrals);
+    if (referrals) {
+      ldap_set_rebind_proc(ld->ld, OnRebind, ld);
+    }
+    
     info.GetReturnValue().Set(info.Holder());
     return;
   }
@@ -215,6 +220,14 @@ void LDAPCnx::OnDisconnect(LDAP *ld, Sockbuf *sb,
     uv_poll_stop(lc->handle);
   }
   lc->disconnect_callback->Call(0, NULL);
+}
+
+int LDAPCnx::OnRebind(LDAP *ld, LDAP_CONST char *url, ber_tag_t request,
+                       ber_int_t msgid, void *params) {
+  // this is a new *ld representing the new server connection
+  // so our existing code won't work!
+  
+  return LDAP_SUCCESS;
 }
 
 void LDAPCnx::GetErr(const Nan::FunctionCallbackInfo<Value>& info) {
@@ -386,6 +399,7 @@ void LDAPCnx::Add(const Nan::FunctionCallbackInfo<Value>& info) {
     ldapmods[i]->mod_values = (char **) malloc(sizeof(char *) *
                                                (attrValsLength + 1));
     for (int j = 0; j < attrValsLength; j++) {
+      // TODO: handle Buffers here.
       Nan::Utf8String modValue(attrValsHandle->Get(Nan::New(j)));
       ldapmods[i]->mod_values[j] = strdup(*modValue);
     }
@@ -421,6 +435,7 @@ int LDAPCnx::isBinary(char * attrname) {
       !strcmp(attrname, "supportedAlgorithms") ||
       !strcmp(attrname, "protocolInformation") ||
       !strcmp(attrname, "objectGUID") ||
+      !strcmp(attrname, "objectSid") ||
       strstr(attrname, ";binary")) {
     return 1;
   }

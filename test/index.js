@@ -40,12 +40,12 @@ describe('LDAP', function() {
         });
     });
     /*    it ('Should timeout', function(done) {
-        ldap.timeout=1; // 1ms should do it
-        ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
-            // assert(err !== undefined);
-            ldap.timeout=1000;
-            done();
-        });
+     ldap.timeout=1; // 1ms should do it
+     ldap.search('dc=sample,dc=com', '(cn=albert)', '*', function(err, msgid, res) {
+     // assert(err !== undefined);
+     ldap.timeout=1000;
+     done();
+     });
      }); */
     it ('Should show TLS not active', function() {
         assert(ldap.tlsactive() === 0);
@@ -68,6 +68,7 @@ describe('LDAP', function() {
         ldap.search({
             base:   'dc=sample,dc=com',
             filter: '(cn=wontfindthis)',
+            scope: LDAP.ONELEVEL,
             attrs:  '*'
         }, function(err, res) {
             assert.equal(res.length, 0);
@@ -270,30 +271,33 @@ describe('LDAP', function() {
         });
     });
     it ('Should accept unicode on modify', function(done) {
-         ldap.modify('cn=Albert,ou=Accounting,dc=sample,dc=com', [
-             { op: 'replace',  attr: 'title', vals: [ 'ᓄᓇᕗᑦ ᒐᕙᒪᖓ' ] }
-         ], function(err) {
-             assert(!err, 'Bad unicode');
-             ldap.search({
-                 base: 'dc=sample,dc=com',
-                 filter: '(cn=albert)',
-                 attrs: '*'
-             }, function(err, res) {
-                 assert.equal(res[0].title[0], 'ᓄᓇᕗᑦ ᒐᕙᒪᖓ');
-                 done();
-             });
-         });
-    });
-    it ('Should search with unicode', function(done) {
-        ldap.search({
-            base: 'dc=sample,dc=com',
-            filter: '(title=ᓄᓇᕗᑦ ᒐᕙᒪᖓ)',
-            attrs: '*'
+        ldap.modify('cn=Albert,ou=Accounting,dc=sample,dc=com', [
+            { op: 'replace',  attr: 'title', vals: [ 'ᓄᓇᕗᑦ ᒐᕙᒪᖓ' ] }
+        ], function(err) {
+            assert(!err, 'Bad unicode');
+            ldap.search({
+                base: 'dc=sample,dc=com',
+                filter: '(cn=albert)',
+                attrs: '*'
             }, function(err, res) {
-                assert.equal(res[0].dn, 'cn=Albert,ou=Accounting,dc=sample,dc=com');
+                assert.equal(res[0].title[0], 'ᓄᓇᕗᑦ ᒐᕙᒪᖓ');
                 done();
             });
+        });
     });
+    it ('Should search with weird inputs', function(done) {
+        ldap.search({
+            base: 'dc=sample,dc=com',
+            scope: LDAP.ONELEVEL,
+            filter: '(objectClass=*)',
+            attrs: '+'
+        }, function(err, res) {
+            console.log(LDAP.BASE);
+            console.log(res.length);
+            assert.equal(res.length, 4);
+            done();
+        });
+    });    
     it ('Should close and disconnect', function() {
         ldap.close();
     });

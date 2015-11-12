@@ -278,3 +278,10 @@ objectClass: top
 cn: Manager
 sn: Root
 userPassword:: e1NIQX01ZW42RzZNZXpScm9UM1hLcWtkUE9tWS9CZlE9
+
+#dn: dc=666,dc=sample,dc=com
+#objectClass: dcObject
+#objectClass: referral
+#objectClass: top
+#dc: 666
+#ref: ldap://yk-ldap0.ssimicro.com/dc=666,dc=ssi

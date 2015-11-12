@@ -44,6 +44,7 @@ function LDAP(opt, fn) {
         timeout:      2000,
         debug:        0,
         validatecert: LDAP.LDAP_OPT_X_TLS_HARD,
+        referrals:    0,
         connect:      function() {},
         disconnect:   function() {}
     }, opt);
@@ -58,12 +59,13 @@ function LDAP(opt, fn) {
                                   this.options.uri.join(' '),
                                   this.options.ntimeout,
                                   this.options.debug,
-                                  this.options.validatecert);
+                                  this.options.validatecert,
+                                  this.options.referrals);
                                   
     if (typeof fn !== 'function') {
         fn = function() {};
     }
-    
+
     return this.enqueue(this.ld.bind(undefined, undefined), fn);
 }
 
@@ -185,6 +187,8 @@ LDAP.prototype.dequeue = function(err, msgid, data) {
     }
 };
 
+LDAP.prototype.DEFAULT     = 4;
+
 LDAP.prototype.enqueue = function(msgid, fn) {
     if (msgid == -1 || this.ld === undefined) {
         if (this.ld.errorstring() === 'Can\'t contact LDAP server') {
@@ -218,16 +222,20 @@ LDAP.prototype.enqueue = function(msgid, fn) {
     return this;
 };
 
-LDAP.BASE                  = 0;
-LDAP.ONELEVEL              = 1;
-LDAP.SUBTREE               = 2;
-LDAP.SUBORDINATE           = 3;
-LDAP.DEFAULT               = 4;
+function setConst(target, name, val) {
+    target.prototype[name] = target[name] = val;
+}
 
-LDAP.LDAP_OPT_X_TLS_NEVER  = 0;
-LDAP.LDAP_OPT_X_TLS_HARD   = 1;
-LDAP.LDAP_OPT_X_TLS_DEMAND = 2;
-LDAP.LDAP_OPT_X_TLS_ALLOW  = 3;
-LDAP.LDAP_OPT_X_TLS_TRY    = 4;
+setConst(LDAP, 'BASE',        0);
+setConst(LDAP, 'ONELEVEL',    1);
+setConst(LDAP, 'SUBTREE',     2);
+setConst(LDAP, 'SUBORDINATE', 3);
+setConst(LDAP, 'DEFAULT',     4);
+
+setConst(LDAP, 'LDAP_OPT_X_TLS_NEVER',  0);
+setConst(LDAP, 'LDAP_OPT_X_TLS_HARD',   1);
+setConst(LDAP, 'LDAP_OPT_X_TLS_DEMAND', 2);
+setConst(LDAP, 'LDAP_OPT_X_TLS_ALLOW',  3);
+setConst(LDAP, 'LDAP_OPT_X_TLS_TRY',    4);
 
 module.exports = LDAP;

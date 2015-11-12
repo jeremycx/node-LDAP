@@ -10,7 +10,7 @@ $RM -rf openldap-data
 $MKDIR openldap-data
 
 $SLAPADD -f slapd.conf < startup.ldif
-$SLAPD -d999 -f slapd.conf -h "ldap://localhost:1234 ldapi://%2ftmp%2fslapd.sock ldaps://localhost:1235"
+$SLAPD -d999 -f slapd.conf -h "ldap://:1234 ldapi://%2ftmp%2fslapd.sock ldaps://localhost:1235"
 SLAPD_PID=$!
 # slapd should be running now
 
