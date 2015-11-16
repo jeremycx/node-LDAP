@@ -5,6 +5,7 @@
 var binding = require('bindings')('LDAPCnx');
 var LDAPError = require('./LDAPError');
 var assert = require('assert');
+var util = require('util');
 var _ = require('lodash');
 
 function arg(val, def) {
@@ -13,6 +14,35 @@ function arg(val, def) {
     }
     return def;
 }
+
+var escapes = {
+    filter: {
+        regex: new RegExp(/\0|\(|\)|\*|\\/g),
+        replacements: {
+            "\0": "\\00",
+            "(": "\\28",
+            ")": "\\29",
+            "*": "\\2A",
+            "\\": "\\5C"
+        }
+    },
+    dn: {
+        regex: new RegExp(/\0|\"|\+|\,|;|<|>|=|\\/g),
+        replacements: {
+            "\0": "\\00",
+            " ":  "\\ ",
+            "\"": "\\\"",
+            "#": "\\#",
+            "+": "\\+",
+            ",": "\\,",
+            ";": "\\;",
+            "<": "\\<",
+            ">": "\\>",
+            "=": "\\=",
+            "\\": "\\5C"
+        }
+    }
+};
 
 function Stats() {
     this.lateresponses = 0;
@@ -187,8 +217,6 @@ LDAP.prototype.dequeue = function(err, msgid, data) {
     }
 };
 
-LDAP.prototype.DEFAULT     = 4;
-
 LDAP.prototype.enqueue = function(msgid, fn) {
     if (msgid == -1 || this.ld === undefined) {
         if (this.ld.errorstring() === 'Can\'t contact LDAP server') {
@@ -221,6 +249,26 @@ LDAP.prototype.enqueue = function(msgid, fn) {
     this.stats.requests++;
     return this;
 };
+
+function stringescape(escapes_obj, str) {
+    return str.replace(escapes_obj.regex, function (match) {
+        return escapes_obj.replacements[match];
+    });
+}
+
+LDAP.escapefn = function(type, template) {
+    var escapes_obj = escapes[type];
+    return function() {
+        var args = [ template ], i;
+        for (i = 0 ; i < arguments.length ; i++) { // optimizer-friendly
+            args.push(stringescape(escapes_obj, arguments[i]));
+        }
+        return util.format.apply(this,args);
+    };
+};
+
+LDAP.stringEscapeDN = LDAP.escapefn('dn', '%s');
+LDAP.stringEscapeFilter = LDAP.escapefn('filter', '%s');
 
 function setConst(target, name, val) {
     target.prototype[name] = target[name] = val;

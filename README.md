@@ -356,6 +356,39 @@ ldap.remove('cn=name,dc=example,dc=com', function(err) {
 });
 ```
 
+Escaping
+===
+Yes, Virginia, there's such a thing as LDAP injection attacks.
+
+There are a few helper functions to ensure you are escaping your input properly.
+
+**escapefn(type, template)**
+Returns a function that escapes the provided parameters and inserts them into the provided template:
+
+```js
+var LDAP = require('ldap-client');
+var userSearch = LDAP.escapefn('filter', 
+    '(&(objectClass=%s)(cn=%s))');
+
+...
+ldap.search({
+    filter: userSearch('posixUser', username),
+    scope: LDAP.SUBTREE
+}, function(err, data) {
+    ...
+});
+```
+Since the escaping rules are different for DNs vs search filters, `type` should be one of `'filter'` or `'dn'`.
+
+To escape a single string, use one of `LDAP.stringEscapeDN` or `LDAP.stringEscapeFilter`:
+
+```js
+var LDAP=require('ldap-client');
+
+LDAP.stringEscapeDN('dc=foo,dc=bar;baz'); 
+// ==> 'dc=doo,dc=bar\;baz'
+```
+
 Bugs
 ===
 Domain errors don't work properly. Domains are deprecated as of node 4,
@@ -366,7 +399,6 @@ TODO Items
 ===
 Basically, these are features I don't really need myself.
 
-* Referral chasing
 * Paged search results
 * Filter escaping
 
