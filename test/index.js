@@ -292,8 +292,6 @@ describe('LDAP', function() {
             filter: '(objectClass=*)',
             attrs: '+'
         }, function(err, res) {
-            console.log(LDAP.BASE);
-            console.log(res.length);
             assert.equal(res.length, 4);
             done();
         });
