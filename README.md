@@ -420,4 +420,4 @@ Notes on Paged Results
 ===
 To properly implement paged search results, we need to create another C++ class that represents the page cookie. This class should be instantiated to store the pointer to the ber cookie, and properly destroy itself when it goes out of scope. This object should be returned as part of the search results. 
 
-[https://github.com/nodejs/node-addon-examples/blob/master/8_passing_wrapped/nan/myobject.cc](myobject.cc) seems to be a pretty good template.
+[myobject.cc](https://github.com/nodejs/node-addon-examples/blob/master/8_passing_wrapped/nan/myobject.cc) seems to be a pretty good template.
