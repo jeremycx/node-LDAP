@@ -380,13 +380,27 @@ ldap.search({
 ```
 Since the escaping rules are different for DNs vs search filters, `type` should be one of `'filter'` or `'dn'`.
 
-To escape a single string, use one of `LDAP.stringEscapeDN` or `LDAP.stringEscapeFilter`:
+To escape a single string, `LDAP.stringEscapeFilter`:
 
 ```js
 var LDAP=require('ldap-client');
+var user = "John O'Doe";
 
-LDAP.stringEscapeDN('dc=foo,dc=bar;baz'); 
-// ==> 'dc=doo,dc=bar\;baz'
+LDAP.stringEscapeFilter('(username=' + user + ')');
+// ==> '(username=John O\'Doe)'
+```
+
+Note there is no function for string escaping a DN - DN escaping has special rules for escaping the beginning and end of values in the DN, so the best way to safely escape DNs is to use the `escapefn` with a template:
+
+```js
+var LDAP = require('ldap-client');
+var escapeDN = LDAP.escapefn('dn', 
+    'cn=%s,dc=sample,dc=com');
+
+...
+var safeDN = escapeDN(" O'Doe");
+// => "cn=\ O\'Doe,dc=sample,dc=com"
+
 ```
 
 Bugs

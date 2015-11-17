@@ -267,7 +267,6 @@ LDAP.escapefn = function(type, template) {
     };
 };
 
-LDAP.stringEscapeDN = LDAP.escapefn('dn', '%s');
 LDAP.stringEscapeFilter = LDAP.escapefn('filter', '%s');
 
 function setConst(target, name, val) {
