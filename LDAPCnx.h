@@ -33,6 +33,8 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void Close       (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetErrNo    (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void GetFD       (const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void StartTLS    (const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void InstallTLS  (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void CheckTLS    (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static int isBinary     (char * attrname);
 

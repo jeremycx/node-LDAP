@@ -35,6 +35,8 @@ void LDAPCnx::Init(Local<Object> exports) {
   Nan::SetPrototypeMethod(tpl, "close", Close);
   Nan::SetPrototypeMethod(tpl, "errno", GetErrNo);
   Nan::SetPrototypeMethod(tpl, "fd", GetFD);
+  Nan::SetPrototypeMethod(tpl, "installtls", InstallTLS);
+  Nan::SetPrototypeMethod(tpl, "starttls", StartTLS);
   Nan::SetPrototypeMethod(tpl, "checktls", CheckTLS);
 
   constructor.Reset(tpl->GetFunction());
@@ -113,7 +115,6 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
       } else {
         errparam = Nan::Undefined();
       }
-
       switch ( msgtype = ldap_msgtype( message ) ) {
       case LDAP_RES_SEARCH_REFERENCE:
         break;
@@ -241,6 +242,22 @@ void LDAPCnx::Close(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
 
   info.GetReturnValue().Set(ldap_unbind(ld->ld));
+}
+
+void LDAPCnx::StartTLS(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  int msgid;
+  int res;
+  
+  res = ldap_start_tls(ld->ld, NULL, NULL, &msgid);
+  
+  info.GetReturnValue().Set(msgid);
+}
+
+void LDAPCnx::InstallTLS(const Nan::FunctionCallbackInfo<Value>& info) {
+  LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+
+  info.GetReturnValue().Set(ldap_install_tls(ld->ld)); 
 }
 
 void LDAPCnx::CheckTLS(const Nan::FunctionCallbackInfo<Value>& info) {

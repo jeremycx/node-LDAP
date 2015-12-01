@@ -109,6 +109,14 @@ LDAP.prototype.ondisconnect = function() {
     this.options.disconnect();
 };
 
+LDAP.prototype.starttls = function(fn) {
+    return this.enqueue(this.ld.starttls(), fn);
+};
+
+LDAP.prototype.installtls = function() {
+    return this.ld.installtls();
+};
+
 LDAP.prototype.tlsactive = function() {
     return this.ld.checktls();
 };

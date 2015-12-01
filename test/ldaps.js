@@ -8,40 +8,27 @@ var fs = require('fs');
 var ldap;
 
 describe('LDAP TLS', function() {
-    /*
-     this succeeds, but it shouldn't
-     starttls is beta - at best - right now...
     it ('Should fail TLS on cert validation', function(done) {
         this.timeout(10000);
         ldap = new LDAP({
-            uri: 'ldap://localhost:1234',
+            uri: 'ldaps://localhost:1235',
             base: 'dc=sample,dc=com',
-            attrs: '*'
+            attrs: '*',
         }, function(err) {
-            ldap.starttls(function(err) {
-                console.log('ERR', err);
-                assert.ifError(err);
-                ldap.installtls();
-                assert(ldap.tlsactive() == 1);
-                done();
-            });
+            assert.ifError(!err);
+            done();
         });
-    }); */
+    });
     it ('Should connect', function(done) {
         this.timeout(10000);
         ldap = new LDAP({
-            uri: 'ldap://localhost:1234',
+            uri: 'ldaps://localhost:1235',
             base: 'dc=sample,dc=com',
             attrs: '*',
             validatecert: false
         }, function(err) {
             assert.ifError(err);
-            ldap.starttls(function(err) {
-                assert.ifError(err);
-                ldap.installtls();
-                assert(ldap.tlsactive());
-                done();
-            });
+            done();
         });
     });
     it ('Should search via TLS', function(done) {
@@ -80,6 +67,5 @@ describe('LDAP TLS', function() {
     });    
     it ('Should still have TLS', function() {
         assert(ldap.tlsactive());
-        ldap.close();
     });
 });
