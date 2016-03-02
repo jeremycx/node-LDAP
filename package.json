@@ -22,7 +22,7 @@
     "bindings": "^1.2.1",
     "lodash": "^3.10.1",
     "nan": "^2.0.5",
-    "node-gyp": "^1.0.3"
+    "node-gyp": ""
   },
   "engines": {
     "node": ">= 0.8.0"
