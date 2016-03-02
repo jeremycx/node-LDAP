@@ -41,7 +41,7 @@ You will also require the LDAP Development Libraries (on Ubuntu, `sudo apt-get i
 
 Reconnection
 ==========
-If the connection fails during operation, the client library will handle the reconnection, calling the function specified in the reconnect option. This callback is a good place to put bind()s and other things you want to always be in place.
+If the connection fails during operation, the client library will handle the reconnection, calling the function specified in the connect option. This callback is a good place to put bind()s and other things you want to always be in place.
 
 You must close() the instance to stop the reconnect behavior.
 
@@ -65,7 +65,7 @@ var ldap = new LDAP({
     attrs:           '*',               // default attribute list for future searches
     filter:          '(objectClass=*)', // default filter for all future searches
     scope:           LDAP.SUBTREE,      // default scope for all future searches
-    reconnect:       function(),        // optional function to call when connect/reconnect occurs
+    connect:         function(),        // optional function to call when connect/reconnect occurs
     disconnect:      function(),        // optional function to call when disconnect occurs        
 }, function(err) {
     // connected and ready    
@@ -73,12 +73,12 @@ var ldap = new LDAP({
 
 ```
 
-The reconnect handler is called on initial connect as well, so this function is a really good place to do a bind() or any other things you want to set up for every connection.
+The connect handler is called on initial connect as well as on reconnect, so this function is a really good place to do a bind() or any other things you want to set up for every connection.
 
 ```js
 var ldap = new LDAP({
     uri: 'ldap://server',
-    reconnect: function() {
+    connect: function() {
         ldap.bind({
             binddn: 'cn=admin,dc=com',
             password: 'supersecret'
