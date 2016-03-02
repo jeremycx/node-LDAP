@@ -89,6 +89,7 @@ describe('LDAP', function() {
             password: 'foobarbaz'
         }, function(err, data) {
             assert.ifError(err);
+            assert.equal(data.cn, 'Charlie');
             done();
         });
     });
@@ -100,6 +101,7 @@ describe('LDAP', function() {
             password: 'foobarbaz'
         }, function(err, data) {
             assert.ifError(err);
+            assert.equal(data.cn, 'Charlie');
             done();
         });
     });
