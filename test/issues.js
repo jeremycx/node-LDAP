@@ -7,14 +7,15 @@ var assert = require('assert');
 var fs = require('fs');
 var ldap;
 
+var ldapConfig = {
+    schema: 'ldaps://',
+    host: 'localhost:1235'
+};
+var uri = ldapConfig.schema + ldapConfig.host;
+
+
 describe('Issues', function() {
     it('Should fix Issue #80', function(done) {
-        var ldapConfig = {
-            schema: 'ldaps://',
-            host: 'localhost:1235'
-        };
-        var uri = ldapConfig.schema + ldapConfig.host;
-
         ldap = new LDAP({
             uri: uri,
             validatecert: LDAP.LDAP_OPT_X_TLS_NEVER
@@ -33,6 +34,21 @@ describe('Issues', function() {
             done();
         });
 
+    });
+    it('Connect context should be ldap object - Issue #84', function(done) {
+        ldap = new LDAP({
+            uri: uri,
+            validatecert: LDAP.LDAP_OPT_X_TLS_NEVER,
+            connect: function() {
+                assert(typeof this.bind === 'function');
+                ldap.bind({binddn: 'cn=Manager,dc=sample,dc=com', password: 'secret'}, function(err) {
+                    assert.ifError(err);
+                    done();
+                });
+	    }
+        }, function (err) {
+            assert.ifError(err);
+        });
     });
     it('Base scope should work - Issue #81', function(done) {
         assert.equal(ldap.DEFAULT, 4, 'ldap.DEFAULT const is not zero');

@@ -101,7 +101,7 @@ function LDAP(opt, fn) {
 
 LDAP.prototype.onconnect = function() {
     this.stats.reconnects++;
-    return this.options.connect();
+    return this.options.connect.call(this);
 };
 
 LDAP.prototype.ondisconnect = function() {
