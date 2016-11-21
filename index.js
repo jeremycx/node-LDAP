@@ -155,7 +155,13 @@ LDAP.prototype.search = function(opt, fn) {
     return this.enqueue(this.ld.search(arg(opt.base   , this.options.base),
                                        arg(opt.filter , this.options.filter),
                                        arg(opt.attrs  , this.options.attrs),
-                                       arg(opt.scope  , this.options.scope)), fn);
+                                       arg(opt.scope  , this.options.scope),
+                                       arg(opt.pagesize, this.options.pagesize),
+                                       arg(opt.cookie,  null)
+                                       ), unwrap_cookie);
+    function unwrap_cookie(err, data) {
+      fn(err, data.data, data.cookie);
+    }
 };
 
 LDAP.prototype.rename = function(dn, newrdn, fn) {
