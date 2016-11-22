@@ -178,36 +178,31 @@ Example of search result:
 Attributes themselves are usually returned as strings. There is a list of known
 binary attribute names hardcoded in C++ binding sources. Those are always
 returned as Buffers, but the list is incomplete so far. 
+
 Paged Search Results
 ===
-NB: Paged search results are not currently implemented.
 
 LDAP servers are usually limited in how many items they are willing to return -
-1024 or 4096 are some typical values. For larger LDAP directories, you need to
-either partition your results with filter, or use paged search. To get
-a paged search, add the following attributes to your search request:
+for example 1000 is Microsoft AD LDS default limit. To get around this limit
+for larger directories, you have to use paging (as long as the server supports
+it, it's an optional feature). To get paged search, add the "pagesize" attribute
+to your search request:
 
 ```js
 search_options = {
-    base: '',
-    scope: '',
-    filter: '',
-    attrs: '',
+    ...,
     pagesize: n
 }
-```
+ldap.search(search_options, on_data);
 
-The callback will be called with a new parameter: cookie. Pass this
-cookie back in subsequent searches to get the next page of results:
-
-```js
-search_options = {
-    base: '',
-    scope: '',
-    filter: '',
-    attrs: '',
-    pagesize: n,
-    cookie: cookie
+function on_data(err,data,cookie) {
+  // handle errors, deal with received data and...
+  if (cookie) { // more data available
+    search_options.cookie = cookie;
+    ldap.search(search_options, on_data);
+  } else {
+    // search is complete
+  }
 }
 ```
 
@@ -413,11 +408,5 @@ TODO Items
 ===
 Basically, these are features I don't really need myself.
 
-* Paged search results
 * Filter escaping
 
-Notes on Paged Results
-===
-To properly implement paged search results, we need to create another C++ class that represents the page cookie. This class should be instantiated to store the pointer to the ber cookie, and properly destroy itself when it goes out of scope. This object should be returned as part of the search results. 
-
-[myobject.cc](https://github.com/nodejs/node-addon-examples/blob/master/8_passing_wrapped/nan/myobject.cc) seems to be a pretty good template.

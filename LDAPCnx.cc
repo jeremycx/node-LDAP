@@ -1,4 +1,5 @@
 #include "LDAPCnx.h"
+#include "LDAPCookie.h"
 
 static struct timeval ldap_tv = { 0, 0 };
 
@@ -157,11 +158,38 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
             ber_free(berptr,0);
             ldap_memfree(dn);
           } // all entries done.
+
+          Local<Object> result_container = Nan::New<Object>();
+          result_container->Set(Nan::New("data").ToLocalChecked(), js_result_list);
+
+          LDAPControl** serverCtrls;
+          ldap_parse_result(ld->ld, message,
+              NULL, // int* errcodep
+              NULL, // char** matcheddnp
+              NULL, // char** errmsp
+              NULL, // char*** referralsp
+              &serverCtrls,
+              0     // freeit
+              );
+          if (serverCtrls) {
+            struct berval* cookie = NULL;
+            ldap_parse_page_control(ld->ld, serverCtrls, NULL, &cookie);
+            if (!cookie || cookie->bv_val == NULL || !*cookie->bv_val) {
+              if (cookie)
+                ber_bvfree(cookie);
+            } else {
+              Local<Object> cookieWrap = LDAPCookie::NewInstance();
+              LDAPCookie* cookieContainer = ObjectWrap::Unwrap<LDAPCookie>(cookieWrap);
+              cookieContainer->SetCookie(cookie);
+              result_container->Set(Nan::New("cookie").ToLocalChecked(), cookieWrap);
+            }
+            ldap_controls_free(serverCtrls);
+          }
   
           Local<Value> argv[] = {
             errparam,
             Nan::New(ldap_msgid(message)),
-            js_result_list
+            result_container
           };
           ld->callback->Call(3, argv);
           break;
@@ -320,6 +348,8 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<Value>& info) {
   Nan::Utf8String filter(info[1]);
   Nan::Utf8String attrs(info[2]);
   int scope = info[3]->NumberValue();
+  int pagesize = info[4]->NumberValue();;
+  LDAPCookie* cookie = NULL;
   
   int msgid = 0;
   char * attrlist[255];
@@ -332,8 +362,24 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<Value>& info) {
       if (++ap >= &attrlist[255])
         break;
 
+  LDAPControl* page_control[2];
+  page_control[0] = NULL;
+  page_control[1] = NULL;
+  if (pagesize > 0) {
+    if (info[5]->IsObject() && !info[5]->ToObject().IsEmpty())
+      cookie = Nan::ObjectWrap::Unwrap<LDAPCookie>(info[5]->ToObject());
+    if (cookie) {
+      ldap_create_page_control(ld->ld, pagesize, cookie->GetCookie(), 0, &page_control[0]);
+    } else {
+      ldap_create_page_control(ld->ld, pagesize, NULL, 0, &page_control[0]);
+    }
+  }
+
   ldap_search_ext(ld->ld, *base, scope, *filter , (char **)attrlist, 0,
-                         NULL, NULL, NULL, 0, &msgid);
+                         page_control, NULL, NULL, 0, &msgid);
+  if (pagesize > 0) {
+    ldap_control_free(page_control[0]);
+  }
 
   free(bufhead);
   
