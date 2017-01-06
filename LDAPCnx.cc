@@ -28,6 +28,7 @@ void LDAPCnx::Init(Local<Object> exports) {
   Nan::SetPrototypeMethod(tpl, "search", Search);
   Nan::SetPrototypeMethod(tpl, "delete", Delete);
   Nan::SetPrototypeMethod(tpl, "bind", Bind);
+  Nan::SetPrototypeMethod(tpl, "saslbind", SASLBind);
   Nan::SetPrototypeMethod(tpl, "add", Add);
   Nan::SetPrototypeMethod(tpl, "modify", Modify);
   Nan::SetPrototypeMethod(tpl, "rename", Rename);
@@ -195,6 +196,27 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
           break;
         }
       case LDAP_RES_BIND:
+        {
+            int msgid = ldap_msgid(message);
+
+            if(err == LDAP_SASL_BIND_IN_PROGRESS) {
+              err = ld->SASLBindNext(message);
+              if(err != LDAP_SUCCESS) {
+                errparam = Nan::Error(ldap_err2string(err));
+              }
+              else {
+                errparam = Nan::Undefined();
+              }
+            }
+
+            Local<Value> argv[] = {
+              errparam,
+              Nan::New(msgid)
+            };
+            ld->callback->Call(2, argv);
+
+          break;
+        }
       case LDAP_RES_MODIFY:
       case LDAP_RES_MODDN:
       case LDAP_RES_ADD:

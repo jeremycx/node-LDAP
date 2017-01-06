@@ -25,6 +25,7 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void Search      (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Delete      (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Bind        (const Nan::FunctionCallbackInfo<v8::Value>& info);
+  static void SASLBind    (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Add         (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Modify      (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void Rename      (const Nan::FunctionCallbackInfo<v8::Value>& info);
@@ -37,6 +38,9 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void InstallTLS  (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static void CheckTLS    (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static int isBinary     (char * attrname);
+
+  int SASLBindNext(LDAPMessage* result);
+  const char* sasl_mechanism;
 
   ldap_conncb * ldap_callback;
   uv_poll_t * handle;
