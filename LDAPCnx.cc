@@ -200,7 +200,7 @@ void LDAPCnx::Event(uv_poll_t* handle, int status, int events) {
             int msgid = ldap_msgid(message);
 
             if(err == LDAP_SASL_BIND_IN_PROGRESS) {
-              err = ld->SASLBindNext(message);
+              err = ld->SASLBindNext(&message);
               if(err != LDAP_SUCCESS) {
                 errparam = Nan::Error(ldap_err2string(err));
               }

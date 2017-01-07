@@ -38,25 +38,26 @@ void LDAPCnx::SASLBind(const Nan::FunctionCallbackInfo<Value>& info) {
   info.GetReturnValue().Set(msgid);
 }
 
-int LDAPCnx::SASLBindNext(LDAPMessage* message) {
+int LDAPCnx::SASLBindNext(LDAPMessage** message) {
   LDAPControl** sctrlsp = NULL;
   int res; 
   int msgid;
-  do {
+  while(true) {
     res = ldap_sasl_interactive_bind(ld, NULL, NULL,
       sctrlsp, NULL, LDAP_SASL_QUIET, NULL, NULL,
-      message, &sasl_mechanism, &msgid);
+      *message, &sasl_mechanism, &msgid);
 
     if(res != LDAP_SASL_BIND_IN_PROGRESS) {
       break;
     }
 
-    if(ldap_result(ld, msgid, LDAP_MSG_ALL, NULL, &message) != LDAP_SUCCESS) { 
+    ldap_msgfree(*message);
+
+    if(ldap_result(ld, msgid, LDAP_MSG_ALL, NULL, message) != LDAP_SUCCESS) { 
       ldap_get_option(ld, LDAP_OPT_RESULT_CODE, &res);
       break;
     }
-
-  } while(res == LDAP_SASL_BIND_IN_PROGRESS);
+  }
 
   return res;
 }

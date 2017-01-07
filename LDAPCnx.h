@@ -39,7 +39,7 @@ class LDAPCnx : public Nan::ObjectWrap {
   static void CheckTLS    (const Nan::FunctionCallbackInfo<v8::Value>& info);
   static int isBinary     (char * attrname);
 
-  int SASLBindNext(LDAPMessage* result);
+  int SASLBindNext(LDAPMessage** result);
   const char* sasl_mechanism;
 
   ldap_conncb * ldap_callback;
