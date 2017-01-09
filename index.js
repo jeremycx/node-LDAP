@@ -141,6 +141,29 @@ LDAP.prototype.bind = LDAP.prototype.simplebind = function(opt, fn) {
     return this.enqueue(this.ld.bind(opt.binddn, opt.password), fn);
 };
 
+LDAP.prototype.saslbind = function(opt, fn) {
+
+    this.stats.binds++;
+
+    if(arguments.length == 1 && typeof arguments[0] === 'function') {
+      fn = opt;
+      opt = undefined;
+    }
+
+    var args = [
+        'mechanism','user','password','realm','proxyuser','securityproperties'
+    ].map(function(p) { return opt == null ? undefined : opt[p]; });
+
+    if (args.filter(function(a) {
+        return a != null && typeof a !== 'string';
+       }).length || 
+       typeof fn !== 'function') {
+       throw new LDAPError('Invalid argument');
+    }
+
+    return this.enqueue(this.ld.saslbind.apply(this.ld, args), fn);
+};
+
 LDAP.prototype.add = function(dn, attrs, fn) {
     this.stats.adds++;
     if (typeof dn    !== 'string' ||
@@ -160,7 +183,7 @@ LDAP.prototype.search = function(opt, fn) {
                                        arg(opt.cookie,  null)
                                        ), unwrap_cookie);
     function unwrap_cookie(err, data) {
-      fn(err, data.data, data.cookie);
+      err ? fn(err) : fn(err, data.data, data.cookie);
     }
 };
 

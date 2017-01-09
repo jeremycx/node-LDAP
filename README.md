@@ -39,6 +39,9 @@ To install the latest release from npm:
 
 You will also require the LDAP Development Libraries (on Ubuntu, `sudo apt-get install libldap2-dev`)
 
+For SASL authentication support the Cyrus SASL libraries need to be installed
+and OpenLDAP needs to be built with SASL support.
+
 Reconnection
 ==========
 If the connection fails during operation, the client library will handle the reconnection, calling the function specified in the connect option. This callback is a good place to put bind()s and other things you want to always be in place.
@@ -120,6 +123,32 @@ bind_options = {
 }
 ```
 Aliased to `ldap.simplebind()` for backward compatibility.
+
+
+ldap.saslbind()
+===
+Upgrade the existing anonymous bind to an authenticated bind using SASL.
+
+    ldap.saslbind([bind_options,] function(err));
+
+Options are: 
+
+* mechanism - If not provided SASL library will select based on the best 
+  mechanism available on the server.
+* user - Authentication user if required by mechanism
+* password - Authentication user's password if required by mechanism
+* realm - Non-default SASL realm if required by mechanism
+* proxyuser - Authorization (proxy) user if supported by mechanism
+* securityproperties - Optional SASL security properties
+
+All parameters are optional.  For example a GSSAPI (Kerberos) bind can be
+initiated as follows:
+
+```
+	ldap.saslbind(function(err) { if(err) throw err; });
+```
+
+For details refer to the [SASL documentation](http://cyrusimap.org/docs/cyrus-sasl).
 
 
 ldap.search()

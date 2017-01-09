@@ -1,0 +1,15 @@
+dn: cn=test_user,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: test_user
+sn: test_user
+userPassword: secret
+
+dn: cn=test_admin,dc=sample,dc=com
+objectClass: organizationalPerson
+objectClass: person
+objectClass: top
+cn: test_admin
+sn: test_admin
+authzFrom: u:test_user
