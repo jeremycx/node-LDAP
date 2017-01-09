@@ -53,7 +53,7 @@ int LDAPCnx::SASLBindNext(LDAPMessage** message) {
 
     ldap_msgfree(*message);
 
-    if(ldap_result(ld, msgid, LDAP_MSG_ALL, NULL, message) != LDAP_SUCCESS) { 
+    if(ldap_result(ld, msgid, LDAP_MSG_ALL, NULL, message) == -1) { 
       ldap_get_option(ld, LDAP_OPT_RESULT_CODE, &res);
       break;
     }
