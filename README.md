@@ -82,7 +82,7 @@ The connect handler is called on initial connect as well as on reconnect, so thi
 var ldap = new LDAP({
     uri: 'ldap://server',
     connect: function() {
-        ldap.bind({
+        this.bind({
             binddn: 'cn=admin,dc=com',
             password: 'supersecret'
         }, function(err) {
