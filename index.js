@@ -6,13 +6,21 @@ var binding = require('bindings')('LDAPCnx');
 var LDAPError = require('./LDAPError');
 var assert = require('assert');
 var util = require('util');
-var _ = require('lodash');
 
 function arg(val, def) {
     if (val !== undefined) {
         return val;
     }
     return def;
+}
+
+function extendobj(target, other) {
+  var keys = Object.keys(other);
+  for (var index = 0; index < keys.length; ++index) {
+    var key = keys[index];
+    target[key] = other[key];
+  }
+  return target;
 }
 
 var escapes = {
@@ -65,7 +73,7 @@ function LDAP(opt, fn) {
     this.queue = {};
     this.stats = new Stats();
 
-    this.options = _.assign({
+    this.options = extendobj({
         base:         'dc=com',
         filter:       '(objectClass=*)',
         scope:        2,
