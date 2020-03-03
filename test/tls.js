@@ -89,7 +89,6 @@ describe('LDAP TLS', function() {
             base: 'dc=sample,dc=com',
             attrs: '*',
             validatecert: true,
-	    debug: false,
             ca: "test/certs/ca.crt"
         }, function(err) {
             assert.ifError(err);
@@ -108,6 +107,30 @@ describe('LDAP TLS', function() {
                         done();
                     });
             });
+        });
+    });
+    it ('Should not validate cert', function(done) {
+        this.timeout(10000);
+        const ldap = new LDAP({
+            uri: 'ldap://localhost:1234',
+            base: 'dc=sample,dc=com',
+            attrs: '*',
+            validatecert: true,
+            ca: "test/certs/wrongca.crt"
+        }, function(err) {
+            assert.ifError(err);
+            ldap.starttls(function(err) {
+                assert.ifError(err);
+                ldap.installtls();
+                assert(ldap.tlsactive());
+                ldap.search({
+                    filter: '(cn=babs)',
+                    scope:  LDAP.SUBTREE
+                    }, function(err, res) {
+                        assert.ifError(!err);
+                        done();
+                    });
+          });
         });
     });
 });

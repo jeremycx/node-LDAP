@@ -77,8 +77,9 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
 
     struct timeval ntimeout = { timeout/1000, (timeout%1000) * 1000 };
 
-    if (!info[8]->IsUndefined())
-      ldap_set_option (ld->ld, LDAP_OPT_X_TLS_CACERTFILE, *cacertfile);
+    if (!info[8]->IsUndefined()) {
+      ldap_set_option(ld->ld, LDAP_OPT_X_TLS_CACERTFILE, *cacertfile);
+    }
 
     ldap_set_option(ld->ld, LDAP_OPT_PROTOCOL_VERSION,   &ver);
     ldap_set_option(NULL,   LDAP_OPT_DEBUG_LEVEL,        &debug);
