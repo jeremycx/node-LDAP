@@ -98,7 +98,8 @@ function LDAP(opt, fn) {
                                   this.options.ntimeout,
                                   this.options.debug,
                                   this.options.validatecert,
-                                  this.options.referrals);
+                                  this.options.referrals,
+                                  this.options.ca);
                                   
     if (typeof fn !== 'function') {
         fn = function() {};

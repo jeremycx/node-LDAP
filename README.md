@@ -63,6 +63,7 @@ var LDAP = require('ldap-client');
 var ldap = new LDAP({
     uri:             'ldap://server',   // string
     validatecert:    false,             // Verify server certificate
+    ca:              "ca.pem",          // optional path of a ca certificate file
     connecttimeout:  -1,                // seconds, default is -1 (infinite timeout), connect timeout
     base:            'dc=com',          // default base for all future searches
     attrs:           '*',               // default attribute list for future searches
@@ -94,7 +95,7 @@ var ldap = new LDAP({
 
 TLS
 ===
-TLS can be used via the ldaps:// protocol string in the URI attribute on instantiation. If you want to eschew server certificate checking (if you have a self-signed cserver certificate, for example), you can set the `verifycert` attribute to `LDAP.LDAP_OPT_X_TLS_NEVER`, or one of the following values:
+TLS can be used via the ldaps:// protocol string in the URI attribute on instantiation. If you want to eschew server certificate checking, you can set the `verifycert` attribute to `LDAP.LDAP_OPT_X_TLS_NEVER`, or one of the following values:
 
 ```js
 var LDAP=require('ldap-client');
