@@ -41,8 +41,11 @@ void LDAPCnx::Init(Local<Object> exports) {
   Nan::SetPrototypeMethod(tpl, "starttls", StartTLS);
   Nan::SetPrototypeMethod(tpl, "checktls", CheckTLS);
 
-  constructor.Reset(tpl->GetFunction());
-  exports->Set(Nan::New("LDAPCnx").ToLocalChecked(), tpl->GetFunction());
+  v8::Local<v8::Context> context = exports->CreationContext();
+  
+
+  constructor.Reset(tpl->GetFunction(context).ToLocalChecked());
+  exports->Set(Nan::New("LDAPCnx").ToLocalChecked(), tpl->GetFunction(context).ToLocalChecked());
 }
 
 void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
@@ -51,6 +54,9 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
     LDAPCnx* ld = new LDAPCnx();
     ld->Wrap(info.Holder());
 
+
+    v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+
     ld->callback = new Nan::Callback(info[0].As<Function>());
     ld->reconnect_callback = new Nan::Callback(info[1].As<Function>());
     ld->disconnect_callback = new Nan::Callback(info[2].As<Function>());
@@ -58,10 +64,10 @@ void LDAPCnx::New(const Nan::FunctionCallbackInfo<Value>& info) {
 
     Nan::Utf8String       url(info[3]);  
     int ver             = LDAP_VERSION3;
-    int timeout         = info[4]->NumberValue();
-    int debug           = info[5]->NumberValue();
-    int verifycert      = info[6]->NumberValue();
-    int referrals       = info[7]->NumberValue();
+    int timeout         = info[4]->NumberValue(context).FromJust();
+    int debug           = info[5]->NumberValue(context).FromJust();
+    int verifycert      = info[6]->NumberValue(context).FromJust();
+    int referrals       = info[7]->NumberValue(context).FromJust();
     int zero            = 0;
 
     ld->ldap_callback = (ldap_conncb *)malloc(sizeof(ldap_conncb));
@@ -318,8 +324,8 @@ void LDAPCnx::CheckTLS(const Nan::FunctionCallbackInfo<Value>& info) {
 
 void LDAPCnx::Abandon(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
-
-  info.GetReturnValue().Set(ldap_abandon(ld->ld, info[0]->NumberValue()));
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
+  info.GetReturnValue().Set(ldap_abandon(ld->ld, info[0]->NumberValue(context).FromJust()));
 }
 
 void LDAPCnx::GetErrNo(const Nan::FunctionCallbackInfo<Value>& info) {
@@ -366,11 +372,12 @@ void LDAPCnx::Rename(const Nan::FunctionCallbackInfo<Value>& info) {
 
 void LDAPCnx::Search(const Nan::FunctionCallbackInfo<Value>& info) {
   LDAPCnx* ld = ObjectWrap::Unwrap<LDAPCnx>(info.Holder());
+  v8::Local<v8::Context> context = info.GetIsolate()->GetCurrentContext();
   Nan::Utf8String base(info[0]);
   Nan::Utf8String filter(info[1]);
   Nan::Utf8String attrs(info[2]);
-  int scope = info[3]->NumberValue();
-  int pagesize = info[4]->NumberValue();;
+  int scope = info[3]->NumberValue(context).FromJust();
+  int pagesize = info[4]->NumberValue(context).FromJust();;
   LDAPCookie* cookie = NULL;
   
   int msgid = 0;
@@ -388,8 +395,8 @@ void LDAPCnx::Search(const Nan::FunctionCallbackInfo<Value>& info) {
   page_control[0] = NULL;
   page_control[1] = NULL;
   if (pagesize > 0) {
-    if (info[5]->IsObject() && !info[5]->ToObject().IsEmpty())
-      cookie = Nan::ObjectWrap::Unwrap<LDAPCookie>(info[5]->ToObject());
+    if (info[5]->IsObject() && !info[5]->ToObject(context).IsEmpty())
+      cookie = Nan::ObjectWrap::Unwrap<LDAPCookie>(info[5]->ToObject(context).ToLocalChecked());
     if (cookie) {
       ldap_create_page_control(ld->ld, pagesize, cookie->GetCookie(), 0, &page_control[0]);
     } else {
@@ -423,7 +430,7 @@ void LDAPCnx::Modify(const Nan::FunctionCallbackInfo<Value>& info) {
 
     ldapmods[i] = (LDAPMod *) malloc(sizeof(LDAPMod));
       
-    String::Utf8Value mod_op(modHandle->Get(Nan::New("op").ToLocalChecked()));
+    Nan::Utf8String mod_op(modHandle->Get(Nan::New("op").ToLocalChecked()));
 
     if (!strcmp(*mod_op, "add")) {
       ldapmods[i]->mod_op = LDAP_MOD_ADD;
@@ -433,7 +440,7 @@ void LDAPCnx::Modify(const Nan::FunctionCallbackInfo<Value>& info) {
       ldapmods[i]->mod_op = LDAP_MOD_REPLACE;
     }
 
-    String::Utf8Value mod_type(modHandle->Get(Nan::New("attr").ToLocalChecked()));
+    Nan::Utf8String mod_type(modHandle->Get(Nan::New("attr").ToLocalChecked()));
     ldapmods[i]->mod_type = strdup(*mod_type);
     
     Local<Array> modValsHandle =
@@ -474,7 +481,7 @@ void LDAPCnx::Add(const Nan::FunctionCallbackInfo<Value>& info) {
     ldapmods[i]->mod_op = LDAP_MOD_ADD;
 
     // Step 2: mod_type
-    String::Utf8Value mod_type(attrHandle->Get(Nan::New("attr").ToLocalChecked()));
+    Nan::Utf8String mod_type(attrHandle->Get(Nan::New("attr").ToLocalChecked()));
     ldapmods[i]->mod_type = strdup(*mod_type);
 
     // Step 3: mod_vals

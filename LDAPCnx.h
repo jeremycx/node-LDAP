@@ -4,6 +4,12 @@
 #include <nan.h>
 #include <ldap.h>
 
+
+namespace v8 {
+    template <class T>
+    using Handle = Local<T>;
+}
+
 class LDAPCnx : public Nan::ObjectWrap {
  public:
   static void Init(v8::Local<v8::Object> exports);

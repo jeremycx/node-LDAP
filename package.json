@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "bindings": "^1.2.1",
-    "nan": "^2.12.1",
-    "node-gyp": ""
+    "nan": "^2.14.1",
+    "node-gyp": "^6.1.0"
   },
   "engines": {
     "node": ">= 0.8.0"

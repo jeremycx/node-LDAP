@@ -20,13 +20,14 @@ LDAPCookie::~LDAPCookie() {
 
 void LDAPCookie::Init(v8::Local<v8::Object> exports) {
   Nan::HandleScope scope;
+  v8::Local<v8::Context> context = exports->CreationContext();
   v8::Local<v8::FunctionTemplate> tpl = Nan::New<v8::FunctionTemplate>(New);
   // legal? No idea, just an attempt to prevent polluting javascript global namespace with
   // something that doesn't make sense to construct from JS side. Appears to work (doesn't
   // crash, paging works).
   // tpl->SetClassName(Nan::New("LDAPInternalCookie").ToLocalChecked());
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor.Reset(tpl->GetFunction());
+  constructor.Reset(tpl->GetFunction(context).ToLocalChecked());
 }
 
 v8::Local<v8::Object> LDAPCookie::NewInstance() {
