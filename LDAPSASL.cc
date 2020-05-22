@@ -12,9 +12,9 @@ void LDAPCnx::SASLBind(const Nan::FunctionCallbackInfo<Value>& info) {
     Nan::ThrowError("LDAP connection has not been established");
   }
 
-  v8::String::Utf8Value mechanism(SASLDefaults::Get(info[0]));
+  Nan::Utf8String mechanism(SASLDefaults::Get(info[0]));
   SASLDefaults defaults(info[1], info[2], info[3], info[4]);
-  v8::String::Utf8Value sec_props(SASLDefaults::Get(info[5]));
+  Nan::Utf8String sec_props(SASLDefaults::Get(info[5]));
 
   if(*sec_props) {
     int res = ldap_set_option(ld->ld, LDAP_OPT_X_SASL_SECPROPS, *sec_props);

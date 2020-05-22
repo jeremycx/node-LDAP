@@ -21,10 +21,10 @@ struct SASLDefaults {
 
   static int Callback(LDAP *ld, unsigned flags, void *defaults, void *in);
 
-  v8::String::Utf8Value user;
-  v8::String::Utf8Value password;
-  v8::String::Utf8Value realm;
-  v8::String::Utf8Value proxy_user;
+  Nan::Utf8String user;
+  Nan::Utf8String password;
+  Nan::Utf8String realm;
+  Nan::Utf8String proxy_user;
 
 private:
   void Set(unsigned flags, sasl_interact_t *interact);
