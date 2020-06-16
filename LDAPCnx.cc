@@ -269,6 +269,7 @@ void LDAPCnx::OnDisconnect(LDAP *ld, Sockbuf *sb,
   LDAPCnx * lc = (LDAPCnx *)ctx->lc_arg;
   if (lc->handle) {
     uv_poll_stop(lc->handle);
+    lc->handle = NULL;
   }
   lc->disconnect_callback->Call(0, NULL);
 }
