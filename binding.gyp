@@ -8,9 +8,6 @@
  	 	"<!(node -e \"require('nan')\")",
                 "/usr/local/include"
 	    ],
-            "libraries": [
-                "-lldap"
-            ],
             "defines": [
                 "LDAP_DEPRECATED"
             ],
@@ -24,12 +21,19 @@
             "conditions": [
                 [ "SASL==\"n\"", { "sources!": 
                   ["LDAPSASL.cc", "SASLDefaults.cc"] } ], 
-                [ "SASL==\"y\"", { "sources!": ["LDAPXSASL.cc"] } ]
+                [ "SASL==\"y\"", { "sources!": ["LDAPXSASL.cc"] } ],
+		['OS=="linux" and NODE_VERSION > 9', {
+		    "libraries": [ "../deps/libldap.a", "../deps/liblber.a", "-lresolv", "-lsasl2" ],
+                    "include_dirs": [ "deps/include" ]
+		}, {
+		    "libraries": [ "-lldap" ]
+		}]
             ]
         }
     ],
     "variables": {
-      "SASL": "<!(test -f /usr/include/sasl/sasl.h && echo y || echo n)"
+      "SASL": "<!(test -f /usr/include/sasl/sasl.h && echo y || echo n)",
+      "NODE_VERSION": "<!(node --version | cut -d. -f1 | cut -dv -f2)"
     },
     "conditions": [
         [
